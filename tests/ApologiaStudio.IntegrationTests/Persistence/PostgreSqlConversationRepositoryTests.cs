@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApologiaStudio.IntegrationTests.Persistence;
 
+[Collection(PostgreSqlDatabaseCollection.Name)]
 public sealed class PostgreSqlConversationRepositoryTests
 {
     [Fact]

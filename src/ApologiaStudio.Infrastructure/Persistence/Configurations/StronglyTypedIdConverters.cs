@@ -1,4 +1,5 @@
 using ApologiaStudio.Domain.Agents;
+using ApologiaStudio.Domain.BibleCorpora;
 using ApologiaStudio.Domain.Conversations;
 using ApologiaStudio.Domain.Users;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -7,6 +8,30 @@ namespace ApologiaStudio.Infrastructure.Persistence.Configurations;
 
 internal static class StronglyTypedIdConverters
 {
+    public static ValueConverter<BibleCorpusVersionId, Guid>
+        BibleCorpusVersionIdConverter
+    { get; } = new(
+            id => id.Value,
+            value => new BibleCorpusVersionId(value));
+
+    public static ValueConverter<BibleEditionCode, string>
+        BibleEditionCodeConverter
+    { get; } = new(
+            code => code.Value,
+            value => new BibleEditionCode(value));
+
+    public static ValueConverter<UsfmBookCode, string>
+        UsfmBookCodeConverter
+    { get; } = new(
+            code => code.Value,
+            value => new UsfmBookCode(value));
+
+    public static ValueConverter<Sha256Digest, string>
+        Sha256DigestConverter
+    { get; } = new(
+            digest => digest.Value,
+            value => new Sha256Digest(value));
+
     public static ValueConverter<ConversationId, Guid>
         ConversationIdConverter
     { get; } = new(
