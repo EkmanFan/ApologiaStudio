@@ -1,6 +1,9 @@
 @page "/"
 
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.Extensions.DependencyInjection
+@using ApologiaStudio.Application.Abstractions.Conversations
+@using ApologiaStudio.Application.Abstractions.Identity
 @using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.Application.Agents
 @using ApologiaStudio.Application.Conversations.CreateConversation
@@ -10,8 +13,7 @@
 
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-@inject CreateConversationHandler CreateConversationHandler
-@inject SendMessageHandler SendMessageHandler
+@inject IServiceScopeFactory ServiceScopeFactory
 
 <PageTitle>Apologia Studio</PageTitle>
 
@@ -165,8 +167,26 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await using var scope =
+            ServiceScopeFactory.CreateAsyncScope();
+
+        var repository =
+            scope.ServiceProvider
+                .GetRequiredService<IConversationRepository>();
+
+        var currentUser =
+            scope.ServiceProvider
+                .GetRequiredService<ICurrentUser>();
+
+        var createConversationHandler =
+            scope.ServiceProvider
+                .GetRequiredService<CreateConversationHandler>();
+
         _conversation =
-            await CreateConversationHandler.HandleAsync(
+            await repository.GetLatestByOwnerAsync(
+                currentUser.UserId,
+                CancellationToken.None)
+            ?? await createConversationHandler.HandleAsync(
                 new CreateConversationCommand(
                     "Nouvelle discussion"),
                 CancellationToken.None);
@@ -199,6 +219,7 @@ else
         }
 
         var content = _draft.Trim();
+        var conversationId = _conversation.Id;
 
         _draft = string.Empty;
         _streamingText = string.Empty;
@@ -209,14 +230,25 @@ else
 
         try
         {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var sendMessageHandler =
+                scope.ServiceProvider
+                    .GetRequiredService<SendMessageHandler>();
+
+            var conversationRepository =
+                scope.ServiceProvider
+                    .GetRequiredService<IConversationRepository>();
+
             var command = new SendMessageCommand(
-                _conversation.Id,
+                conversationId,
                 content,
                 ResolveRequestedAgentId());
 
             await foreach (
                 var agentEvent in
-                SendMessageHandler.HandleAsync(
+                sendMessageHandler.HandleAsync(
                     command,
                     CancellationToken.None))
             {
@@ -229,6 +261,14 @@ else
                         _routingReason =
                             selected.Reason;
 
+                        _conversation =
+                            await conversationRepository
+                                .GetByIdAsync(
+                                    conversationId,
+                                    CancellationToken.None)
+                            ?? throw new InvalidOperationException(
+                                "The conversation could not be reloaded.");
+
                         break;
 
                     case TextDeltaEvent delta:
@@ -238,6 +278,14 @@ else
                         break;
 
                     case AgentTurnCompletedEvent:
+                        _conversation =
+                            await conversationRepository
+                                .GetByIdAsync(
+                                    conversationId,
+                                    CancellationToken.None)
+                            ?? throw new InvalidOperationException(
+                                "The completed conversation could not be reloaded.");
+
                         _streamingText =
                             string.Empty;
 

@@ -1,12 +1,10 @@
 using ApologiaStudio.AgentRuntime.Execution;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.Application.Abstractions.Agents;
-using ApologiaStudio.Application.Abstractions.Conversations;
 using ApologiaStudio.Application.Abstractions.Identity;
-using ApologiaStudio.Application.Abstractions.Persistence;
 using ApologiaStudio.Application.Conversations.CreateConversation;
 using ApologiaStudio.Application.Conversations.SendMessage;
-using ApologiaStudio.Infrastructure.InMemory;
+using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.Components;
 using ApologiaStudio.Web.Identity;
 
@@ -16,13 +14,8 @@ builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddScoped<
-    IConversationRepository,
-    InMemoryConversationRepository>();
-
-builder.Services.AddScoped<
-    IUnitOfWork,
-    InMemoryUnitOfWork>();
+builder.Services.AddInfrastructure(
+    builder.Configuration);
 
 builder.Services.AddScoped<
     ICurrentUser,

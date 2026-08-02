@@ -1,0 +1,41 @@
+using ApologiaStudio.Application.Abstractions.Conversations;
+using ApologiaStudio.Application.Abstractions.Persistence;
+using ApologiaStudio.Infrastructure.Persistence;
+using ApologiaStudio.Infrastructure.Persistence.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace ApologiaStudio.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString =
+            configuration.GetConnectionString(
+                "ApologiaStudio");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Connection string 'ApologiaStudio' was not configured.");
+        }
+
+        services.AddDbContext<ApologiaStudioDbContext>(
+            options =>
+                options.UseNpgsql(connectionString));
+
+        services.AddScoped<
+            IConversationRepository,
+            EfConversationRepository>();
+
+        services.AddScoped<
+            IUnitOfWork,
+            EfUnitOfWork>();
+
+        return services;
+    }
+}

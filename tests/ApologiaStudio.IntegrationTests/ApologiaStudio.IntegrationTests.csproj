@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ApologiaStudio.Application\ApologiaStudio.Application.csproj" />
     <ProjectReference Include="..\..\src\ApologiaStudio.Infrastructure\ApologiaStudio.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ApologiaStudio.Domain\ApologiaStudio.Domain.csproj" />
   </ItemGroup>
 
 </Project>
