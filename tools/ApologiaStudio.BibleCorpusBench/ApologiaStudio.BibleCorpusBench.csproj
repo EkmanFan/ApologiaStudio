@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SIL.Machine" Version="3.9.1" />
+    <ProjectReference Include="..\..\src\ApologiaStudio.Infrastructure\ApologiaStudio.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

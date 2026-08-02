@@ -26,7 +26,8 @@ public sealed record ParsedWordAnnotation(
     string Marker,
     string Name,
     string Value,
-    int CharacterOffset);
+    int CharacterOffset,
+    int CharacterLength);
 
 public sealed record ParsedSupplementalText(
     string Marker,

@@ -29,4 +29,5 @@ dotnet run \
   --usfm "$3" \
   --vpl "$4" \
   --expected-books 66 \
+  --exclude-usfm FRT,GLO \
   --report "$report_directory/web.json"

@@ -32,6 +32,9 @@ public sealed class BibleCorpusBenchTests
         Assert.Equal(
             "H7225",
             Assert.Single(result.Verses[new VerseKey("GEN", 1, "1")].WordAnnotations).Value);
+        Assert.Equal(
+            9,
+            Assert.Single(result.Verses[new VerseKey("GEN", 1, "1")].WordAnnotations).CharacterLength);
     }
 
     [Fact]
@@ -52,6 +55,39 @@ public sealed class BibleCorpusBenchTests
             new UsfmCorpusReader().Read(fixture.Path));
 
         Assert.Contains("Unknown paragraph marker", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BenchmarkCli_excludes_configured_non_canonical_Usfm_documents()
+    {
+        using var usfmFixture = CorpusFixture.Create();
+        using var vplFixture = CorpusFixture.Create();
+        usfmFixture.Write(
+            "00FRT.usfm",
+            """
+            \id FRT
+            \h Front Matter
+            """);
+        usfmFixture.Write(
+            "01GEN.usfm",
+            """
+            \id GEN
+            \c 1
+            \p
+            \v 1 In the beginning.
+            """);
+        vplFixture.Write("genesis.vpl", "GEN 1:1 In the beginning.\n");
+
+        var exitCode = BenchmarkCli.Run(
+        [
+            "--name", "fixture",
+            "--usfm", usfmFixture.Path,
+            "--vpl", vplFixture.Path,
+            "--expected-books", "1",
+            "--exclude-usfm", "FRT"
+        ]);
+
+        Assert.Equal(0, exitCode);
     }
 
     [Fact]

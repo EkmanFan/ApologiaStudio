@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ApologiaStudio.Domain.BibleCorpora;
 
 namespace ApologiaStudio.BibleCorpusBench;
 
@@ -15,7 +16,9 @@ public static class BenchmarkCli
         try
         {
             var options = BenchmarkOptions.Parse(args);
-            var usfm = new UsfmCorpusReader().Read(options.UsfmPath);
+            var usfm = new UsfmCorpusReader().Read(
+                options.UsfmPath,
+                options.ExcludedUsfmBookCodes);
             var vpl = new VplCorpusReader().Read(options.VplPath);
             var report = new CorpusComparer().Compare(
                 options.Name,
@@ -102,10 +105,11 @@ public static class BenchmarkCli
 
             Options:
               --name <value>              Corpus label used in the report.
-              --usfm <path>               USFM file or directory (.usfm/.sfm, recursive).
+              --usfm <path>               USFM source directory (.usfm/.sfm, recursive).
               --vpl <path>                VPL file or directory (.vpl/.txt, recursive).
               --expected-books <number>   Expected books in both inputs. Default: 66.
               --require-strong            Fail when no USFM strong attribute is found.
+              --exclude-usfm <codes>      Comma-separated USFM book codes to exclude.
               --max-samples <number>      Maximum differences written to the report. Default: 20.
               --report <path>             Optional JSON report path.
               --help                      Show this help.
@@ -118,6 +122,7 @@ public static class BenchmarkCli
         string VplPath,
         int ExpectedBookCount,
         bool RequireStrongAttributes,
+        IReadOnlyList<UsfmBookCode> ExcludedUsfmBookCodes,
         int MaxDifferenceSamples,
         string? ReportPath)
     {
@@ -130,6 +135,7 @@ public static class BenchmarkCli
             var expectedBookCount = 66;
             var maxDifferenceSamples = 20;
             var requireStrongAttributes = false;
+            IReadOnlyList<UsfmBookCode> excludedUsfmBookCodes = [];
 
             for (var index = 0; index < args.Count; index++)
             {
@@ -150,6 +156,9 @@ public static class BenchmarkCli
                         break;
                     case "--report":
                         reportPath = ReadValue(args, ref index, option);
+                        break;
+                    case "--exclude-usfm":
+                        excludedUsfmBookCodes = ReadBookCodes(args, ref index, option);
                         break;
                     case "--expected-books":
                         expectedBookCount = ReadPositiveInteger(args, ref index, option);
@@ -183,6 +192,7 @@ public static class BenchmarkCli
                 vplPath,
                 expectedBookCount,
                 requireStrongAttributes,
+                excludedUsfmBookCodes,
                 maxDifferenceSamples,
                 reportPath);
         }
@@ -207,6 +217,34 @@ public static class BenchmarkCli
             }
 
             return parsed;
+        }
+
+        private static IReadOnlyList<UsfmBookCode> ReadBookCodes(
+            IReadOnlyList<string> args,
+            ref int index,
+            string option)
+        {
+            var value = ReadValue(args, ref index, option);
+            try
+            {
+                var codes = value
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(code => new UsfmBookCode(code))
+                    .Distinct()
+                    .ToArray();
+                if (codes.Length == 0)
+                {
+                    throw new ArgumentException("No book code was supplied.");
+                }
+
+                return codes;
+            }
+            catch (ArgumentException exception)
+            {
+                throw new BibleCorpusException(
+                    $"{option} must contain valid comma-separated USFM book codes: {exception.Message}",
+                    exception);
+            }
         }
     }
 }
