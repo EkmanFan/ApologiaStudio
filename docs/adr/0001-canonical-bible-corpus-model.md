@@ -152,6 +152,11 @@ The source-tree hash is computed from a stable ordering of each source-relative
 path and file SHA-256. It must not depend on filesystem traversal order or archive
 metadata.
 
+Version 1 hashes the concatenation of one record per selected USFM book, ordered
+by its ordinal source-relative path. Each record is encoded as UTF-8 path,
+`0x00`, lowercase ASCII file SHA-256, then `0x0a`. Paths always use `/` as their
+separator. Excluded USFM documents do not participate in the source-tree hash.
+
 The import fingerprint is derived from at least:
 
 ```text
@@ -165,6 +170,12 @@ canonical schema version
 The database enforces uniqueness of the import fingerprint. Re-running an import
 with the same fingerprint returns the existing corpus version and writes no new
 verses.
+
+Fingerprint version 1 is the SHA-256 of a newline-delimited UTF-8 payload
+containing the edition code, source-tree SHA-256, parser name, parser version,
+normalization policy identifier, and canonical schema version. The payload begins
+with `apologia-bible-import-fingerprint-v1`; changing its framing requires a new
+fingerprint version.
 
 A new import is parsed and validated before activation. Persistence and
 activation occur transactionally:

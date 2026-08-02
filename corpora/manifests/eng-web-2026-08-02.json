@@ -58,7 +58,7 @@
   "validation": {
     "status": "passed",
     "validatedOn": "2026-08-02",
-    "validatorCommit": "6f2c45a",
+    "validatorCommit": "1351e7e",
     "sourceIntegrityValidated": true,
     "formatParityValidated": true,
     "referenceParityValidated": true,
@@ -69,7 +69,7 @@
     "vplFileCount": 1,
     "vplBookCount": 66,
     "vplVerseCount": 31103,
-    "strongAttributeCount": 677692,
+    "strongAttributeCount": 683871,
     "missingFromUsfm": 0,
     "unexpectedInUsfm": 0,
     "textMismatches": 0,

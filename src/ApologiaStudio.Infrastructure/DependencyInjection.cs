@@ -7,6 +7,7 @@ using ApologiaStudio.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ApologiaStudio.Infrastructure;
 
@@ -41,6 +42,13 @@ public static class DependencyInjection
         services.AddSingleton<
             IBibleCorpusReader,
             SilMachineUsfmCorpusReader>();
+
+        services.TryAddSingleton(
+            TimeProvider.System);
+
+        services.AddScoped<
+            IBibleCorpusImporter,
+            PostgreSqlBibleCorpusImporter>();
 
         return services;
     }

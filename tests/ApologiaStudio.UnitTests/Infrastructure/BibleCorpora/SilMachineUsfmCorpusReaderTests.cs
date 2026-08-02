@@ -43,6 +43,8 @@ public sealed class SilMachineUsfmCorpusReaderTests
                 Assert.Equal("Genesis", genesis.DisplayName);
                 Assert.Equal("Gen", genesis.ShortName);
                 Assert.Equal("01GEN.usfm", genesis.SourceRelativePath);
+                Assert.NotNull(genesis.SourceSha256);
+                Assert.True(genesis.SourceByteLength is > 0);
             },
             exodus =>
             {

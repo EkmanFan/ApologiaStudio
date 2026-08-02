@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Cryptography;
 using ApologiaStudio.Application.BibleCorpora.Ingestion;
 using ApologiaStudio.Domain.BibleCorpora;
 using SIL.Machine.Corpora;
@@ -48,10 +49,17 @@ public sealed class SilMachineUsfmCorpusReader : IBibleCorpusReader
             var relativePath = Path.GetRelativePath(sourceDirectory, file)
                 .Replace(Path.DirectorySeparatorChar, '/');
             StrictUsfmBibleBookHandler handler;
+            byte[] sourceBytes;
 
             try
             {
-                var usfm = await File.ReadAllTextAsync(file, StrictUtf8, cancellationToken);
+                sourceBytes = await File.ReadAllBytesAsync(file, cancellationToken);
+                var usfm = StrictUtf8.GetString(sourceBytes);
+                if (usfm.Length > 0 && usfm[0] == '\uFEFF')
+                {
+                    usfm = usfm[1..];
+                }
+
                 handler = new StrictUsfmBibleBookHandler(file, relativePath);
                 UsfmParser.Parse(usfm, handler, preserveWhitespace: false);
             }
@@ -100,7 +108,17 @@ public sealed class SilMachineUsfmCorpusReader : IBibleCorpusReader
             }
 
             bookSources.Add(bookCode, relativePath);
-            books.Add(handler.CreateBook(bookOrdinal));
+            var parsedBook = handler.CreateBook(bookOrdinal);
+            books.Add(
+                new ParsedBibleBook(
+                    parsedBook.BookCode,
+                    parsedBook.BookOrdinal,
+                    parsedBook.DisplayName,
+                    parsedBook.ShortName,
+                    parsedBook.SourceRelativePath,
+                    new Sha256Digest(
+                        Convert.ToHexString(SHA256.HashData(sourceBytes)).ToLowerInvariant()),
+                    sourceBytes.LongLength));
 
             foreach (var verse in handler.Verses)
             {
