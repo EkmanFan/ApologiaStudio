@@ -6,7 +6,8 @@ The benchmark validates the canonical ingestion source (USFM) against a simplifi
 
 - `SIL.Machine 3.9.1` tokenizes and parses USFM.
 - ApologiaStudio rejects unknown markers, unmatched end markers, and unclosed character, note, or sidebar markers.
-- Only visible verse text is compared. Titles, introductions, notes, cross-references, figures, and sidebars are excluded.
+- Only visible scripture text is compared. Introductions, editorial section titles, notes, cross-references, figures, and sidebars are excluded.
+- USFM descriptive titles (`\\d`, commonly Hebrew Psalm superscriptions) and speaker labels (`\\sp`) are preserved separately with their positions. For comparison only, descriptive titles and inline speaker labels are flattened back into verse text; standalone speaker headings remain excluded, matching eBible's VPL export.
 - USFM word attributes are retained in the normalized in-memory representation and Strong attributes are counted.
 - Comparison normalization is deliberately narrow: Unicode Form C plus collapsed whitespace. Punctuation and letter casing are not changed.
 - No data is written to PostgreSQL.

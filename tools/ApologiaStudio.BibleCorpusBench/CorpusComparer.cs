@@ -31,8 +31,8 @@ public sealed class CorpusComparer
         var textMismatches = usfm.Verses.Keys
             .Intersect(vpl.Verses.Keys)
             .Where(key => !string.Equals(
-                usfm.Verses[key].Text,
-                vpl.Verses[key].Text,
+                GetComparisonText(usfm.Verses[key]),
+                GetComparisonText(vpl.Verses[key]),
                 StringComparison.Ordinal))
             .OrderBy(key => key.BookCode, StringComparer.Ordinal)
             .ThenBy(key => key.Chapter)
@@ -44,7 +44,10 @@ public sealed class CorpusComparer
             .Concat(unexpectedInUsfm.Select(key =>
                 new ReferenceDifference(key.ToString(), usfm.Verses[key].Text, null)))
             .Concat(textMismatches.Select(key =>
-                new ReferenceDifference(key.ToString(), usfm.Verses[key].Text, vpl.Verses[key].Text)))
+                new ReferenceDifference(
+                    key.ToString(),
+                    GetComparisonText(usfm.Verses[key]),
+                    GetComparisonText(vpl.Verses[key]))))
             .Take(maxDifferenceSamples)
             .ToArray();
 
@@ -72,5 +75,51 @@ public sealed class CorpusComparer
             textMismatches.Length,
             differences,
             isMatch);
+    }
+
+    private static string GetComparisonText(BibleVerse verse)
+    {
+        if (verse.SupplementalTexts.Count == 0)
+        {
+            return verse.Text;
+        }
+
+        var result = new System.Text.StringBuilder();
+        var textOffset = 0;
+        foreach (var supplemental in verse.SupplementalTexts
+                     .Where(item => ShouldFlattenForVplComparison(item, verse.Text.Length))
+                     .Select((value, index) => (value, index))
+                     .OrderBy(item => item.value.CharacterOffset)
+                     .ThenBy(item => item.index)
+                     .Select(item => item.value))
+        {
+            if (supplemental.CharacterOffset < textOffset
+                || supplemental.CharacterOffset > verse.Text.Length)
+            {
+                throw new BibleCorpusException(
+                    $"Invalid supplemental text offset {supplemental.CharacterOffset} for {verse.Key}.");
+            }
+
+            result.Append(verse.Text, textOffset, supplemental.CharacterOffset - textOffset);
+            result.Append(' ');
+            result.Append(supplemental.Text);
+            result.Append(' ');
+            textOffset = supplemental.CharacterOffset;
+        }
+
+        result.Append(verse.Text, textOffset, verse.Text.Length - textOffset);
+        return TextNormalizer.Normalize(result.ToString());
+    }
+
+    private static bool ShouldFlattenForVplComparison(
+        ParsedSupplementalText supplemental,
+        int verseTextLength)
+    {
+        // eBible VPL includes inline speaker labels but omits standalone speaker
+        // headings placed between verses. Descriptive titles are always flattened
+        // at their structural position.
+        return !string.Equals(supplemental.Marker, "sp", StringComparison.Ordinal)
+            || (supplemental.OccurredWithinVerse
+                && supplemental.CharacterOffset < verseTextLength);
     }
 }

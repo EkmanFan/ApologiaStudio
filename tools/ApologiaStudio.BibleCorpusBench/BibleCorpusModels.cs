@@ -28,12 +28,19 @@ public sealed record ParsedWordAnnotation(
     string Value,
     int CharacterOffset);
 
+public sealed record ParsedSupplementalText(
+    string Marker,
+    string Text,
+    int CharacterOffset,
+    bool OccurredWithinVerse);
+
 public sealed record BibleVerse(
     VerseKey Key,
     string Text,
     string Source,
     int SourceLine,
-    IReadOnlyList<ParsedWordAnnotation> WordAnnotations);
+    IReadOnlyList<ParsedWordAnnotation> WordAnnotations,
+    IReadOnlyList<ParsedSupplementalText> SupplementalTexts);
 
 public sealed record CorpusReadResult(
     IReadOnlyDictionary<VerseKey, BibleVerse> Verses,

@@ -68,10 +68,15 @@ public sealed partial class UsfmCorpusReader
     {
         private readonly string _source;
         private readonly StringBuilder _text = new();
+        private readonly StringBuilder _supplementalText = new();
         private readonly List<ParsedWordAnnotation> _annotations = new();
+        private readonly List<ParsedSupplementalText> _supplementalTexts = new();
         private VerseKey? _currentKey;
         private int _currentLine;
         private int? _chapter;
+        private string? _supplementalMarker;
+        private int _supplementalOffset;
+        private bool _supplementalOccurredWithinVerse;
 
         public StrictVerseHandler(string source)
         {
@@ -156,9 +161,50 @@ public sealed partial class UsfmCorpusReader
                 Fail(state, $"Unknown paragraph marker \\{marker}.");
             }
 
+            if (string.Equals(marker, "d", StringComparison.Ordinal)
+                || string.Equals(marker, "sp", StringComparison.Ordinal))
+            {
+                if (_supplementalMarker is not null)
+                {
+                    Fail(state, $"Supplemental marker \\{marker} started inside \\{_supplementalMarker}.");
+                }
+
+                // Descriptive titles and speaker labels are structurally distinct
+                // from verse text, while flat VPL exports insert them at this exact
+                // point. Retain the marker, text, and normalized character offset.
+                _supplementalMarker = marker;
+                _supplementalOccurredWithinVerse = _currentKey is not null;
+                _supplementalOffset = _currentKey is null
+                    ? 0
+                    : TextNormalizer.Normalize(_text.ToString()).Length;
+                _supplementalText.Clear();
+                return;
+            }
+
             if (_currentKey is not null && state.IsVerseText)
             {
                 AppendBoundary();
+            }
+        }
+
+        public override void EndPara(UsfmParserState state, string marker)
+        {
+            if (string.Equals(marker, _supplementalMarker, StringComparison.Ordinal))
+            {
+                var text = TextNormalizer.Normalize(_supplementalText.ToString());
+                if (text.Length > 0)
+                {
+                    _supplementalTexts.Add(new ParsedSupplementalText(
+                        marker,
+                        text,
+                        _supplementalOffset,
+                        _supplementalOccurredWithinVerse));
+                }
+
+                _supplementalMarker = null;
+                _supplementalOffset = 0;
+                _supplementalOccurredWithinVerse = false;
+                _supplementalText.Clear();
             }
         }
 
@@ -171,6 +217,16 @@ public sealed partial class UsfmCorpusReader
             if (unknown)
             {
                 Fail(state, $"Unknown or invalid character marker \\{markerWithoutPlus}.");
+            }
+
+            // The tokenizer consumes the delimiter space after a character
+            // marker. A quoted-selah marker begins a distinct visible phrase,
+            // so restore that boundary when the source did not already leave one.
+            if (string.Equals(markerWithoutPlus, "qs", StringComparison.Ordinal)
+                && _currentKey is not null
+                && state.IsVerseText)
+            {
+                AppendBoundary();
             }
 
             if (_currentKey is null || !state.IsVerseText || attributes is null)
@@ -225,6 +281,12 @@ public sealed partial class UsfmCorpusReader
 
         public override void Text(UsfmParserState state, string text)
         {
+            if (_supplementalMarker is not null && state.NoteTag is null && !state.IsSpecialText)
+            {
+                _supplementalText.Append(text);
+                return;
+            }
+
             if (_currentKey is not null && state.IsVerseText && !state.IsSpecialText)
             {
                 _text.Append(text);
@@ -279,12 +341,14 @@ public sealed partial class UsfmCorpusReader
                 TextNormalizer.Normalize(_text.ToString()),
                 _source,
                 _currentLine,
-                _annotations.ToArray()));
+                _annotations.ToArray(),
+                _supplementalTexts.ToArray()));
 
             _currentKey = null;
             _currentLine = 0;
             _text.Clear();
             _annotations.Clear();
+            _supplementalTexts.Clear();
         }
 
         [DoesNotReturn]

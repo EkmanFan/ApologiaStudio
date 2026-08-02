@@ -47,7 +47,7 @@ public sealed partial class VplCorpusReader
             if (!match.Success)
             {
                 throw new BibleCorpusException(
-                    $"{file}:{index + 1}: Invalid VPL line. Expected 'BOOK chapter:verse text'.");
+                    $"{file}:{index + 1}: Invalid VPL line. Expected 'BOOK chapter:verse [text]'.");
             }
 
             if (!int.TryParse(
@@ -60,7 +60,7 @@ public sealed partial class VplCorpusReader
             }
 
             var key = new VerseKey(
-                match.Groups["book"].Value,
+                NormalizeBookCode(match.Groups["book"].Value),
                 chapter,
                 match.Groups["verse"].Value);
             var verse = new BibleVerse(
@@ -68,7 +68,8 @@ public sealed partial class VplCorpusReader
                 TextNormalizer.Normalize(match.Groups["text"].Value),
                 file,
                 index + 1,
-                Array.Empty<ParsedWordAnnotation>());
+                Array.Empty<ParsedWordAnnotation>(),
+                Array.Empty<ParsedSupplementalText>());
 
             if (verses.TryGetValue(key, out var existing))
             {
@@ -81,8 +82,30 @@ public sealed partial class VplCorpusReader
         }
     }
 
+    private static string NormalizeBookCode(string bookCode)
+    {
+        // eBible's BibleWorks VPL exports use a few legacy abbreviations that
+        // differ from the canonical USFM book identifiers emitted by the USFM
+        // parser. Normalize only those known aliases; VerseKey handles casing.
+        return bookCode.ToUpperInvariant() switch
+        {
+            "1JO" => "1JN",
+            "2JO" => "2JN",
+            "3JO" => "3JN",
+            "EZE" => "EZK",
+            "JAM" => "JAS",
+            "JOE" => "JOL",
+            "JOH" => "JHN",
+            "MAR" => "MRK",
+            "NAH" => "NAM",
+            "PHI" => "PHP",
+            "SOL" => "SNG",
+            _ => bookCode
+        };
+    }
+
     [GeneratedRegex(
-        "^(?<book>[1-3]?[A-Za-z]{2,3})\\s+(?<chapter>[0-9]+):(?<verse>[0-9]+[A-Za-z]?(?:[-,][0-9]+[A-Za-z]?)*)(?:\\s+)(?<text>.*)$",
+        "^(?<book>[1-3]?[A-Za-z]{2,3})\\s+(?<chapter>[0-9]+):(?<verse>[0-9]+[A-Za-z]?(?:[-,][0-9]+[A-Za-z]?)*)(?:\\s+(?<text>.*))?$",
         RegexOptions.CultureInvariant)]
     private static partial Regex VplLineRegex();
 }
