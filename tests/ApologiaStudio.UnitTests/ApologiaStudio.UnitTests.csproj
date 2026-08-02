@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\ApologiaStudio.AgentRuntime\ApologiaStudio.AgentRuntime.csproj" />
     <ProjectReference Include="..\..\src\ApologiaStudio.Infrastructure\ApologiaStudio.Infrastructure.csproj" />
     <ProjectReference Include="..\..\tools\ApologiaStudio.BibleCorpusBench\ApologiaStudio.BibleCorpusBench.csproj" />
+    <ProjectReference Include="..\..\tools\ApologiaStudio.BibleCorpusImporter\ApologiaStudio.BibleCorpusImporter.csproj" />
   </ItemGroup>
 
 </Project>

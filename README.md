@@ -9,3 +9,6 @@ The accepted persistence and versioning design is recorded in
 
 The approved source snapshots and their archive hashes are recorded in the
 [Bible corpus provenance manifests](docs/bible-corpus-provenance.md).
+
+Approved snapshots are imported through the manifest-driven
+`ApologiaStudio.BibleCorpusImporter` command documented on that page.

@@ -53,3 +53,31 @@ Both snapshots are approved for development and import:
 The JSON schema describes the manifest contract. Any later upstream archive or
 material importer/normalizer change requires a new manifest; an approved
 manifest is never edited to point at different source bytes.
+
+## Importing approved snapshots
+
+The production command consumes one manifest and a local directory containing
+the two archives named by that manifest. It verifies both archive lengths and
+SHA-256 hashes before safely extracting the canonical USFM ZIP to a temporary
+directory. The importer therefore parses the bytes identified by the manifest,
+not a separately supplied source tree.
+
+The command does not download sources or apply database migrations. The
+operator must explicitly identify the target database through
+`APOLOGIASTUDIO_DB_CONNECTION` and confirm the exact `manifestId` on the command
+line. It refuses a database with pending migrations.
+
+To import both approved snapshots after their four ZIP archives have been
+placed in one directory and the database migration has been applied:
+
+```bash
+./scripts/ef.sh database update
+./scripts/import-approved-bible-corpora.sh /absolute/path/to/source-archives
+```
+
+The wrapper uses `APOLOGIASTUDIO_DB_CONNECTION` when it is already defined. For
+the standard local environment, it otherwise builds the connection string from
+`.env.apologia.local` without printing the password.
+
+Running the same command again is safe: the deterministic import fingerprint
+returns the existing corpus version without inserting duplicate rows.
