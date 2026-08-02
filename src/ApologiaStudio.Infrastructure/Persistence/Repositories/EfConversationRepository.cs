@@ -43,6 +43,22 @@ public sealed class EfConversationRepository(
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Conversation>> ListByOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Conversations
+            .AsNoTracking()
+            .Where(
+                conversation =>
+                    conversation.OwnerId == ownerId)
+            .OrderByDescending(
+                conversation =>
+                    conversation.CreatedAt)
+            .ToListAsync(
+                cancellationToken);
+    }
+
     public void Add(
         Conversation conversation)
     {

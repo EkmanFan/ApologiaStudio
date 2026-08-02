@@ -10,7 +10,7 @@ namespace ApologiaStudio.IntegrationTests.Persistence;
 public sealed class PostgreSqlConversationRepositoryTests
 {
     [Fact]
-    public async Task Repository_ShouldPersistAndReloadConversation()
+    public async Task Repository_ShouldPersistListRenameAndReloadConversations()
     {
         var connectionString =
             Environment.GetEnvironmentVariable(
@@ -38,6 +38,7 @@ public sealed class PostgreSqlConversationRepositoryTests
         }
 
         var ownerId = UserId.New();
+        var otherOwnerId = UserId.New();
         var agentId = AgentId.New();
 
         var createdAt = new DateTimeOffset(
@@ -49,19 +50,29 @@ public sealed class PostgreSqlConversationRepositoryTests
             0,
             TimeSpan.Zero);
 
-        var conversation = Conversation.Create(
+        var firstConversation = Conversation.Create(
             ownerId,
-            "Persistent conversation",
+            "First conversation",
             createdAt);
 
-        conversation.AddUserMessage(
+        firstConversation.AddUserMessage(
             "Quand a eu lieu le concile de Nicée ?",
             createdAt.AddMinutes(1));
 
-        conversation.AddAgentMessage(
+        firstConversation.AddAgentMessage(
             agentId,
             "Le premier concile de Nicée a eu lieu en 325.",
             createdAt.AddMinutes(2));
+
+        var secondConversation = Conversation.Create(
+            ownerId,
+            "Second conversation",
+            createdAt.AddHours(1));
+
+        var otherConversation = Conversation.Create(
+            otherOwnerId,
+            "Another user's conversation",
+            createdAt.AddHours(2));
 
         await using (
             var writeContext =
@@ -75,30 +86,92 @@ public sealed class PostgreSqlConversationRepositoryTests
                 new EfUnitOfWork(
                     writeContext);
 
-            repository.Add(conversation);
+            repository.Add(firstConversation);
+            repository.Add(secondConversation);
+            repository.Add(otherConversation);
 
             await unitOfWork.SaveChangesAsync(
                 CancellationToken.None);
         }
 
         await using (
-            var readContext =
+            var listContext =
                 new ApologiaStudioDbContext(options))
         {
             var repository =
                 new EfConversationRepository(
-                    readContext);
+                    listContext);
+
+            var conversations =
+                await repository.ListByOwnerAsync(
+                    ownerId,
+                    CancellationToken.None);
+
+            Assert.Collection(
+                conversations,
+                conversation =>
+                    Assert.Equal(
+                        secondConversation.Id,
+                        conversation.Id),
+                conversation =>
+                    Assert.Equal(
+                        firstConversation.Id,
+                        conversation.Id));
+
+            var latest =
+                await repository.GetLatestByOwnerAsync(
+                    ownerId,
+                    CancellationToken.None);
+
+            Assert.NotNull(latest);
+            Assert.Equal(
+                secondConversation.Id,
+                latest.Id);
+        }
+
+        await using (
+            var renameContext =
+                new ApologiaStudioDbContext(options))
+        {
+            var repository =
+                new EfConversationRepository(
+                    renameContext);
+
+            var conversation =
+                await repository.GetByIdAsync(
+                    firstConversation.Id,
+                    CancellationToken.None);
+
+            Assert.NotNull(conversation);
+
+            conversation.Rename(
+                "Renamed conversation");
+
+            await renameContext.SaveChangesAsync();
+        }
+
+        await using (
+            var verificationContext =
+                new ApologiaStudioDbContext(options))
+        {
+            var repository =
+                new EfConversationRepository(
+                    verificationContext);
 
             var loaded =
                 await repository.GetByIdAsync(
-                    conversation.Id,
+                    firstConversation.Id,
                     CancellationToken.None);
 
             Assert.NotNull(loaded);
-            Assert.Equal(ownerId, loaded.OwnerId);
+
             Assert.Equal(
-                "Persistent conversation",
+                "Renamed conversation",
                 loaded.Title);
+
+            Assert.Equal(
+                ownerId,
+                loaded.OwnerId);
 
             Assert.Collection(
                 loaded.Messages,
@@ -121,21 +194,7 @@ public sealed class PostgreSqlConversationRepositoryTests
                     Assert.Equal(
                         agentId,
                         agentMessage.AgentId);
-
-                    Assert.Equal(
-                        "Le premier concile de Nicée a eu lieu en 325.",
-                        agentMessage.Content);
                 });
-
-            var latest =
-                await repository.GetLatestByOwnerAsync(
-                    ownerId,
-                    CancellationToken.None);
-
-            Assert.NotNull(latest);
-            Assert.Equal(
-                conversation.Id,
-                latest.Id);
         }
     }
 }

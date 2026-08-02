@@ -3,6 +3,9 @@ using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Conversations.CreateConversation;
+using ApologiaStudio.Application.Conversations.GetConversation;
+using ApologiaStudio.Application.Conversations.ListConversations;
+using ApologiaStudio.Application.Conversations.RenameConversation;
 using ApologiaStudio.Application.Conversations.SendMessage;
 using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.Components;
@@ -37,6 +40,15 @@ builder.Services.AddSingleton<
 
 builder.Services.AddScoped<
     CreateConversationHandler>();
+
+builder.Services.AddScoped<
+    GetConversationHandler>();
+
+builder.Services.AddScoped<
+    ListConversationsHandler>();
+
+builder.Services.AddScoped<
+    RenameConversationHandler>();
 
 builder.Services.AddScoped<
     SendMessageHandler>();

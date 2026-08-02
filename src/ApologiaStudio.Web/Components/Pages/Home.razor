@@ -1,12 +1,14 @@
 @page "/"
+@page "/conversations/{ConversationIdValue:guid}"
 
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.Extensions.DependencyInjection
-@using ApologiaStudio.Application.Abstractions.Conversations
-@using ApologiaStudio.Application.Abstractions.Identity
 @using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.Application.Agents
 @using ApologiaStudio.Application.Conversations.CreateConversation
+@using ApologiaStudio.Application.Conversations.GetConversation
+@using ApologiaStudio.Application.Conversations.ListConversations
+@using ApologiaStudio.Application.Conversations.RenameConversation
 @using ApologiaStudio.Application.Conversations.SendMessage
 @using ApologiaStudio.Domain.Agents
 @using ApologiaStudio.Domain.Conversations
@@ -14,199 +16,439 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 @inject IServiceScopeFactory ServiceScopeFactory
+@inject NavigationManager NavigationManager
 
 <PageTitle>Apologia Studio</PageTitle>
 
-@if (_conversation is null)
+@if (_isLoading)
 {
     <div class="loading">
-        Initialisation de l’espace de discussion…
+        Loading conversations...
     </div>
 }
 else
 {
-    <section class="chat-shell">
-        <header class="chat-header">
-            <div>
-                <h1>Apologia Studio</h1>
-                <p>
-                    Posez une question. Le spécialiste le plus pertinent
-                    sera sélectionné automatiquement.
-                </p>
+    <section class="studio-layout">
+        <aside class="conversation-sidebar">
+            <div class="sidebar-header">
+                <div>
+                    <h2>Conversations</h2>
+                    <span>
+                        @_conversationList.Count
+                    </span>
+                </div>
+
+                <button type="button"
+                        disabled="@(_isCreatingConversation || _isSending)"
+                        @onclick="CreateConversationAsync">
+                    Nouvelle
+                </button>
             </div>
 
-            <div class="runtime-badge">
-                Runtime simulé
-            </div>
-        </header>
+            <nav class="conversation-list"
+                 aria-label="Conversations">
+                @if (_conversationList.Count == 0)
+                {
+                    <p class="empty-list">
+                        Aucune conversation.
+                    </p>
+                }
 
-        <main class="conversation-thread">
-            @if (_conversation.Messages.Count == 0 &&
-                 string.IsNullOrEmpty(_streamingText))
+                @foreach (var item in _conversationList)
+                {
+                    <a class="@GetConversationLinkClass(item.Id)"
+                       href="@GetConversationUrl(item.Id)">
+                        <span class="conversation-title">
+                            @item.Title
+                        </span>
+
+                        <span class="conversation-date">
+                            @item.CreatedAt
+                                .ToLocalTime()
+                                .ToString("dd/MM/yyyy HH:mm")
+                        </span>
+                    </a>
+                }
+            </nav>
+        </aside>
+
+        <section class="chat-shell">
+            @if (_conversation is null)
             {
-                <div class="empty-state">
-                    <h2>Commencez directement</h2>
+                <div class="missing-conversation">
+                    <h1>Conversation introuvable</h1>
 
                     <p>
-                        Exemples :
+                        Cette conversation n’existe pas ou ne vous
+                        appartient pas.
                     </p>
 
                     <button type="button"
-                            @onclick="UseHistoricalSuggestion">
-                        Question historique
-                    </button>
-
-                    <button type="button"
-                            @onclick="UseApologeticSuggestion">
-                        Question apologétique
+                            @onclick="CreateConversationAsync">
+                        Créer une conversation
                     </button>
                 </div>
             }
-
-            @foreach (var message in _conversation.Messages)
+            else
             {
-                <article class="@GetMessageCssClass(message)">
-                    <div class="message-author">
-                        @GetMessageAuthor(message)
+                <header class="chat-header">
+                    <div class="conversation-heading">
+                        <div>
+                            <h1>@_conversation.Title</h1>
+
+                            <p>
+                                Posez une question. Le spécialiste le plus
+                                pertinent sera sélectionné automatiquement.
+                            </p>
+                        </div>
+
+                        <div class="runtime-badge">
+                            Runtime simulé
+                        </div>
                     </div>
 
-                    <div class="message-content">
-                        @message.Content
+                    <div class="rename-controls">
+                        <input type="text"
+                               maxlength="200"
+                               disabled="@(_isRenaming || _isSending)"
+                               @bind="_renameDraft"
+                               aria-label="Titre de la conversation" />
+
+                        <button type="button"
+                                disabled="@(_isRenaming ||
+                                           _isSending ||
+                                           string.IsNullOrWhiteSpace(
+                                               _renameDraft) ||
+                                           _renameDraft.Trim() ==
+                                               _conversation.Title)"
+                                @onclick="RenameConversationAsync">
+                            Renommer
+                        </button>
                     </div>
-                </article>
+                </header>
+
+                <main class="conversation-thread">
+                    @if (_conversation.Messages.Count == 0 &&
+                         string.IsNullOrEmpty(_streamingText))
+                    {
+                        <div class="empty-state">
+                            <h2>Commencez directement</h2>
+
+                            <p>Exemples :</p>
+
+                            <button type="button"
+                                    @onclick="UseHistoricalSuggestion">
+                                Question historique
+                            </button>
+
+                            <button type="button"
+                                    @onclick="UseApologeticSuggestion">
+                                Question apologétique
+                            </button>
+                        </div>
+                    }
+
+                    @foreach (var message in _conversation.Messages)
+                    {
+                        <article class="@GetMessageCssClass(message)">
+                            <div class="message-author">
+                                @GetMessageAuthor(message)
+                            </div>
+
+                            <div class="message-content">
+                                @message.Content
+                            </div>
+                        </article>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_streamingText))
+                    {
+                        <article class="message agent streaming">
+                            <div class="message-author">
+                                @(_activeAgentName ?? "Agent")
+                            </div>
+
+                            <div class="message-content">
+                                @_streamingText
+                                <span class="cursor">▋</span>
+                            </div>
+                        </article>
+                    }
+                </main>
+
+                @if (!string.IsNullOrWhiteSpace(_routingReason))
+                {
+                    <aside class="routing-information">
+                        <strong>Routage :</strong>
+                        @_routingReason
+                    </aside>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                {
+                    <aside class="error-information">
+                        @_errorMessage
+                    </aside>
+                }
+
+                <footer class="composer">
+                    <div class="composer-options">
+                        <label for="agent-selection">
+                            Expert
+                        </label>
+
+                        <select id="agent-selection"
+                                @bind="_selectedAgentSlug"
+                                disabled="@_isSending">
+                            <option value="">
+                                Routage automatique
+                            </option>
+
+                            <option value="historian">
+                                Historien des religions
+                            </option>
+
+                            <option value="protestant-apologist">
+                                Apologète protestant
+                            </option>
+                        </select>
+                    </div>
+
+                    <textarea @bind="_draft"
+                              @bind:event="oninput"
+                              disabled="@_isSending"
+                              maxlength="50000"
+                              rows="4"
+                              placeholder="Posez votre question…">
+                    </textarea>
+
+                    <div class="composer-actions">
+                        <span>
+                            @(_isSending
+                                ? "Réponse en cours…"
+                                : "Routage automatique ou sélection manuelle.")
+                        </span>
+
+                        <button type="button"
+                                disabled="@(_isSending ||
+                                           string.IsNullOrWhiteSpace(
+                                               _draft))"
+                                @onclick="SendAsync">
+                            Envoyer
+                        </button>
+                    </div>
+                </footer>
             }
-
-            @if (!string.IsNullOrEmpty(_streamingText))
-            {
-                <article class="message agent streaming">
-                    <div class="message-author">
-                        @(_activeAgentName ?? "Agent")
-                    </div>
-
-                    <div class="message-content">
-                        @_streamingText
-                        <span class="cursor">▋</span>
-                    </div>
-                </article>
-            }
-        </main>
-
-        @if (!string.IsNullOrWhiteSpace(_routingReason))
-        {
-            <aside class="routing-information">
-                <strong>Routage :</strong>
-                @_routingReason
-            </aside>
-        }
-
-        @if (!string.IsNullOrWhiteSpace(_errorMessage))
-        {
-            <aside class="error-information">
-                @_errorMessage
-            </aside>
-        }
-
-        <footer class="composer">
-            <div class="composer-options">
-                <label for="agent-selection">
-                    Expert
-                </label>
-
-                <select id="agent-selection"
-                        @bind="_selectedAgentSlug"
-                        disabled="@_isSending">
-                    <option value="">
-                        Routage automatique
-                    </option>
-
-                    <option value="historian">
-                        Historien des religions
-                    </option>
-
-                    <option value="protestant-apologist">
-                        Apologète protestant
-                    </option>
-                </select>
-            </div>
-
-            <textarea @bind="_draft"
-                      @bind:event="oninput"
-                      disabled="@_isSending"
-                      maxlength="50000"
-                      rows="4"
-                      placeholder="Posez votre question…">
-            </textarea>
-
-            <div class="composer-actions">
-                <span>
-                    @(_isSending
-                        ? "Réponse en cours…"
-                        : "Le routage peut être automatique ou imposé.")
-                </span>
-
-                <button type="button"
-                        disabled="@(_isSending ||
-                                   string.IsNullOrWhiteSpace(_draft))"
-                        @onclick="SendAsync">
-                    Envoyer
-                </button>
-            </div>
-        </footer>
+        </section>
     </section>
 }
 
 @code {
+    [Parameter]
+    public Guid? ConversationIdValue { get; set; }
+
+    private IReadOnlyList<ConversationListItem> _conversationList =
+        Array.Empty<ConversationListItem>();
+
     private Conversation? _conversation;
+    private Guid? _loadedConversationId;
     private string _draft = string.Empty;
+    private string _renameDraft = string.Empty;
     private string _selectedAgentSlug = string.Empty;
     private string _streamingText = string.Empty;
     private string? _activeAgentName;
     private string? _routingReason;
     private string? _errorMessage;
+    private bool _isLoading = true;
     private bool _isSending;
+    private bool _isCreatingConversation;
+    private bool _isRenaming;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        await using var scope =
-            ServiceScopeFactory.CreateAsyncScope();
+        if (_conversation is not null &&
+            ConversationIdValue == _loadedConversationId)
+        {
+            return;
+        }
 
-        var repository =
-            scope.ServiceProvider
-                .GetRequiredService<IConversationRepository>();
-
-        var currentUser =
-            scope.ServiceProvider
-                .GetRequiredService<ICurrentUser>();
-
-        var createConversationHandler =
-            scope.ServiceProvider
-                .GetRequiredService<CreateConversationHandler>();
-
-        _conversation =
-            await repository.GetLatestByOwnerAsync(
-                currentUser.UserId,
-                CancellationToken.None)
-            ?? await createConversationHandler.HandleAsync(
-                new CreateConversationCommand(
-                    "Nouvelle discussion"),
-                CancellationToken.None);
+        await LoadRouteAsync();
     }
 
-    private void UseSuggestion(string suggestion)
+    private async Task LoadRouteAsync()
     {
-        _draft = suggestion;
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var listHandler =
+                scope.ServiceProvider
+                    .GetRequiredService<ListConversationsHandler>();
+
+            _conversationList =
+                await listHandler.HandleAsync(
+                    CancellationToken.None);
+
+            if (ConversationIdValue is null)
+            {
+                var latestConversation =
+                    _conversationList.FirstOrDefault();
+
+                if (latestConversation is not null)
+                {
+                    NavigateToConversation(
+                        latestConversation.Id,
+                        replace: true);
+
+                    return;
+                }
+
+                var createHandler =
+                    scope.ServiceProvider
+                        .GetRequiredService<
+                            CreateConversationHandler>();
+
+                var createdConversation =
+                    await createHandler.HandleAsync(
+                        new CreateConversationCommand(
+                            "Nouvelle discussion"),
+                        CancellationToken.None);
+
+                NavigateToConversation(
+                    createdConversation.Id,
+                    replace: true);
+
+                return;
+            }
+
+            var getHandler =
+                scope.ServiceProvider
+                    .GetRequiredService<GetConversationHandler>();
+
+            _conversation =
+                await getHandler.HandleAsync(
+                    new ConversationId(
+                        ConversationIdValue.Value),
+                    CancellationToken.None);
+
+            _loadedConversationId =
+                ConversationIdValue;
+
+            _renameDraft =
+                _conversation?.Title ?? string.Empty;
+        }
+        catch (Exception exception)
+        {
+            _conversation = null;
+            _errorMessage =
+                $"La conversation n’a pas pu être chargée : " +
+                exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateConversationAsync()
+    {
+        if (_isCreatingConversation)
+        {
+            return;
+        }
+
+        _isCreatingConversation = true;
+        _errorMessage = null;
+
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var handler =
+                scope.ServiceProvider
+                    .GetRequiredService<
+                        CreateConversationHandler>();
+
+            var conversation =
+                await handler.HandleAsync(
+                    new CreateConversationCommand(
+                        "Nouvelle discussion"),
+                    CancellationToken.None);
+
+            NavigateToConversation(
+                conversation.Id);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                $"La conversation n’a pas pu être créée : " +
+                exception.Message;
+        }
+        finally
+        {
+            _isCreatingConversation = false;
+        }
+    }
+
+    private async Task RenameConversationAsync()
+    {
+        if (_conversation is null ||
+            _isRenaming ||
+            string.IsNullOrWhiteSpace(_renameDraft))
+        {
+            return;
+        }
+
+        _isRenaming = true;
+        _errorMessage = null;
+
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var handler =
+                scope.ServiceProvider
+                    .GetRequiredService<
+                        RenameConversationHandler>();
+
+            await handler.HandleAsync(
+                new RenameConversationCommand(
+                    _conversation.Id,
+                    _renameDraft.Trim()),
+                CancellationToken.None);
+
+            await LoadRouteAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                $"La conversation n’a pas pu être renommée : " +
+                exception.Message;
+        }
+        finally
+        {
+            _isRenaming = false;
+        }
     }
 
     private void UseHistoricalSuggestion()
     {
-        UseSuggestion(
-            "À quelle époque apparaît historiquement la primauté de l’évêque de Rome ?");
+        _draft =
+            "À quelle époque apparaît historiquement " +
+            "la primauté de l’évêque de Rome ?";
     }
 
     private void UseApologeticSuggestion()
     {
-        UseSuggestion(
-            "Comment défendre la résurrection face à une objection athée ?");
+        _draft =
+            "Comment défendre la résurrection " +
+            "face à une objection athée ?";
     }
 
     private async Task SendAsync()
@@ -237,9 +479,9 @@ else
                 scope.ServiceProvider
                     .GetRequiredService<SendMessageHandler>();
 
-            var conversationRepository =
+            var getConversationHandler =
                 scope.ServiceProvider
-                    .GetRequiredService<IConversationRepository>();
+                    .GetRequiredService<GetConversationHandler>();
 
             var command = new SendMessageCommand(
                 conversationId,
@@ -262,10 +504,9 @@ else
                             selected.Reason;
 
                         _conversation =
-                            await conversationRepository
-                                .GetByIdAsync(
-                                    conversationId,
-                                    CancellationToken.None)
+                            await getConversationHandler.HandleAsync(
+                                conversationId,
+                                CancellationToken.None)
                             ?? throw new InvalidOperationException(
                                 "The conversation could not be reloaded.");
 
@@ -279,10 +520,9 @@ else
 
                     case AgentTurnCompletedEvent:
                         _conversation =
-                            await conversationRepository
-                                .GetByIdAsync(
-                                    conversationId,
-                                    CancellationToken.None)
+                            await getConversationHandler.HandleAsync(
+                                conversationId,
+                                CancellationToken.None)
                             ?? throw new InvalidOperationException(
                                 "The completed conversation could not be reloaded.");
 
@@ -310,6 +550,29 @@ else
             await InvokeAsync(
                 StateHasChanged);
         }
+    }
+
+    private void NavigateToConversation(
+        ConversationId conversationId,
+        bool replace = false)
+    {
+        NavigationManager.NavigateTo(
+            GetConversationUrl(conversationId),
+            replace);
+    }
+
+    private static string GetConversationUrl(
+        ConversationId conversationId)
+    {
+        return $"/conversations/{conversationId.Value:D}";
+    }
+
+    private string GetConversationLinkClass(
+        ConversationId conversationId)
+    {
+        return _conversation?.Id == conversationId
+            ? "conversation-link active"
+            : "conversation-link";
     }
 
     private AgentId? ResolveRequestedAgentId()
