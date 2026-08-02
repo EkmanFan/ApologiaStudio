@@ -6,3 +6,6 @@ ApologiaStudio uses USFM as its canonical Bible source, `SIL.Machine` for parsin
 
 The accepted persistence and versioning design is recorded in
 [ADR 0001: Canonical Bible corpus model](docs/adr/0001-canonical-bible-corpus-model.md).
+
+The approved source snapshots and their archive hashes are recorded in the
+[Bible corpus provenance manifests](docs/bible-corpus-provenance.md).

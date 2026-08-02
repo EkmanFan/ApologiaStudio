@@ -1,0 +1,82 @@
+{
+  "$schema": "./bible-corpus-manifest.schema.json",
+  "schemaVersion": 1,
+  "manifestId": "eng-web-2026-08-02",
+  "edition": {
+    "code": "web-classic",
+    "approvedCorpusCode": "eng-web",
+    "displayName": "World English Bible Classic",
+    "languageTag": "en",
+    "canonCode": "protestant-66",
+    "license": {
+      "status": "public-domain",
+      "sourceUri": "https://ebible.org/find/details.php?id=eng-web",
+      "notice": "Reserve the name World English Bible for faithful copies of the translation."
+    }
+  },
+  "source": {
+    "provider": "eBible.org",
+    "upstreamDistributionId": "engwebp",
+    "detailsUri": "https://ebible.org/find/details.php?id=eng-web",
+    "capturedAt": "2026-08-02T16:13:04+02:00",
+    "artifacts": [
+      {
+        "role": "canonical-usfm",
+        "uri": "https://ebible.org/Scriptures/engwebp_usfm.zip",
+        "fileName": "engwebp_usfm.zip",
+        "sha256": "9b4330ba6baf9bd5fa8ea63a8ff255c9ab326da8c843f0355c23734e61ee6276",
+        "byteLength": 2903202
+      },
+      {
+        "role": "validation-vpl",
+        "uri": "https://ebible.org/Scriptures/engwebp_vpl.zip",
+        "fileName": "engwebp_vpl.zip",
+        "sha256": "3458ca34420c0547ec01b3dbda58a10a2d8fc511bdcd2e047ddd17fbe860b7b6",
+        "byteLength": 4281524
+      }
+    ]
+  },
+  "selection": {
+    "policy": "protestant-66-only",
+    "usfmIncludedBookCount": 66,
+    "vplIncludedBookCount": 66,
+    "excludedUsfmIds": [
+      "FRT",
+      "GLO"
+    ]
+  },
+  "processing": {
+    "canonicalFormat": "USFM",
+    "validationFormat": "VPL",
+    "storedFormat": "normalized-relational",
+    "parser": {
+      "name": "SIL.Machine",
+      "version": "3.9.1"
+    },
+    "normalizationPolicyId": "unicode-nfc-collapse-whitespace-v1"
+  },
+  "validation": {
+    "status": "passed",
+    "validatedOn": "2026-08-02",
+    "validatorCommit": "6f2c45a",
+    "sourceIntegrityValidated": true,
+    "formatParityValidated": true,
+    "referenceParityValidated": true,
+    "textParityValidated": true,
+    "usfmFileCount": 66,
+    "usfmBookCount": 66,
+    "usfmVerseCount": 31103,
+    "vplFileCount": 1,
+    "vplBookCount": 66,
+    "vplVerseCount": 31103,
+    "strongAttributeCount": 677692,
+    "missingFromUsfm": 0,
+    "unexpectedInUsfm": 0,
+    "textMismatches": 0,
+    "reportPath": "artifacts/bible-corpus-validation/web.json"
+  },
+  "editorialAudit": {
+    "status": "deferred",
+    "blocksImport": false
+  }
+}

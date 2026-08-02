@@ -1,0 +1,78 @@
+{
+  "$schema": "./bible-corpus-manifest.schema.json",
+  "schemaVersion": 1,
+  "manifestId": "fraLSG-2026-08-02",
+  "edition": {
+    "code": "lsg1910",
+    "approvedCorpusCode": "fraLSG",
+    "displayName": "Louis Segond 1910",
+    "languageTag": "fr",
+    "canonCode": "protestant-66",
+    "license": {
+      "status": "public-domain",
+      "sourceUri": "https://ebible.org/find/details.php?id=fraLSG"
+    }
+  },
+  "source": {
+    "provider": "eBible.org",
+    "upstreamDistributionId": "fraLSG",
+    "detailsUri": "https://ebible.org/find/details.php?id=fraLSG",
+    "capturedAt": "2026-08-02T16:13:04+02:00",
+    "artifacts": [
+      {
+        "role": "canonical-usfm",
+        "uri": "https://ebible.org/Scriptures/fraLSG_usfm.zip",
+        "fileName": "fraLSG_usfm.zip",
+        "sha256": "16948e148a83a29280ea17f113ebd7b07348b61bf94b93e9cb3cb44ccf842801",
+        "byteLength": 3471567
+      },
+      {
+        "role": "validation-vpl",
+        "uri": "https://ebible.org/Scriptures/fraLSG_vpl.zip",
+        "fileName": "fraLSG_vpl.zip",
+        "sha256": "66117d1fe0e868d6a151659aee20385d6541eedbbdc6236e8f1043c6911e36bb",
+        "byteLength": 4592850
+      }
+    ]
+  },
+  "selection": {
+    "policy": "protestant-66-only",
+    "usfmIncludedBookCount": 66,
+    "vplIncludedBookCount": 66,
+    "excludedUsfmIds": []
+  },
+  "processing": {
+    "canonicalFormat": "USFM",
+    "validationFormat": "VPL",
+    "storedFormat": "normalized-relational",
+    "parser": {
+      "name": "SIL.Machine",
+      "version": "3.9.1"
+    },
+    "normalizationPolicyId": "unicode-nfc-collapse-whitespace-v1"
+  },
+  "validation": {
+    "status": "passed",
+    "validatedOn": "2026-08-02",
+    "validatorCommit": "6f2c45a",
+    "sourceIntegrityValidated": true,
+    "formatParityValidated": true,
+    "referenceParityValidated": true,
+    "textParityValidated": true,
+    "usfmFileCount": 66,
+    "usfmBookCount": 66,
+    "usfmVerseCount": 31170,
+    "vplFileCount": 1,
+    "vplBookCount": 66,
+    "vplVerseCount": 31170,
+    "strongAttributeCount": 705605,
+    "missingFromUsfm": 0,
+    "unexpectedInUsfm": 0,
+    "textMismatches": 0,
+    "reportPath": "artifacts/bible-corpus-validation/lsg1910.json"
+  },
+  "editorialAudit": {
+    "status": "deferred",
+    "blocksImport": false
+  }
+}
