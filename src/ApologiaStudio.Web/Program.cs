@@ -11,6 +11,7 @@ using ApologiaStudio.Application.Conversations.RenameConversation;
 using ApologiaStudio.Application.Conversations.SendMessage;
 using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.Components;
+using ApologiaStudio.Web.Endpoints;
 using ApologiaStudio.Web.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -252,5 +253,7 @@ app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+app.MapBibleCorpusEndpoints();
 
 app.Run();

@@ -1,4 +1,5 @@
 using ApologiaStudio.Application.Abstractions.Conversations;
+using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Persistence;
 using ApologiaStudio.Application.BibleCorpora.Ingestion;
 using ApologiaStudio.Infrastructure.BibleCorpora.Ingestion;
@@ -34,6 +35,10 @@ public static class DependencyInjection
         services.AddScoped<
             IConversationRepository,
             EfConversationRepository>();
+
+        services.AddScoped<
+            IBibleCorpusQueryRepository,
+            EfBibleCorpusQueryRepository>();
 
         services.AddScoped<
             IUnitOfWork,

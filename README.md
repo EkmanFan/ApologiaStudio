@@ -12,3 +12,19 @@ The approved source snapshots and their archive hashes are recorded in the
 
 Approved snapshots are imported through the manifest-driven
 `ApologiaStudio.BibleCorpusImporter` command documented on that page.
+
+## Bible corpus query API
+
+The web application exposes deterministic, read-only access to active and
+approved Bible corpus versions:
+
+```text
+GET /api/bible/editions
+GET /api/bible/editions/{editionCode}/books
+GET /api/bible/editions/{editionCode}/books/{bookCode}/chapters/{chapterNumber}
+GET /api/bible/editions/{editionCode}/books/{bookCode}/chapters/{chapterNumber}/verses/{verseLabel}
+```
+
+Book identifiers use canonical USFM codes such as `GEN`, `PSA`, and `JHN`.
+Chapter responses and exact-verse responses include imported word annotations,
+including Strong attributes when present.
