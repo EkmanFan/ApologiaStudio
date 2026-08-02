@@ -1,3 +1,4 @@
+using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.AgentRuntime.Execution;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
@@ -119,8 +120,104 @@ builder.Services.AddSingleton<
     SimulatedAgentResponseProvider>();
 
 builder.Services.AddSingleton<
-    IAgentRuntime,
     SimulatedAgentRuntime>();
+
+var ollamaResponseModel =
+    builder.Configuration["Ollama:ResponseModel"]
+    ?? ollamaModel;
+
+var generationTimeoutSeconds =
+    builder.Configuration.GetValue<int?>(
+        "Ollama:GenerationTimeoutSeconds")
+    ?? 180;
+
+var maximumHistoryMessages =
+    builder.Configuration.GetValue<int?>(
+        "Ollama:MaximumHistoryMessages")
+    ?? 24;
+
+var maximumHistoryCharacters =
+    builder.Configuration.GetValue<int?>(
+        "Ollama:MaximumHistoryCharacters")
+    ?? 24_000;
+
+var maximumOutputTokens =
+    builder.Configuration.GetValue<int?>(
+        "Ollama:MaximumOutputTokens")
+    ?? 1_200;
+
+if (generationTimeoutSeconds is < 1 or > 600)
+{
+    throw new InvalidOperationException(
+        "Ollama:GenerationTimeoutSeconds must be between 1 and 600.");
+}
+
+if (maximumHistoryMessages is < 1 or > 100)
+{
+    throw new InvalidOperationException(
+        "Ollama:MaximumHistoryMessages must be between 1 and 100.");
+}
+
+if (maximumHistoryCharacters is < 1_000 or > 100_000)
+{
+    throw new InvalidOperationException(
+        "Ollama:MaximumHistoryCharacters must be between 1000 and 100000.");
+}
+
+if (maximumOutputTokens is < 64 or > 8_192)
+{
+    throw new InvalidOperationException(
+        "Ollama:MaximumOutputTokens must be between 64 and 8192.");
+}
+
+var ollamaGenerationOptions =
+    new OllamaGenerationOptions
+    {
+        BaseAddress =
+            normalizedBaseAddress,
+        Model =
+            ollamaResponseModel,
+        RequestTimeout =
+            TimeSpan.FromSeconds(
+                generationTimeoutSeconds),
+        KeepAlive =
+            builder.Configuration["Ollama:KeepAlive"]
+            ?? "10m",
+        MaximumHistoryMessages =
+            maximumHistoryMessages,
+        MaximumHistoryCharacters =
+            maximumHistoryCharacters,
+        MaximumOutputTokens =
+            maximumOutputTokens
+    };
+
+builder.Services.AddSingleton(
+    ollamaGenerationOptions);
+
+builder.Services.AddSingleton<
+    AgentPromptCatalog>();
+
+builder.Services.AddSingleton<
+    IAgentRuntime>(
+    serviceProvider =>
+    {
+        var client =
+            new HttpClient
+            {
+                BaseAddress =
+                    ollamaGenerationOptions.BaseAddress,
+                Timeout =
+                    ollamaGenerationOptions.RequestTimeout
+            };
+
+        return new OllamaAgentRuntime(
+            serviceProvider.GetRequiredService<
+                IAgentRouter>(),
+            serviceProvider.GetRequiredService<
+                AgentPromptCatalog>(),
+            client,
+            ollamaGenerationOptions);
+    });
 
 builder.Services.AddScoped<
     CreateConversationHandler>();
