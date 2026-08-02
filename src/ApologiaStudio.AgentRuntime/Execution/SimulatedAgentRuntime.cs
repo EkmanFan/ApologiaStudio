@@ -17,7 +17,10 @@ public sealed class SimulatedAgentRuntime(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var routingDecision = agentRouter.Route(request);
+        var routingDecision =
+            await agentRouter.RouteAsync(
+                request,
+                cancellationToken);
 
         yield return new AgentSelectedEvent(
             routingDecision.AgentId,

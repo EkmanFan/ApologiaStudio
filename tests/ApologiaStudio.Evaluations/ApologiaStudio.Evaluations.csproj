@@ -22,6 +22,14 @@
     <ProjectReference Include="..\..\src\ApologiaStudio.Application\ApologiaStudio.Application.csproj" />
     <ProjectReference Include="..\..\src\ApologiaStudio.AgentRuntime\ApologiaStudio.AgentRuntime.csproj" />
     <ProjectReference Include="..\..\src\ApologiaStudio.Infrastructure\ApologiaStudio.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ApologiaStudio.Domain\ApologiaStudio.Domain.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <None Update="Routing/routing-cases.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

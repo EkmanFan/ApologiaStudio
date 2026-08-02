@@ -1,0 +1,52 @@
+[
+  {
+    "id": "historian-clovis-age",
+    "question": "Quel âge avait Clovis lors de son sacre ?",
+    "expectedAgent": "historian"
+  },
+  {
+    "id": "historian-judea-ruler",
+    "question": "Qui gouvernait la Judée à la naissance de Jésus ?",
+    "expectedAgent": "historian"
+  },
+  {
+    "id": "historian-constantine-reign",
+    "question": "Combien de temps Constantin a-t-il régné ?",
+    "expectedAgent": "historian"
+  },
+  {
+    "id": "historian-doctrine-emergence",
+    "question": "À quelle époque la transsubstantiation apparaît-elle historiquement ?",
+    "expectedAgent": "historian"
+  },
+  {
+    "id": "historian-luther-age",
+    "question": "Quel âge avait Luther lors de la publication des 95 thèses ?",
+    "expectedAgent": "historian"
+  },
+  {
+    "id": "apologist-resurrection",
+    "question": "Comment défendre la résurrection face à une objection athée ?",
+    "expectedAgent": "protestant-apologist"
+  },
+  {
+    "id": "apologist-sola-scriptura",
+    "question": "Sola Scriptura est-elle biblique ?",
+    "expectedAgent": "protestant-apologist"
+  },
+  {
+    "id": "apologist-islam",
+    "question": "Comment répondre à l'objection islamique selon laquelle la Bible a été falsifiée ?",
+    "expectedAgent": "protestant-apologist"
+  },
+  {
+    "id": "apologist-trinity",
+    "question": "Comment expliquer et défendre la Trinité ?",
+    "expectedAgent": "protestant-apologist"
+  },
+  {
+    "id": "historian-nicea",
+    "question": "Que s'est-il passé politiquement au concile de Nicée ?",
+    "expectedAgent": "historian"
+  }
+]

@@ -64,6 +64,16 @@ public sealed class DeterministicAgentRouter : IAgentRouter
         "trinity"
     ];
 
+    public ValueTask<RoutingDecision> RouteAsync(
+        AgentTurnRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return ValueTask.FromResult(
+            Route(request));
+    }
+
     public RoutingDecision Route(AgentTurnRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

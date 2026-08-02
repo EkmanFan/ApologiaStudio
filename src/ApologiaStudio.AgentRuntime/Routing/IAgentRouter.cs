@@ -4,5 +4,7 @@ namespace ApologiaStudio.AgentRuntime.Routing;
 
 public interface IAgentRouter
 {
-    RoutingDecision Route(AgentTurnRequest request);
+    ValueTask<RoutingDecision> RouteAsync(
+        AgentTurnRequest request,
+        CancellationToken cancellationToken);
 }
