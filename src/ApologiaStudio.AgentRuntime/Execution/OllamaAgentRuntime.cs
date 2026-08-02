@@ -8,7 +8,9 @@ using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Agents;
+using ApologiaStudio.Domain.Agents;
 using ApologiaStudio.Domain.Conversations;
+using ApologiaStudio.Domain.Users;
 
 namespace ApologiaStudio.AgentRuntime.Execution;
 
@@ -17,7 +19,7 @@ public sealed class OllamaAgentRuntime(
     AgentPromptCatalog promptCatalog,
     HttpClient httpClient,
     OllamaGenerationOptions options)
-    : IAgentRuntime,
+    : IRoutedAgentRuntime,
       IDisposable
 {
     private const int MaximumErrorBodyLength = 2_000;
@@ -31,12 +33,30 @@ public sealed class OllamaAgentRuntime(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        ValidateConfiguration();
-
         var routingDecision =
             await agentRouter.RouteAsync(
                 request,
                 cancellationToken);
+
+        await foreach (var runEvent in RunTurnAsync(
+                           request,
+                           routingDecision,
+                           cancellationToken)
+                           .WithCancellation(cancellationToken))
+        {
+            yield return runEvent;
+        }
+    }
+
+    public async IAsyncEnumerable<AgentRunEvent> RunTurnAsync(
+        AgentTurnRequest request,
+        RoutingDecision routingDecision,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(routingDecision);
+
+        ValidateConfiguration();
 
         yield return new AgentSelectedEvent(
             routingDecision.AgentId,
@@ -50,7 +70,8 @@ public sealed class OllamaAgentRuntime(
         var messages =
             BuildMessages(
                 request,
-                promptDefinition);
+                promptDefinition,
+                routingDecision.AgentId);
 
         var requestBody = new
         {
@@ -184,7 +205,8 @@ public sealed class OllamaAgentRuntime(
     private IReadOnlyList<OllamaRequestMessage>
         BuildMessages(
             AgentTurnRequest request,
-            AgentPromptDefinition promptDefinition)
+            AgentPromptDefinition promptDefinition,
+            AgentId agentId)
     {
         var currentMessageIndex =
             FindCurrentUserMessageIndex(request);
@@ -254,13 +276,38 @@ public sealed class OllamaAgentRuntime(
                 new(
                     Role: "system",
                     Content:
-                        promptDefinition.SystemPrompt)
+                        CreateSystemPrompt(
+                            promptDefinition,
+                            agentId,
+                            request.TheologicalLanguage))
             };
 
         messages.AddRange(
             selectedHistory);
 
         return messages;
+    }
+
+    private static string CreateSystemPrompt(
+        AgentPromptDefinition promptDefinition,
+        AgentId agentId,
+        ApplicationLanguage theologicalLanguage)
+    {
+        if (agentId != BuiltInAgents.ProtestantApologist.Id)
+        {
+            return promptDefinition.SystemPrompt;
+        }
+
+        var languageName = theologicalLanguage ==
+                ApplicationLanguage.English
+            ? "English"
+            : "French";
+
+        return promptDefinition.SystemPrompt +
+               "\n\nUser preference:\n" +
+               $"- default to {languageName} for theological responses;\n" +
+               "- if the latest user message explicitly requests French " +
+               "or English for this response, honor that explicit request.";
     }
 
     private static int FindCurrentUserMessageIndex(

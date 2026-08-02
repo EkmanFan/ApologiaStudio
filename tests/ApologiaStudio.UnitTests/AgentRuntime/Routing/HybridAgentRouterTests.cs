@@ -2,7 +2,9 @@ using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Agents;
+using ApologiaStudio.Application.BibleCorpora.Queries;
 using ApologiaStudio.Domain.Agents;
+using ApologiaStudio.Domain.BibleCorpora;
 using ApologiaStudio.Domain.Conversations;
 using ApologiaStudio.Domain.Users;
 
@@ -68,6 +70,199 @@ public sealed class HybridAgentRouterTests
         Assert.Equal(
             0,
             classifier.CallCount);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldNotUseSemanticRoutingForBibleReference()
+    {
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                "historian",
+                0.99,
+                "Should not be used."));
+
+        var router = CreateRouter(classifier);
+
+        var decision = await router.RouteAsync(
+            CreateRequest("Donne-moi Jean 3:16."),
+            CancellationToken.None);
+
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+
+        Assert.Equal(0, classifier.CallCount);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldNotUseSemanticRoutingForWholeBibleChapter()
+    {
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                "historian",
+                0.99,
+                "Should not be used."));
+
+        var router = CreateRouter(classifier);
+
+        var decision = await router.RouteAsync(
+            CreateRequest("Donne-moi 1 Corinthiens 13."),
+            CancellationToken.None);
+
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+
+        Assert.Equal(0, classifier.CallCount);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldCarryNormalizedMisspelledBibleReference()
+    {
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                "protestant-apologist",
+                0.98,
+                "La référence biblique a été normalisée.",
+                BiblePassageResolution.Resolved,
+                new BiblePassageRequest(
+                    new BibleEditionCode("lsg1910"),
+                    new UsfmBookCode("1CO"),
+                    13,
+                    VerseLabel: null)));
+
+        var router = CreateRouter(classifier);
+
+        var decision = await router.RouteAsync(
+            CreateRequest("Donne-moi 1 Corinthien 13."),
+            CancellationToken.None);
+
+        Assert.Equal(1, classifier.CallCount);
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+        Assert.Equal(
+            BiblePassageResolution.Resolved,
+            decision.BiblePassageResolution);
+        Assert.Equal("1CO", decision.BiblePassage?.BookCode.Value);
+        Assert.Equal(13, decision.BiblePassage?.ChapterNumber);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldNormalizeReferenceWithExplicitApologist()
+    {
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                "protestant-apologist",
+                0.98,
+                "La référence biblique a été normalisée.",
+                BiblePassageResolution.Resolved,
+                new BiblePassageRequest(
+                    new BibleEditionCode("lsg1910"),
+                    new UsfmBookCode("1CO"),
+                    13,
+                    VerseLabel: null)));
+
+        var router = CreateRouter(classifier);
+
+        var decision = await router.RouteAsync(
+            CreateRequest(
+                "Donne-moi 1 Corinthien 13.",
+                BuiltInAgents.ProtestantApologist.Id),
+            CancellationToken.None);
+
+        Assert.Equal(1, classifier.CallCount);
+        Assert.True(decision.WasExplicitlyRequested);
+        Assert.Equal(
+            BiblePassageResolution.Resolved,
+            decision.BiblePassageResolution);
+        Assert.Equal("1CO", decision.BiblePassage?.BookCode.Value);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldUseSemanticIntentForBibleExegesis()
+    {
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                "protestant-apologist",
+                0.97,
+                "La demande porte sur l’interprétation du passage."));
+
+        var router = CreateRouter(classifier);
+
+        var decision = await router.RouteAsync(
+            CreateRequest("Explique-moi Jean 3:16."),
+            CancellationToken.None);
+
+        Assert.Equal(1, classifier.CallCount);
+        Assert.Equal(
+            BiblePassageResolution.None,
+            decision.BiblePassageResolution);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldBlockInvalidBibleNormalization()
+    {
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                "protestant-apologist",
+                0.40,
+                "La demande ressemble à une référence biblique.",
+                BiblePassageResolution.Unsupported));
+
+        var router = CreateRouter(classifier);
+
+        var decision = await router.RouteAsync(
+            CreateRequest("Donne-moi 9 Corinthien 999."),
+            CancellationToken.None);
+
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+        Assert.Equal(
+            BiblePassageResolution.Unsupported,
+            decision.BiblePassageResolution);
+        Assert.Null(decision.BiblePassage);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldBlockCandidateMisclassifiedAsGeneral()
+    {
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                "protestant-apologist",
+                0.80,
+                "Classification générale sans référence."));
+
+        var router = CreateRouter(classifier);
+
+        var decision = await router.RouteAsync(
+            CreateRequest("1 Corinthien 13"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            BiblePassageResolution.Unsupported,
+            decision.BiblePassageResolution);
+        Assert.Null(decision.BiblePassage);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldBlockCandidateWhenClassifierFails()
+    {
+        var router = CreateRouter(
+            new ThrowingSemanticClassifier());
+
+        var decision = await router.RouteAsync(
+            CreateRequest("1 Corinthien 13"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            BiblePassageResolution.Unsupported,
+            decision.BiblePassageResolution);
+        Assert.Contains(
+            "normalization was unavailable",
+            decision.Reason,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -10,8 +10,10 @@
 @using ApologiaStudio.Application.Conversations.ListConversations
 @using ApologiaStudio.Application.Conversations.RenameConversation
 @using ApologiaStudio.Application.Conversations.SendMessage
+@using ApologiaStudio.Application.Preferences
 @using ApologiaStudio.Domain.Agents
 @using ApologiaStudio.Domain.Conversations
+@using ApologiaStudio.Domain.Users
 
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
@@ -19,11 +21,12 @@
 @inject NavigationManager NavigationManager
 
 <PageTitle>Apologia Studio</PageTitle>
+<DocumentLanguage Language="@_interfaceLanguage" />
 
 @if (_isLoading)
 {
     <div class="loading">
-        Loading conversations...
+        @Ui("Chargement des conversations…", "Loading conversations…")
     </div>
 }
 else
@@ -38,11 +41,17 @@ else
                     </span>
                 </div>
 
-                <button type="button"
-                        disabled="@(_isCreatingConversation || _isSending)"
-                        @onclick="CreateConversationAsync">
-                    Nouvelle
-                </button>
+                <div class="sidebar-actions">
+                    <a href="/settings">
+                        @Ui("Préférences", "Preferences")
+                    </a>
+
+                    <button type="button"
+                            disabled="@(_isCreatingConversation || _isSending)"
+                            @onclick="CreateConversationAsync">
+                        @Ui("Nouvelle", "New")
+                    </button>
+                </div>
             </div>
 
             <nav class="conversation-list"
@@ -50,7 +59,7 @@ else
                 @if (_conversationList.Count == 0)
                 {
                     <p class="empty-list">
-                        Aucune conversation.
+                        @Ui("Aucune conversation.", "No conversations.")
                     </p>
                 }
 
@@ -76,16 +85,19 @@ else
             @if (_conversation is null)
             {
                 <div class="missing-conversation">
-                    <h1>Conversation introuvable</h1>
+                    <h1>
+                        @Ui("Conversation introuvable", "Conversation not found")
+                    </h1>
 
                     <p>
-                        Cette conversation n’existe pas ou ne vous
-                        appartient pas.
+                        @Ui(
+                            "Cette conversation n’existe pas ou ne vous appartient pas.",
+                            "This conversation does not exist or does not belong to you.")
                     </p>
 
                     <button type="button"
                             @onclick="CreateConversationAsync">
-                        Créer une conversation
+                        @Ui("Créer une conversation", "Create a conversation")
                     </button>
                 </div>
             }
@@ -97,13 +109,14 @@ else
                             <h1>@_conversation.Title</h1>
 
                             <p>
-                                Posez une question. Le spécialiste le plus
-                                pertinent sera sélectionné automatiquement.
+                                @Ui(
+                                    "Posez une question. Le spécialiste le plus pertinent sera sélectionné automatiquement.",
+                                    "Ask a question. The most relevant specialist will be selected automatically.")
                             </p>
                         </div>
 
                         <div class="runtime-badge">
-                            Runtime simulé
+                            @Ui("Runtime local", "Local runtime")
                         </div>
                     </div>
 
@@ -112,7 +125,7 @@ else
                                maxlength="200"
                                disabled="@(_isRenaming || _isSending)"
                                @bind="_renameDraft"
-                               aria-label="Titre de la conversation" />
+                               aria-label="@ConversationTitleLabel" />
 
                         <button type="button"
                                 disabled="@(_isRenaming ||
@@ -122,7 +135,7 @@ else
                                            _renameDraft.Trim() ==
                                                _conversation.Title)"
                                 @onclick="RenameConversationAsync">
-                            Renommer
+                            @Ui("Renommer", "Rename")
                         </button>
                     </div>
                 </header>
@@ -132,18 +145,20 @@ else
                          string.IsNullOrEmpty(_streamingText))
                     {
                         <div class="empty-state">
-                            <h2>Commencez directement</h2>
+                            <h2>
+                                @Ui("Commencez directement", "Start right away")
+                            </h2>
 
-                            <p>Exemples :</p>
+                            <p>@Ui("Exemples :", "Examples:")</p>
 
                             <button type="button"
                                     @onclick="UseHistoricalSuggestion">
-                                Question historique
+                                @Ui("Question historique", "Historical question")
                             </button>
 
                             <button type="button"
                                     @onclick="UseApologeticSuggestion">
-                                Question apologétique
+                                @Ui("Question apologétique", "Apologetics question")
                             </button>
                         </div>
                     }
@@ -179,7 +194,7 @@ else
                 @if (!string.IsNullOrWhiteSpace(_routingReason))
                 {
                     <aside class="routing-information">
-                        <strong>Routage :</strong>
+                        <strong>@Ui("Routage :", "Routing:")</strong>
                         @_routingReason
                     </aside>
                 }
@@ -194,22 +209,22 @@ else
                 <footer class="composer">
                     <div class="composer-options">
                         <label for="agent-selection">
-                            Expert
+                            @Ui("Expert", "Specialist")
                         </label>
 
                         <select id="agent-selection"
                                 @bind="_selectedAgentSlug"
                                 disabled="@_isSending">
                             <option value="">
-                                Routage automatique
+                                @Ui("Routage automatique", "Automatic routing")
                             </option>
 
                             <option value="historian">
-                                Historien des religions
+                                @Ui("Historien des religions", "Historian of Religions")
                             </option>
 
                             <option value="protestant-apologist">
-                                Apologète protestant
+                                @Ui("Apologète protestant", "Protestant Apologist")
                             </option>
                         </select>
                     </div>
@@ -219,14 +234,16 @@ else
                               disabled="@_isSending"
                               maxlength="50000"
                               rows="4"
-                              placeholder="Posez votre question…">
+                              placeholder="@QuestionPlaceholder">
                     </textarea>
 
                     <div class="composer-actions">
                         <span>
                             @(_isSending
-                                ? "Réponse en cours…"
-                                : "Routage automatique ou sélection manuelle.")
+                                ? Ui("Réponse en cours…", "Generating response…")
+                                : Ui(
+                                    "Routage automatique ou sélection manuelle.",
+                                    "Automatic routing or manual selection."))
                         </span>
 
                         <button type="button"
@@ -234,7 +251,7 @@ else
                                            string.IsNullOrWhiteSpace(
                                                _draft))"
                                 @onclick="SendAsync">
-                            Envoyer
+                            @Ui("Envoyer", "Send")
                         </button>
                     </div>
                 </footer>
@@ -259,10 +276,24 @@ else
     private string? _activeAgentName;
     private string? _routingReason;
     private string? _errorMessage;
+    private ApplicationLanguage _interfaceLanguage =
+        UserPreferences.DefaultInterfaceLanguage;
+    private ApplicationLanguage _theologicalLanguage =
+        UserPreferences.DefaultInterfaceLanguage;
     private bool _isLoading = true;
     private bool _isSending;
     private bool _isCreatingConversation;
     private bool _isRenaming;
+
+    private string ConversationTitleLabel =>
+        Ui(
+            "Titre de la conversation",
+            "Conversation title");
+
+    private string QuestionPlaceholder =>
+        Ui(
+            "Posez votre question…",
+            "Ask your question…");
 
     protected override async Task OnParametersSetAsync()
     {
@@ -284,6 +315,20 @@ else
         {
             await using var scope =
                 ServiceScopeFactory.CreateAsyncScope();
+
+            var preferencesHandler =
+                scope.ServiceProvider.GetRequiredService<
+                    GetUserPreferencesHandler>();
+
+            var preferences =
+                await preferencesHandler.HandleAsync(
+                    CancellationToken.None);
+
+            _interfaceLanguage =
+                preferences.InterfaceLanguage;
+
+            _theologicalLanguage =
+                preferences.EffectiveTheologicalLanguage;
 
             var listHandler =
                 scope.ServiceProvider
@@ -315,7 +360,9 @@ else
                 var createdConversation =
                     await createHandler.HandleAsync(
                         new CreateConversationCommand(
-                            "Nouvelle discussion"),
+                            Ui(
+                                "Nouvelle discussion",
+                                "New conversation")),
                         CancellationToken.None);
 
                 NavigateToConversation(
@@ -345,7 +392,9 @@ else
         {
             _conversation = null;
             _errorMessage =
-                $"La conversation n’a pas pu être chargée : " +
+                Ui(
+                    "La conversation n’a pas pu être chargée : ",
+                    "The conversation could not be loaded: ") +
                 exception.Message;
         }
         finally
@@ -377,7 +426,9 @@ else
             var conversation =
                 await handler.HandleAsync(
                     new CreateConversationCommand(
-                        "Nouvelle discussion"),
+                        Ui(
+                            "Nouvelle discussion",
+                            "New conversation")),
                     CancellationToken.None);
 
             NavigateToConversation(
@@ -386,7 +437,9 @@ else
         catch (Exception exception)
         {
             _errorMessage =
-                $"La conversation n’a pas pu être créée : " +
+                Ui(
+                    "La conversation n’a pas pu être créée : ",
+                    "The conversation could not be created: ") +
                 exception.Message;
         }
         finally
@@ -428,7 +481,9 @@ else
         catch (Exception exception)
         {
             _errorMessage =
-                $"La conversation n’a pas pu être renommée : " +
+                Ui(
+                    "La conversation n’a pas pu être renommée : ",
+                    "The conversation could not be renamed: ") +
                 exception.Message;
         }
         finally
@@ -440,15 +495,21 @@ else
     private void UseHistoricalSuggestion()
     {
         _draft =
-            "À quelle époque apparaît historiquement " +
-            "la primauté de l’évêque de Rome ?";
+            _theologicalLanguage == ApplicationLanguage.English
+                ? "When does the primacy of the Bishop of Rome " +
+                  "first appear historically?"
+                : "À quelle époque apparaît historiquement " +
+                  "la primauté de l’évêque de Rome ?";
     }
 
     private void UseApologeticSuggestion()
     {
         _draft =
-            "Comment défendre la résurrection " +
-            "face à une objection athée ?";
+            _theologicalLanguage == ApplicationLanguage.English
+                ? "How can the resurrection be defended " +
+                  "against an atheist objection?"
+                : "Comment défendre la résurrection " +
+                  "face à une objection athée ?";
     }
 
     private async Task SendAsync()
@@ -498,7 +559,9 @@ else
                 {
                     case AgentSelectedEvent selected:
                         _activeAgentName =
-                            selected.AgentName;
+                            GetAgentDisplayName(
+                                selected.AgentId,
+                                selected.AgentName);
 
                         _routingReason =
                             selected.Reason;
@@ -539,7 +602,9 @@ else
         catch (Exception exception)
         {
             _errorMessage =
-                $"La réponse n’a pas pu être produite : " +
+                Ui(
+                    "La réponse n’a pas pu être produite : ",
+                    "The response could not be generated: ") +
                 exception.Message;
         }
         finally
@@ -605,12 +670,12 @@ else
         };
     }
 
-    private static string GetMessageAuthor(
+    private string GetMessageAuthor(
         ConversationMessage message)
     {
         if (message.Role == MessageRole.User)
         {
-            return "Vous";
+            return Ui("Vous", "You");
         }
 
         if (message.AgentId is { } agentId &&
@@ -618,9 +683,42 @@ else
                 agentId,
                 out var agent))
         {
-            return agent.DisplayName;
+            return GetAgentDisplayName(
+                agent.Id,
+                agent.DisplayName);
         }
 
-        return "Système";
+        return Ui("Système", "System");
+    }
+
+    private string GetAgentDisplayName(
+        AgentId agentId,
+        string fallback)
+    {
+        if (agentId == BuiltInAgents.Historian.Id)
+        {
+            return Ui(
+                "Historien des religions",
+                "Historian of Religions");
+        }
+
+        if (agentId == BuiltInAgents.ProtestantApologist.Id)
+        {
+            return Ui(
+                "Apologète protestant",
+                "Protestant Apologist");
+        }
+
+        return fallback;
+    }
+
+    private string Ui(
+        string french,
+        string english)
+    {
+        return _interfaceLanguage ==
+                ApplicationLanguage.English
+            ? english
+            : french;
     }
 }

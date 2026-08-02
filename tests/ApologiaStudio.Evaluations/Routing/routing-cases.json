@@ -48,5 +48,20 @@
     "id": "historian-nicea",
     "question": "Que s'est-il passé politiquement au concile de Nicée ?",
     "expectedAgent": "historian"
+  },
+  {
+    "id": "apologist-bible-reference",
+    "question": "Donne-moi Jean 3:16.",
+    "expectedAgent": "protestant-apologist"
+  },
+  {
+    "id": "apologist-bible-chapter",
+    "question": "Donne-moi 1 Corinthiens 13.",
+    "expectedAgent": "protestant-apologist"
+  },
+  {
+    "id": "apologist-bible-misspelling",
+    "question": "Donne-moi 1 Corinthien 13.",
+    "expectedAgent": "protestant-apologist"
   }
 ]

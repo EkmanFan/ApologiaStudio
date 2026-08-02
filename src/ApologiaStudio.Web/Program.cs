@@ -3,12 +3,15 @@ using ApologiaStudio.AgentRuntime.Execution;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
+using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Identity;
+using ApologiaStudio.Application.BibleCorpora.Queries;
 using ApologiaStudio.Application.Conversations.CreateConversation;
 using ApologiaStudio.Application.Conversations.GetConversation;
 using ApologiaStudio.Application.Conversations.ListConversations;
 using ApologiaStudio.Application.Conversations.RenameConversation;
 using ApologiaStudio.Application.Conversations.SendMessage;
+using ApologiaStudio.Application.Preferences;
 using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.Components;
 using ApologiaStudio.Web.Endpoints;
@@ -29,6 +32,9 @@ builder.Services.AddScoped<
 
 builder.Services.AddSingleton<TimeProvider>(
     TimeProvider.System);
+
+builder.Services.AddSingleton<
+    BiblePassageRequestParser>();
 
 builder.Services.AddSingleton<
     DeterministicAgentRouter>();
@@ -199,7 +205,7 @@ builder.Services.AddSingleton<
     AgentPromptCatalog>();
 
 builder.Services.AddSingleton<
-    IAgentRuntime>(
+    OllamaAgentRuntime>(
     serviceProvider =>
     {
         var client =
@@ -221,6 +227,17 @@ builder.Services.AddSingleton<
     });
 
 builder.Services.AddScoped<
+    IAgentRuntime>(
+    serviceProvider =>
+        new BiblePassageAgentRuntime(
+            serviceProvider.GetRequiredService<
+                IAgentRouter>(),
+            serviceProvider.GetRequiredService<
+                IBibleCorpusQueryRepository>(),
+            serviceProvider.GetRequiredService<
+                OllamaAgentRuntime>()));
+
+builder.Services.AddScoped<
     CreateConversationHandler>();
 
 builder.Services.AddScoped<
@@ -234,6 +251,12 @@ builder.Services.AddScoped<
 
 builder.Services.AddScoped<
     SendMessageHandler>();
+
+builder.Services.AddScoped<
+    GetUserPreferencesHandler>();
+
+builder.Services.AddScoped<
+    UpdateUserPreferencesHandler>();
 
 var app = builder.Build();
 

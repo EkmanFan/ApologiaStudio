@@ -3,6 +3,7 @@ using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.Conversations;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Abstractions.Persistence;
+using ApologiaStudio.Application.Abstractions.Preferences;
 using ApologiaStudio.Application.Agents;
 using ApologiaStudio.Application.Conversations.SendMessage;
 using ApologiaStudio.Domain.Agents;
@@ -47,6 +48,12 @@ public sealed class SendMessageHandlerTests
             repository,
             runtime,
             unitOfWork,
+            new FakeUserPreferencesRepository(
+                UserPreferences.Create(
+                    ownerId,
+                    ApplicationLanguage.English,
+                    theologicalLanguage: null,
+                    updatedAt: DateTimeOffset.UtcNow)),
             currentUser,
             timeProvider);
 
@@ -83,6 +90,9 @@ public sealed class SendMessageHandlerTests
         Assert.Equal(2, unitOfWork.SaveCount);
         Assert.Equal(3, events.Count);
         Assert.IsType<AgentTurnCompletedEvent>(events[^1]);
+        Assert.Equal(
+            ApplicationLanguage.English,
+            runtime.Request?.TheologicalLanguage);
     }
 
     [Fact]
@@ -102,6 +112,7 @@ public sealed class SendMessageHandlerTests
                 AgentId.New(),
                 "This response must not be produced."),
             new FakeUnitOfWork(),
+            new FakeUserPreferencesRepository(),
             new FakeCurrentUser(anotherUserId),
             TimeProvider.System);
 
@@ -148,10 +159,14 @@ public sealed class SendMessageHandlerTests
         string response)
         : IAgentRuntime
     {
+        public AgentTurnRequest? Request { get; private set; }
+
         public async IAsyncEnumerable<AgentRunEvent> RunTurnAsync(
             AgentTurnRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            Request = request;
+
             yield return new AgentSelectedEvent(
                 agentId,
                 "Historian",
@@ -166,6 +181,26 @@ public sealed class SendMessageHandlerTests
             yield return new AgentTurnCompletedEvent(
                 agentId,
                 response);
+        }
+    }
+
+    private sealed class FakeUserPreferencesRepository(
+        UserPreferences? preferences = null)
+        : IUserPreferencesRepository
+    {
+        public Task<UserPreferences?> GetAsync(
+            UserId userId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(
+                preferences?.UserId == userId
+                    ? preferences
+                    : null);
+        }
+
+        public void Add(UserPreferences newPreferences)
+        {
+            throw new NotSupportedException();
         }
     }
 

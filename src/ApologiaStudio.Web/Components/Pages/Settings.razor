@@ -1,0 +1,237 @@
+@page "/settings"
+
+@using Microsoft.Extensions.DependencyInjection
+@using ApologiaStudio.Application.Preferences
+@using ApologiaStudio.Domain.Users
+
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@inject IServiceScopeFactory ServiceScopeFactory
+
+<PageTitle>@Text("Préférences", "Preferences") · Apologia Studio</PageTitle>
+<DocumentLanguage Language="@SelectedInterfaceLanguage" />
+
+<main class="settings-shell">
+    <header class="settings-header">
+        <div>
+            <p class="settings-eyebrow">Apologia Studio</p>
+            <h1>@Text("Préférences", "Preferences")</h1>
+            <p>
+                @Text(
+                    "Choisissez la langue de l’application et celle du contenu théologique.",
+                    "Choose the application language and the language of theological content.")
+            </p>
+        </div>
+
+        <a href="/">
+            @Text("Retour aux conversations", "Back to conversations")
+        </a>
+    </header>
+
+    @if (_isLoading)
+    {
+        <p class="settings-status">
+            @Text("Chargement des préférences…", "Loading preferences…")
+        </p>
+    }
+    else
+    {
+        <section class="settings-card">
+            <div class="settings-field">
+                <label for="interface-language">
+                    @Text("Langue de l’IHM", "Interface language")
+                </label>
+
+                <select id="interface-language"
+                        @bind="_interfaceLanguageCode"
+                        disabled="@_isSaving">
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                </select>
+
+                <p>
+                    @Text(
+                        "Détermine la langue des menus, boutons et messages de l’application.",
+                        "Controls the language of application menus, buttons, and messages.")
+                </p>
+            </div>
+
+            <div class="settings-field">
+                <label for="theological-language">
+                    @Text("Langue théologique", "Theological language")
+                </label>
+
+                <select id="theological-language"
+                        @bind="_theologicalLanguageCode"
+                        disabled="@_isSaving">
+                    <option value="">
+                        @Text(
+                            "Identique à la langue de l’IHM",
+                            "Same as interface language")
+                    </option>
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                </select>
+
+                <p>
+                    @Text(
+                        "Utilisée par défaut pour les réponses théologiques et les textes bibliques. Une langue demandée explicitement dans un message reste prioritaire.",
+                        "Used by default for theological answers and Bible text. A language explicitly requested in a message still takes priority.")
+                </p>
+            </div>
+
+            <div class="effective-language">
+                <span>
+                    @Text("Langue théologique effective", "Effective theological language")
+                </span>
+                <strong>@EffectiveTheologicalLanguageLabel</strong>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_statusMessage))
+            {
+                <p class="settings-status success">
+                    @_statusMessage
+                </p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <p class="settings-status error">
+                    @_errorMessage
+                </p>
+            }
+
+            <button type="button"
+                    disabled="@_isSaving"
+                    @onclick="SaveAsync">
+                @(_isSaving
+                    ? Text("Enregistrement…", "Saving…")
+                    : Text("Enregistrer", "Save"))
+            </button>
+        </section>
+    }
+</main>
+
+@code {
+    private string _interfaceLanguageCode = "fr";
+    private string _theologicalLanguageCode = string.Empty;
+    private string? _statusMessage;
+    private string? _errorMessage;
+    private bool _isLoading = true;
+    private bool _isSaving;
+
+    private ApplicationLanguage SelectedInterfaceLanguage =>
+        ApplicationLanguageExtensions.TryParseLanguageTag(
+            _interfaceLanguageCode,
+            out var language)
+            ? language
+            : ApplicationLanguage.French;
+
+    private ApplicationLanguage EffectiveTheologicalLanguage =>
+        ApplicationLanguageExtensions.TryParseLanguageTag(
+            _theologicalLanguageCode,
+            out var language)
+            ? language
+            : SelectedInterfaceLanguage;
+
+    private string EffectiveTheologicalLanguageLabel =>
+        EffectiveTheologicalLanguage == ApplicationLanguage.French
+            ? "Français"
+            : "English";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    GetUserPreferencesHandler>();
+
+            var preferences = await handler.HandleAsync(
+                CancellationToken.None);
+
+            _interfaceLanguageCode =
+                preferences.InterfaceLanguage.ToLanguageTag();
+
+            _theologicalLanguageCode =
+                preferences.TheologicalLanguage?.ToLanguageTag() ??
+                string.Empty;
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                Text(
+                    "Les préférences n’ont pas pu être chargées : ",
+                    "Preferences could not be loaded: ") +
+                exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _statusMessage = null;
+        _errorMessage = null;
+
+        try
+        {
+            ApplicationLanguage? theologicalLanguage =
+                string.IsNullOrWhiteSpace(
+                    _theologicalLanguageCode)
+                    ? null
+                    : EffectiveTheologicalLanguage;
+
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    UpdateUserPreferencesHandler>();
+
+            await handler.HandleAsync(
+                new UpdateUserPreferencesCommand(
+                    SelectedInterfaceLanguage,
+                    theologicalLanguage),
+                CancellationToken.None);
+
+            _statusMessage =
+                Text(
+                    "Préférences enregistrées.",
+                    "Preferences saved.");
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                Text(
+                    "Les préférences n’ont pas pu être enregistrées : ",
+                    "Preferences could not be saved: ") +
+                exception.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string Text(
+        string french,
+        string english)
+    {
+        return SelectedInterfaceLanguage ==
+                ApplicationLanguage.English
+            ? english
+            : french;
+    }
+}

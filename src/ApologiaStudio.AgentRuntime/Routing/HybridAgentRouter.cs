@@ -20,12 +20,21 @@ public sealed class HybridAgentRouter(
         var deterministicDecision =
             deterministicRouter.Route(request);
 
-        if (deterministicDecision.WasExplicitlyRequested)
+        var needsBibleIntentClassification =
+            deterministicDecision.WasExplicitlyRequested &&
+            deterministicDecision.AgentId ==
+                BuiltInAgents.ProtestantApologist.Id &&
+            deterministicDecision.BiblePassageResolution ==
+                BiblePassageResolution.None;
+
+        if (deterministicDecision.WasExplicitlyRequested &&
+            !needsBibleIntentClassification)
         {
             return deterministicDecision;
         }
 
-        if (deterministicDecision.Confidence >=
+        if (!needsBibleIntentClassification &&
+            deterministicDecision.Confidence >=
             options.DeterministicConfidenceThreshold)
         {
             return deterministicDecision;
@@ -34,12 +43,56 @@ public sealed class HybridAgentRouter(
         var currentMessage =
             FindCurrentUserMessage(request);
 
+        var isBiblePassageLookupCandidate =
+            deterministicRouter.IsBiblePassageLookupCandidate(
+                currentMessage);
+
         try
         {
             var semanticDecision =
                 await semanticClassifier.ClassifyAsync(
                     currentMessage,
                     cancellationToken);
+
+            if (semanticDecision.BiblePassageResolution !=
+                BiblePassageResolution.None)
+            {
+                var resolution =
+                    semanticDecision.BiblePassageResolution ==
+                        BiblePassageResolution.Resolved &&
+                    semanticDecision.BiblePassage is not null
+                        ? BiblePassageResolution.Resolved
+                        : BiblePassageResolution.Unsupported;
+
+                return new RoutingDecision(
+                    BuiltInAgents.ProtestantApologist.Id,
+                    BuiltInAgents.ProtestantApologist.DisplayName,
+                    semanticDecision.Reason,
+                    semanticDecision.Confidence,
+                    WasExplicitlyRequested:
+                        deterministicDecision.WasExplicitlyRequested,
+                    resolution,
+                    resolution == BiblePassageResolution.Resolved
+                        ? semanticDecision.BiblePassage
+                        : null);
+            }
+
+            if (isBiblePassageLookupCandidate)
+            {
+                return new RoutingDecision(
+                    BuiltInAgents.ProtestantApologist.Id,
+                    BuiltInAgents.ProtestantApologist.DisplayName,
+                    semanticDecision.Reason,
+                    semanticDecision.Confidence,
+                    WasExplicitlyRequested:
+                        deterministicDecision.WasExplicitlyRequested,
+                    BiblePassageResolution.Unsupported);
+            }
+
+            if (deterministicDecision.WasExplicitlyRequested)
+            {
+                return deterministicDecision;
+            }
 
             if (semanticDecision.Confidence <
                 options.MinimumSemanticConfidence)
@@ -81,6 +134,19 @@ public sealed class HybridAgentRouter(
         }
         catch (Exception)
         {
+            if (isBiblePassageLookupCandidate)
+            {
+                return new RoutingDecision(
+                    BuiltInAgents.ProtestantApologist.Id,
+                    BuiltInAgents.ProtestantApologist.DisplayName,
+                    deterministicDecision.Reason +
+                    " Bible-reference normalization was unavailable.",
+                    deterministicDecision.Confidence,
+                    WasExplicitlyRequested:
+                        deterministicDecision.WasExplicitlyRequested,
+                    BiblePassageResolution.Unsupported);
+            }
+
             return deterministicDecision with
             {
                 Reason =

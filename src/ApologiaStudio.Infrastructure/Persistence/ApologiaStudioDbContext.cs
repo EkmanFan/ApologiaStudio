@@ -1,4 +1,5 @@
 using ApologiaStudio.Domain.Conversations;
+using ApologiaStudio.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApologiaStudio.Infrastructure.Persistence;
@@ -12,6 +13,9 @@ public sealed class ApologiaStudioDbContext(
 
     public DbSet<ConversationMessage> ConversationMessages =>
         Set<ConversationMessage>();
+
+    public DbSet<UserPreferences> UserPreferences =>
+        Set<UserPreferences>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

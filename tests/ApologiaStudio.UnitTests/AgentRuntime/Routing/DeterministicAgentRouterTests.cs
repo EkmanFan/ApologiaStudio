@@ -29,6 +29,21 @@ public sealed class DeterministicAgentRouterTests
     }
 
     [Fact]
+    public void Route_ShouldResolveReferenceForExplicitApologist()
+    {
+        var decision = _router.Route(
+            CreateRequest(
+                "Jean 3:16",
+                BuiltInAgents.ProtestantApologist.Id));
+
+        Assert.True(decision.WasExplicitlyRequested);
+        Assert.Equal(
+            BiblePassageResolution.Resolved,
+            decision.BiblePassageResolution);
+        Assert.Equal("JHN", decision.BiblePassage?.BookCode.Value);
+    }
+
+    [Fact]
     public void Route_ShouldRejectUnknownRequestedAgent()
     {
         var unknownAgentId = AgentId.New();
@@ -80,6 +95,67 @@ public sealed class DeterministicAgentRouterTests
         Assert.Equal(
             BuiltInAgents.ProtestantApologist.Id,
             decision.AgentId);
+    }
+
+    [Fact]
+    public void Route_ShouldSelectApologistForBibleVerseReference()
+    {
+        var request = CreateRequest(
+            "Donne-moi Jean 3:16.");
+
+        var decision = _router.Route(request);
+
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+
+        Assert.Equal(0.95, decision.Confidence);
+        Assert.Equal(
+            BiblePassageResolution.Resolved,
+            decision.BiblePassageResolution);
+        Assert.Equal("JHN", decision.BiblePassage?.BookCode.Value);
+        Assert.Equal("16", decision.BiblePassage?.VerseLabel);
+
+        Assert.Contains(
+            "Bible passage reference",
+            decision.Reason,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Route_ShouldSelectApologistForWholeBibleChapter()
+    {
+        var decision = _router.Route(
+            CreateRequest("Donne-moi 1 Corinthiens 13."));
+
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+
+        Assert.Equal(0.95, decision.Confidence);
+        Assert.Equal(
+            BiblePassageResolution.Resolved,
+            decision.BiblePassageResolution);
+        Assert.Equal("1CO", decision.BiblePassage?.BookCode.Value);
+        Assert.Null(decision.BiblePassage?.VerseLabel);
+    }
+
+    [Fact]
+    public void Route_ShouldResolveSupportedBibleRange()
+    {
+        var decision = _router.Route(
+            CreateRequest("Donne-moi Jean 3:16-18."));
+
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+
+        Assert.Equal(0.95, decision.Confidence);
+        Assert.Equal(
+            BiblePassageResolution.Resolved,
+            decision.BiblePassageResolution);
+        Assert.Equal("16", decision.BiblePassage?.VerseLabel);
+        Assert.Equal("18", decision.BiblePassage?.EndVerseLabel);
     }
 
     [Fact]

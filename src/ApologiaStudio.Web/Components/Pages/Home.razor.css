@@ -45,6 +45,21 @@
     font-size: 0.75rem;
 }
 
+.sidebar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.sidebar-actions a {
+    padding: 0.4rem 0.55rem;
+    border: 1px solid #adb5bd;
+    border-radius: 0.45rem;
+    color: inherit;
+    font-size: 0.82rem;
+    text-decoration: none;
+}
+
 .sidebar-header button,
 .missing-conversation button {
     padding: 0.45rem 0.7rem;

@@ -4,6 +4,7 @@ using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.Application.Abstractions.Conversations;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Abstractions.Persistence;
+using ApologiaStudio.Application.Abstractions.Preferences;
 using ApologiaStudio.Application.Conversations.SendMessage;
 using ApologiaStudio.Domain.Conversations;
 using ApologiaStudio.Domain.Users;
@@ -35,6 +36,7 @@ public sealed class SendMessageWithSimulatedRuntimeTests
             repository,
             runtime,
             unitOfWork,
+            new FakeUserPreferencesRepository(),
             new FakeCurrentUser(ownerId),
             TimeProvider.System);
 
@@ -103,6 +105,22 @@ public sealed class SendMessageWithSimulatedRuntimeTests
         {
             SaveCount++;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeUserPreferencesRepository
+        : IUserPreferencesRepository
+    {
+        public Task<UserPreferences?> GetAsync(
+            UserId userId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<UserPreferences?>(null);
+        }
+
+        public void Add(UserPreferences preferences)
+        {
+            throw new NotSupportedException();
         }
     }
 

@@ -9,4 +9,6 @@ public sealed record AgentTurnRequest(
     UserId UserId,
     MessageId UserMessageId,
     AgentId? RequestedAgentId,
-    IReadOnlyList<ConversationMessageContext> History);
+    IReadOnlyList<ConversationMessageContext> History,
+    ApplicationLanguage TheologicalLanguage =
+        ApplicationLanguage.French);

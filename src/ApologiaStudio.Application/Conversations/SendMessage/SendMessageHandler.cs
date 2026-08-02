@@ -3,7 +3,9 @@ using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.Conversations;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Abstractions.Persistence;
+using ApologiaStudio.Application.Abstractions.Preferences;
 using ApologiaStudio.Application.Agents;
+using ApologiaStudio.Domain.Users;
 
 namespace ApologiaStudio.Application.Conversations.SendMessage;
 
@@ -11,6 +13,7 @@ public sealed class SendMessageHandler(
     IConversationRepository conversationRepository,
     IAgentRuntime agentRuntime,
     IUnitOfWork unitOfWork,
+    IUserPreferencesRepository preferencesRepository,
     ICurrentUser currentUser,
     TimeProvider timeProvider)
 {
@@ -51,12 +54,21 @@ public sealed class SendMessageHandler(
                 message.CreatedAt))
             .ToArray();
 
+        var preferences = await preferencesRepository.GetAsync(
+            currentUser.UserId,
+            cancellationToken);
+
+        var theologicalLanguage =
+            preferences?.EffectiveTheologicalLanguage ??
+            UserPreferences.DefaultInterfaceLanguage;
+
         var request = new AgentTurnRequest(
             conversation.Id,
             currentUser.UserId,
             userMessage.Id,
             command.RequestedAgentId,
-            history);
+            history,
+            theologicalLanguage);
 
         await foreach (var agentEvent in agentRuntime
                            .RunTurnAsync(request, cancellationToken)

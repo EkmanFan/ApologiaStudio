@@ -27,15 +27,17 @@ public sealed class OllamaAgentRuntimeTests
         var options =
             CreateOptions();
 
+        var router = new StubAgentRouter(
+            new RoutingDecision(
+                BuiltInAgents.Historian.Id,
+                BuiltInAgents.Historian.DisplayName,
+                "Historical question.",
+                0.95,
+                WasExplicitlyRequested: false));
+
         using var runtime =
             new OllamaAgentRuntime(
-                new StubAgentRouter(
-                    new RoutingDecision(
-                        BuiltInAgents.Historian.Id,
-                        BuiltInAgents.Historian.DisplayName,
-                        "Historical question.",
-                        0.95,
-                        WasExplicitlyRequested: false)),
+                router,
                 new AgentPromptCatalog(),
                 new HttpClient(handler)
                 {
@@ -116,6 +118,105 @@ public sealed class OllamaAgentRuntimeTests
             "\"role\":\"user\"",
             handler.RequestBody,
             StringComparison.Ordinal);
+
+        Assert.Equal(1, router.CallCount);
+    }
+
+    [Fact]
+    public async Task RunTurnAsync_ShouldReuseSuppliedRoutingDecision()
+    {
+        const string responseBody = """
+            {"message":{"role":"assistant","content":"Réponse."},"done":false}
+            {"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}
+            """;
+
+        var handler = new StubHttpMessageHandler(responseBody);
+        var options = CreateOptions();
+        var router = new StubAgentRouter(
+            new RoutingDecision(
+                BuiltInAgents.ProtestantApologist.Id,
+                BuiltInAgents.ProtestantApologist.DisplayName,
+                "Should not be requested.",
+                0.55,
+                WasExplicitlyRequested: false));
+
+        using var runtime = new OllamaAgentRuntime(
+            router,
+            new AgentPromptCatalog(),
+            new HttpClient(handler)
+            {
+                BaseAddress = options.BaseAddress,
+                Timeout = options.RequestTimeout
+            },
+            options);
+
+        var suppliedDecision = new RoutingDecision(
+            BuiltInAgents.Historian.Id,
+            BuiltInAgents.Historian.DisplayName,
+            "Already routed.",
+            0.95,
+            WasExplicitlyRequested: false);
+
+        var events = new List<AgentRunEvent>();
+
+        await foreach (var runEvent in runtime.RunTurnAsync(
+                           CreateRequest(
+                               ApplicationLanguage.English),
+                           suppliedDecision,
+                           CancellationToken.None))
+        {
+            events.Add(runEvent);
+        }
+
+        Assert.Equal(0, router.CallCount);
+
+        var selected = Assert.IsType<AgentSelectedEvent>(events[0]);
+        Assert.Equal(BuiltInAgents.Historian.Id, selected.AgentId);
+        Assert.DoesNotContain(
+            "default to English for theological responses",
+            handler.RequestBody,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunTurnAsync_ShouldApplyTheologicalLanguageToApologistPrompt()
+    {
+        const string responseBody = """
+            {"message":{"role":"assistant","content":"Answer."},"done":false}
+            {"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}
+            """;
+
+        var handler = new StubHttpMessageHandler(responseBody);
+        var options = CreateOptions();
+        var router = new StubAgentRouter(
+            new RoutingDecision(
+                BuiltInAgents.ProtestantApologist.Id,
+                BuiltInAgents.ProtestantApologist.DisplayName,
+                "Apologetics question.",
+                0.95,
+                WasExplicitlyRequested: false));
+
+        using var runtime = new OllamaAgentRuntime(
+            router,
+            new AgentPromptCatalog(),
+            new HttpClient(handler)
+            {
+                BaseAddress = options.BaseAddress,
+                Timeout = options.RequestTimeout
+            },
+            options);
+
+        await foreach (var _ in runtime.RunTurnAsync(
+                           CreateRequest(
+                               ApplicationLanguage.English),
+                           CancellationToken.None))
+        {
+        }
+
+        Assert.Contains(
+            "default to English for theological responses",
+            handler.RequestBody,
+            StringComparison.Ordinal);
     }
 
     private static OllamaGenerationOptions
@@ -142,7 +243,9 @@ public sealed class OllamaAgentRuntimeTests
     }
 
     private static AgentTurnRequest
-        CreateRequest()
+        CreateRequest(
+            ApplicationLanguage theologicalLanguage =
+                ApplicationLanguage.French)
     {
         var messageId =
             MessageId.New();
@@ -160,18 +263,22 @@ public sealed class OllamaAgentRuntimeTests
                     "Quel âge avait Clovis lors de son sacre ?",
                     AgentId: null,
                     DateTimeOffset.UtcNow)
-            ]);
+            ],
+            theologicalLanguage);
     }
 
     private sealed class StubAgentRouter(
         RoutingDecision decision)
         : IAgentRouter
     {
+        public int CallCount { get; private set; }
+
         public ValueTask<RoutingDecision> RouteAsync(
             AgentTurnRequest request,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            CallCount++;
 
             return ValueTask.FromResult(
                 decision);

@@ -2,12 +2,16 @@ using System.Globalization;
 using System.Text;
 using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.Application.Agents;
+using ApologiaStudio.Application.BibleCorpora.Queries;
 using ApologiaStudio.Domain.Conversations;
 
 namespace ApologiaStudio.AgentRuntime.Routing;
 
 public sealed class DeterministicAgentRouter : IAgentRouter
 {
+    private readonly BiblePassageRequestParser
+        _biblePassageRequestParser;
+
     private static readonly string[] HistorianKeywords =
     [
         "a quelle epoque",
@@ -64,6 +68,14 @@ public sealed class DeterministicAgentRouter : IAgentRouter
         "trinity"
     ];
 
+    public DeterministicAgentRouter(
+        BiblePassageRequestParser? biblePassageRequestParser = null)
+    {
+        _biblePassageRequestParser =
+            biblePassageRequestParser ??
+            new BiblePassageRequestParser();
+    }
+
     public ValueTask<RoutingDecision> RouteAsync(
         AgentTurnRequest request,
         CancellationToken cancellationToken)
@@ -74,9 +86,17 @@ public sealed class DeterministicAgentRouter : IAgentRouter
             Route(request));
     }
 
+    public bool IsBiblePassageLookupCandidate(string message)
+    {
+        return _biblePassageRequestParser.IsPassageLookupRequest(
+            message);
+    }
+
     public RoutingDecision Route(AgentTurnRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var currentMessage = FindCurrentUserMessage(request);
 
         if (request.RequestedAgentId is { } requestedAgentId)
         {
@@ -89,6 +109,40 @@ public sealed class DeterministicAgentRouter : IAgentRouter
                     nameof(request));
             }
 
+            if (requestedAgent.Id ==
+                    BuiltInAgents.ProtestantApologist.Id &&
+                _biblePassageRequestParser.TryParse(
+                    currentMessage,
+                    out var explicitlyRequestedPassage) &&
+                _biblePassageRequestParser.IsPassageLookupRequest(
+                    currentMessage))
+            {
+                return new RoutingDecision(
+                    requestedAgent.Id,
+                    requestedAgent.DisplayName,
+                    "The user explicitly selected this agent and requested a recognized Bible passage.",
+                    1.0,
+                    WasExplicitlyRequested: true,
+                    BiblePassageResolution.Resolved,
+                    explicitlyRequestedPassage);
+            }
+
+            if (requestedAgent.Id ==
+                    BuiltInAgents.ProtestantApologist.Id &&
+                _biblePassageRequestParser.IsPassageLookupRequest(
+                    currentMessage) &&
+                _biblePassageRequestParser.ContainsReferenceCandidate(
+                    currentMessage))
+            {
+                return new RoutingDecision(
+                    requestedAgent.Id,
+                    requestedAgent.DisplayName,
+                    "The user explicitly selected this agent and supplied an unsupported Bible reference.",
+                    1.0,
+                    WasExplicitlyRequested: true,
+                    BiblePassageResolution.Unsupported);
+            }
+
             return new RoutingDecision(
                 requestedAgent.Id,
                 requestedAgent.DisplayName,
@@ -97,7 +151,36 @@ public sealed class DeterministicAgentRouter : IAgentRouter
                 WasExplicitlyRequested: true);
         }
 
-        var currentMessage = FindCurrentUserMessage(request);
+        if (_biblePassageRequestParser.TryParse(
+                currentMessage,
+                out var biblePassage) &&
+            _biblePassageRequestParser.IsPassageLookupRequest(
+                currentMessage))
+        {
+            return new RoutingDecision(
+                BuiltInAgents.ProtestantApologist.Id,
+                BuiltInAgents.ProtestantApologist.DisplayName,
+                "The message contains a recognized Bible passage reference.",
+                0.95,
+                WasExplicitlyRequested: false,
+                BiblePassageResolution.Resolved,
+                biblePassage);
+        }
+
+        if (_biblePassageRequestParser.IsPassageLookupRequest(
+                currentMessage) &&
+            _biblePassageRequestParser.ContainsReferenceCandidate(
+                currentMessage))
+        {
+            return new RoutingDecision(
+                BuiltInAgents.ProtestantApologist.Id,
+                BuiltInAgents.ProtestantApologist.DisplayName,
+                "The message contains a Bible reference in an unsupported format.",
+                0.95,
+                WasExplicitlyRequested: false,
+                BiblePassageResolution.Unsupported);
+        }
+
         var normalizedMessage = Normalize(currentMessage);
 
         var historianScore = CountMatches(
