@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <ItemGroup>
+      <ProjectReference Include="..\ApologiaStudio.Application\ApologiaStudio.Application.csproj" />
+      <ProjectReference Include="..\ApologiaStudio.AgentRuntime\ApologiaStudio.AgentRuntime.csproj" />
+      <ProjectReference Include="..\ApologiaStudio.Infrastructure\ApologiaStudio.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    </PropertyGroup>
+
+</Project>
