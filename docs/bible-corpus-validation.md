@@ -2,6 +2,9 @@
 
 The benchmark validates the canonical ingestion source (USFM) against a simplified VPL oracle before any PostgreSQL persistence is designed.
 
+The resulting PostgreSQL persistence boundary is defined by
+[ADR 0001: Canonical Bible corpus model](adr/0001-canonical-bible-corpus-model.md).
+
 ## Validation boundary
 
 - `SIL.Machine 3.9.1` tokenizes and parses USFM.
