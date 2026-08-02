@@ -24,6 +24,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApologiaStudio.Architecture
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApologiaStudio.Evaluations", "tests\ApologiaStudio.Evaluations\ApologiaStudio.Evaluations.csproj", "{AD86778F-973C-428B-84F3-47BBD824EB76}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{F3A92795-71E7-4A8B-A3D0-C8F01876A59E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApologiaStudio.BibleCorpusBench", "tools\ApologiaStudio.BibleCorpusBench\ApologiaStudio.BibleCorpusBench.csproj", "{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -154,6 +158,18 @@ Global
 		{AD86778F-973C-428B-84F3-47BBD824EB76}.Release|x64.Build.0 = Release|Any CPU
 		{AD86778F-973C-428B-84F3-47BBD824EB76}.Release|x86.ActiveCfg = Release|Any CPU
 		{AD86778F-973C-428B-84F3-47BBD824EB76}.Release|x86.Build.0 = Release|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Debug|x64.Build.0 = Debug|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Debug|x86.Build.0 = Debug|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Release|x64.ActiveCfg = Release|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Release|x64.Build.0 = Release|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Release|x86.ActiveCfg = Release|Any CPU
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -169,5 +185,6 @@ Global
 		{53113652-4879-4933-9970-758773A743E3} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{7CC4AB16-6681-4B0A-A0C6-808B5D223D9F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{AD86778F-973C-428B-84F3-47BBD824EB76} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{D13C6E45-4DE0-4A62-91AC-65E4DE6D053D} = {F3A92795-71E7-4A8B-A3D0-C8F01876A59E}
 	EndGlobalSection
 EndGlobal
