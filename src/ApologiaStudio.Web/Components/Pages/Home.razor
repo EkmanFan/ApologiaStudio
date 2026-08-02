@@ -1,7 +1,315 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>Home</PageTitle>
+@using Microsoft.AspNetCore.Components.Web
+@using ApologiaStudio.AgentRuntime.Agents
+@using ApologiaStudio.Application.Agents
+@using ApologiaStudio.Application.Conversations.CreateConversation
+@using ApologiaStudio.Application.Conversations.SendMessage
+@using ApologiaStudio.Domain.Agents
+@using ApologiaStudio.Domain.Conversations
 
-<h1>Hello, world!</h1>
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-Welcome to your new app.
+@inject CreateConversationHandler CreateConversationHandler
+@inject SendMessageHandler SendMessageHandler
+
+<PageTitle>Apologia Studio</PageTitle>
+
+@if (_conversation is null)
+{
+    <div class="loading">
+        Initialisation de l’espace de discussion…
+    </div>
+}
+else
+{
+    <section class="chat-shell">
+        <header class="chat-header">
+            <div>
+                <h1>Apologia Studio</h1>
+                <p>
+                    Posez une question. Le spécialiste le plus pertinent
+                    sera sélectionné automatiquement.
+                </p>
+            </div>
+
+            <div class="runtime-badge">
+                Runtime simulé
+            </div>
+        </header>
+
+        <main class="conversation-thread">
+            @if (_conversation.Messages.Count == 0 &&
+                 string.IsNullOrEmpty(_streamingText))
+            {
+                <div class="empty-state">
+                    <h2>Commencez directement</h2>
+
+                    <p>
+                        Exemples :
+                    </p>
+
+                    <button type="button"
+                            @onclick="UseHistoricalSuggestion">
+                        Question historique
+                    </button>
+
+                    <button type="button"
+                            @onclick="UseApologeticSuggestion">
+                        Question apologétique
+                    </button>
+                </div>
+            }
+
+            @foreach (var message in _conversation.Messages)
+            {
+                <article class="@GetMessageCssClass(message)">
+                    <div class="message-author">
+                        @GetMessageAuthor(message)
+                    </div>
+
+                    <div class="message-content">
+                        @message.Content
+                    </div>
+                </article>
+            }
+
+            @if (!string.IsNullOrEmpty(_streamingText))
+            {
+                <article class="message agent streaming">
+                    <div class="message-author">
+                        @(_activeAgentName ?? "Agent")
+                    </div>
+
+                    <div class="message-content">
+                        @_streamingText
+                        <span class="cursor">▋</span>
+                    </div>
+                </article>
+            }
+        </main>
+
+        @if (!string.IsNullOrWhiteSpace(_routingReason))
+        {
+            <aside class="routing-information">
+                <strong>Routage :</strong>
+                @_routingReason
+            </aside>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <aside class="error-information">
+                @_errorMessage
+            </aside>
+        }
+
+        <footer class="composer">
+            <div class="composer-options">
+                <label for="agent-selection">
+                    Expert
+                </label>
+
+                <select id="agent-selection"
+                        @bind="_selectedAgentSlug"
+                        disabled="@_isSending">
+                    <option value="">
+                        Routage automatique
+                    </option>
+
+                    <option value="historian">
+                        Historien des religions
+                    </option>
+
+                    <option value="protestant-apologist">
+                        Apologète protestant
+                    </option>
+                </select>
+            </div>
+
+            <textarea @bind="_draft"
+                      @bind:event="oninput"
+                      disabled="@_isSending"
+                      maxlength="50000"
+                      rows="4"
+                      placeholder="Posez votre question…">
+            </textarea>
+
+            <div class="composer-actions">
+                <span>
+                    @(_isSending
+                        ? "Réponse en cours…"
+                        : "Le routage peut être automatique ou imposé.")
+                </span>
+
+                <button type="button"
+                        disabled="@(_isSending ||
+                                   string.IsNullOrWhiteSpace(_draft))"
+                        @onclick="SendAsync">
+                    Envoyer
+                </button>
+            </div>
+        </footer>
+    </section>
+}
+
+@code {
+    private Conversation? _conversation;
+    private string _draft = string.Empty;
+    private string _selectedAgentSlug = string.Empty;
+    private string _streamingText = string.Empty;
+    private string? _activeAgentName;
+    private string? _routingReason;
+    private string? _errorMessage;
+    private bool _isSending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _conversation =
+            await CreateConversationHandler.HandleAsync(
+                new CreateConversationCommand(
+                    "Nouvelle discussion"),
+                CancellationToken.None);
+    }
+
+    private void UseSuggestion(string suggestion)
+    {
+        _draft = suggestion;
+    }
+
+    private void UseHistoricalSuggestion()
+    {
+        UseSuggestion(
+            "À quelle époque apparaît historiquement la primauté de l’évêque de Rome ?");
+    }
+
+    private void UseApologeticSuggestion()
+    {
+        UseSuggestion(
+            "Comment défendre la résurrection face à une objection athée ?");
+    }
+
+    private async Task SendAsync()
+    {
+        if (_conversation is null ||
+            string.IsNullOrWhiteSpace(_draft) ||
+            _isSending)
+        {
+            return;
+        }
+
+        var content = _draft.Trim();
+
+        _draft = string.Empty;
+        _streamingText = string.Empty;
+        _routingReason = null;
+        _errorMessage = null;
+        _activeAgentName = null;
+        _isSending = true;
+
+        try
+        {
+            var command = new SendMessageCommand(
+                _conversation.Id,
+                content,
+                ResolveRequestedAgentId());
+
+            await foreach (
+                var agentEvent in
+                SendMessageHandler.HandleAsync(
+                    command,
+                    CancellationToken.None))
+            {
+                switch (agentEvent)
+                {
+                    case AgentSelectedEvent selected:
+                        _activeAgentName =
+                            selected.AgentName;
+
+                        _routingReason =
+                            selected.Reason;
+
+                        break;
+
+                    case TextDeltaEvent delta:
+                        _streamingText +=
+                            delta.Content;
+
+                        break;
+
+                    case AgentTurnCompletedEvent:
+                        _streamingText =
+                            string.Empty;
+
+                        break;
+                }
+
+                await InvokeAsync(
+                    StateHasChanged);
+            }
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                $"La réponse n’a pas pu être produite : " +
+                exception.Message;
+        }
+        finally
+        {
+            _streamingText = string.Empty;
+            _isSending = false;
+
+            await InvokeAsync(
+                StateHasChanged);
+        }
+    }
+
+    private AgentId? ResolveRequestedAgentId()
+    {
+        return _selectedAgentSlug switch
+        {
+            "historian" =>
+                BuiltInAgents.Historian.Id,
+
+            "protestant-apologist" =>
+                BuiltInAgents.ProtestantApologist.Id,
+
+            _ => null
+        };
+    }
+
+    private static string GetMessageCssClass(
+        ConversationMessage message)
+    {
+        return message.Role switch
+        {
+            MessageRole.User =>
+                "message user",
+
+            MessageRole.Agent =>
+                "message agent",
+
+            _ =>
+                "message system"
+        };
+    }
+
+    private static string GetMessageAuthor(
+        ConversationMessage message)
+    {
+        if (message.Role == MessageRole.User)
+        {
+            return "Vous";
+        }
+
+        if (message.AgentId is { } agentId &&
+            BuiltInAgents.TryGet(
+                agentId,
+                out var agent))
+        {
+            return agent.DisplayName;
+        }
+
+        return "Système";
+    }
+}
