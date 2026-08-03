@@ -44,3 +44,19 @@ language explicitly requested in the current message takes precedence.
 Current default Bible editions are `lsg1910` for French and `web-classic` for
 English. The routing model may normalize a reference and extract an explicitly
 requested language, but it never selects the application default.
+
+## Application shell
+
+The conversation workspace uses a viewport-height application shell:
+
+- the sidebar header and local-account footer remain visible;
+- Library and Chats scroll independently from the conversation;
+- Library lists active, approved Bible editions from PostgreSQL;
+- the message thread scrolls independently while the composer remains visible;
+- automatic scrolling follows new content only while the reader is already near
+  the latest message;
+- below 900 pixels, the sidebar becomes a dismissible navigation drawer.
+
+Pinned conversations and Projects are intentionally deferred until their
+persistent data model is implemented. The Library entries are read-only until a
+dedicated Bible reader is available.

@@ -19,10 +19,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\ApologiaStudio.Domain\ApologiaStudio.Domain.csproj" />
     <ProjectReference Include="..\..\src\ApologiaStudio.Application\ApologiaStudio.Application.csproj" />
     <ProjectReference Include="..\..\src\ApologiaStudio.AgentRuntime\ApologiaStudio.AgentRuntime.csproj" />
     <ProjectReference Include="..\..\src\ApologiaStudio.Infrastructure\ApologiaStudio.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ApologiaStudio.Web\ApologiaStudio.Web.csproj" />
     <ProjectReference Include="..\..\tools\ApologiaStudio.BibleCorpusBench\ApologiaStudio.BibleCorpusBench.csproj" />
     <ProjectReference Include="..\..\tools\ApologiaStudio.BibleCorpusImporter\ApologiaStudio.BibleCorpusImporter.csproj" />
   </ItemGroup>

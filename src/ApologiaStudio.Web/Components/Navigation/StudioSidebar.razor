@@ -1,0 +1,178 @@
+@using ApologiaStudio.Domain.Users
+
+<button class="sidebar-scrim @(IsOpen ? "visible" : null)"
+        type="button"
+        tabindex="@(IsOpen ? "0" : "-1")"
+        aria-label="@Text("Fermer la navigation", "Close navigation")"
+        @onclick="CloseAsync">
+</button>
+
+<aside id="studio-sidebar"
+       class="studio-sidebar @(IsOpen ? "open" : null)"
+       aria-label="@Text("Navigation principale", "Primary navigation")">
+    <header class="sidebar-header">
+        <a class="brand" href="/" @onclick="CloseAsync">
+            <span class="brand-mark" aria-hidden="true">A</span>
+            <span>
+                <strong>Apologia Studio</strong>
+                <small>@Text("Atelier apologétique", "Apologetics workspace")</small>
+            </span>
+        </a>
+
+        <button id="studio-sidebar-close"
+                class="sidebar-close"
+                type="button"
+                aria-label="@Text("Fermer la navigation", "Close navigation")"
+                @onclick="CloseAsync">
+            <span aria-hidden="true">×</span>
+        </button>
+
+        <button class="new-chat"
+                type="button"
+                disabled="@IsCreatingConversation"
+                @onclick="CreateConversationAsync">
+            <span class="new-chat-icon" aria-hidden="true">＋</span>
+            <span>@Text("Nouvelle discussion", "New chat")</span>
+        </button>
+    </header>
+
+    <div class="sidebar-navigation">
+        <details class="sidebar-section" open>
+            <summary>
+                <span>@Text("Bibliothèque", "Library")</span>
+                <span class="section-count">@BibleEditions.Count</span>
+            </summary>
+
+            <div class="section-content bible-list">
+                @if (BibleEditions.Count == 0)
+                {
+                    <p class="section-empty">
+                        @Text(
+                            "Aucune Bible n’est disponible.",
+                            "No Bible editions are available.")
+                    </p>
+                }
+                else
+                {
+                    @foreach (var edition in BibleEditions)
+                    {
+                        <div class="bible-edition"
+                             title="@edition.Code">
+                            <span class="item-icon" aria-hidden="true">B</span>
+                            <span class="item-copy">
+                                <strong>@edition.DisplayName</strong>
+                                <small>@GetLanguageLabel(edition.LanguageTag)</small>
+                            </span>
+                        </div>
+                    }
+                }
+            </div>
+        </details>
+
+        <details class="sidebar-section" open>
+            <summary>
+                <span>@Text("Discussions", "Chats")</span>
+                <span class="section-count">@Conversations.Count</span>
+            </summary>
+
+            <nav class="section-content conversation-list"
+                 aria-label="@Text("Discussions", "Chats")">
+                @if (Conversations.Count == 0)
+                {
+                    <p class="section-empty">
+                        @Text(
+                            "Aucune discussion.",
+                            "No chats yet.")
+                    </p>
+                }
+                else
+                {
+                    @foreach (var conversation in Conversations)
+                    {
+                        <a class="conversation-link @(conversation.IsActive ? "active" : null)"
+                           href="@conversation.Url"
+                           aria-current="@(conversation.IsActive ? "page" : null)"
+                           @onclick="CloseAsync">
+                            <span class="conversation-bullet" aria-hidden="true"></span>
+                            <span>@conversation.Title</span>
+                        </a>
+                    }
+                }
+            </nav>
+        </details>
+    </div>
+
+    <footer class="account-zone">
+        <div class="account-avatar" aria-hidden="true">A</div>
+        <div class="account-copy">
+            <strong>@Text("Compte local", "Local account")</strong>
+            <small>@Text("Profil de démonstration", "Demo profile")</small>
+        </div>
+        <a class="settings-link"
+           href="/settings"
+           title="@Text("Préférences", "Preferences")"
+           aria-label="@Text("Ouvrir les préférences", "Open preferences")"
+           @onclick="CloseAsync">
+            <span aria-hidden="true">⚙</span>
+        </a>
+    </footer>
+</aside>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<StudioSidebarBibleEdition> BibleEditions { get; set; } =
+        Array.Empty<StudioSidebarBibleEdition>();
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<StudioSidebarConversation> Conversations { get; set; } =
+        Array.Empty<StudioSidebarConversation>();
+
+    [Parameter]
+    public ApplicationLanguage Language { get; set; } =
+        ApplicationLanguage.French;
+
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public bool IsCreatingConversation { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback OnCreateConversation { get; set; }
+
+    private Task CloseAsync()
+    {
+        return OnClose.InvokeAsync();
+    }
+
+    private async Task CreateConversationAsync()
+    {
+        await OnCreateConversation.InvokeAsync();
+        await OnClose.InvokeAsync();
+    }
+
+    private string GetLanguageLabel(string languageTag)
+    {
+        return languageTag.Equals(
+                "fr",
+                StringComparison.OrdinalIgnoreCase)
+            ? Text("Français", "French")
+            : languageTag.Equals(
+                "en",
+                StringComparison.OrdinalIgnoreCase)
+                ? Text("Anglais", "English")
+                : languageTag;
+    }
+
+    private string Text(
+        string french,
+        string english)
+    {
+        return Language == ApplicationLanguage.English
+            ? english
+            : french;
+    }
+}

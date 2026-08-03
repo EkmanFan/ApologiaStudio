@@ -2,7 +2,9 @@
     display: grid;
     gap: 1.5rem;
     width: min(100%, 52rem);
+    min-height: 100dvh;
     margin: 0 auto;
+    padding: clamp(1.25rem, 4vw, 3rem);
 }
 
 .settings-header {

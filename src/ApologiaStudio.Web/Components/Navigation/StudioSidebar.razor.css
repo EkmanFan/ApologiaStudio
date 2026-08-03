@@ -1,0 +1,344 @@
+.sidebar-scrim {
+    display: none;
+}
+
+.studio-sidebar {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    width: 18.5rem;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    border-right: 1px solid #dedbd4;
+    background: #f7f6f2;
+    color: #252823;
+}
+
+.sidebar-header {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem 0.9rem 0.85rem;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.brand-mark,
+.account-avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.65rem;
+    background: #315f4e;
+    color: #fff;
+    font-weight: 800;
+}
+
+.brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-family: Georgia, serif;
+    font-size: 1.25rem;
+}
+
+.brand > span:last-child,
+.account-copy,
+.item-copy {
+    display: grid;
+    min-width: 0;
+}
+
+.brand strong {
+    font-size: 0.93rem;
+}
+
+.brand small,
+.account-copy small,
+.item-copy small {
+    color: #6a7068;
+    font-size: 0.72rem;
+}
+
+.sidebar-close {
+    display: none;
+}
+
+.new-chat {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.66rem 0.8rem;
+    border: 1px solid #315f4e;
+    border-radius: 0.65rem;
+    background: #315f4e;
+    color: #fff;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.new-chat:hover:not(:disabled) {
+    background: #244a3d;
+}
+
+.new-chat-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.sidebar-navigation {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.25rem 0.55rem 1rem;
+    scrollbar-gutter: stable;
+}
+
+.sidebar-section {
+    margin-top: 0.35rem;
+}
+
+.sidebar-section summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    padding: 0.52rem 0.45rem;
+    border-radius: 0.45rem;
+    color: #646a62;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    cursor: pointer;
+    list-style: none;
+}
+
+.sidebar-section summary::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-section summary:hover {
+    background: #eceae4;
+}
+
+.section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.45rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #e6e3dc;
+    font-size: 0.68rem;
+    letter-spacing: normal;
+}
+
+.section-content {
+    display: grid;
+    gap: 0.2rem;
+    margin: 0.15rem 0 0.5rem;
+}
+
+.bible-edition,
+.conversation-link {
+    min-width: 0;
+    border-radius: 0.55rem;
+}
+
+.bible-edition {
+    display: flex;
+    align-items: center;
+    gap: 0.62rem;
+    padding: 0.58rem 0.6rem;
+}
+
+.item-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.42rem;
+    background: #e4ebe6;
+    color: #315f4e;
+    font-family: Georgia, serif;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.item-copy strong {
+    overflow: hidden;
+    font-size: 0.82rem;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.conversation-link {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.6rem 0.65rem;
+    color: inherit;
+    font-size: 0.84rem;
+    text-decoration: none;
+}
+
+.conversation-link > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.conversation-link:hover {
+    background: #eceae4;
+}
+
+.conversation-link.active {
+    background: #dde7e1;
+    color: #214437;
+    font-weight: 700;
+}
+
+.conversation-bullet {
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: #a9ada7;
+}
+
+.conversation-link.active .conversation-bullet {
+    background: #315f4e;
+    box-shadow: 0 0 0 0.22rem rgba(49, 95, 78, 0.13);
+}
+
+.section-empty {
+    margin: 0;
+    padding: 0.6rem;
+    color: #747a72;
+    font-size: 0.8rem;
+}
+
+.account-zone {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.82rem 0.9rem;
+    border-top: 1px solid #dedbd4;
+    background: #f1efe9;
+}
+
+.account-avatar {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+}
+
+.account-copy strong {
+    font-size: 0.82rem;
+}
+
+.settings-link,
+.sidebar-close {
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: #525951;
+    text-decoration: none;
+}
+
+.settings-link {
+    display: inline-flex;
+}
+
+.settings-link:hover,
+.sidebar-close:hover {
+    background: #e1ded6;
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+    outline: 3px solid rgba(49, 95, 78, 0.28);
+    outline-offset: 2px;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+@media (max-width: 900px) {
+    .sidebar-scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 39;
+        display: block;
+        border: 0;
+        background: rgba(21, 27, 23, 0.48);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 160ms ease;
+    }
+
+    .sidebar-scrim.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .studio-sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 40;
+        width: min(19rem, 88vw);
+        max-width: 100%;
+        transform: translateX(-102%);
+        visibility: hidden;
+        transition: transform 180ms ease;
+        box-shadow: 0.8rem 0 2.4rem rgba(20, 26, 22, 0.16);
+    }
+
+    .studio-sidebar.open {
+        transform: translateX(0);
+        visibility: visible;
+    }
+
+    .sidebar-header {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .new-chat {
+        grid-column: 1 / -1;
+    }
+
+    .sidebar-close {
+        display: inline-flex;
+        cursor: pointer;
+        font-size: 1.35rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-scrim,
+    .studio-sidebar {
+        transition: none;
+    }
+}

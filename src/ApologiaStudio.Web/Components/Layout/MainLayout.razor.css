@@ -1,3 +1,7 @@
+.application-shell {
+    min-height: 100dvh;
+}
+
 #blazor-error-ui {
     color-scheme: light only;
     background: lightyellow;

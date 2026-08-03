@@ -1,10 +1,14 @@
 @page "/"
 @page "/conversations/{ConversationIdValue:guid}"
 
+@implements IAsyncDisposable
+
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.Extensions.DependencyInjection
 @using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.Application.Agents
+@using ApologiaStudio.Application.Abstractions.BibleCorpora
+@using ApologiaStudio.Application.BibleCorpora.Queries
 @using ApologiaStudio.Application.Conversations.CreateConversation
 @using ApologiaStudio.Application.Conversations.GetConversation
 @using ApologiaStudio.Application.Conversations.ListConversations
@@ -14,11 +18,13 @@
 @using ApologiaStudio.Domain.Agents
 @using ApologiaStudio.Domain.Conversations
 @using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Web.Components.Navigation
 
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
 
 <PageTitle>Apologia Studio</PageTitle>
 <DocumentLanguage Language="@_interfaceLanguage" />
@@ -31,57 +37,27 @@
 }
 else
 {
-    <section class="studio-layout">
-        <aside class="conversation-sidebar">
-            <div class="sidebar-header">
-                <div>
-                    <h2>Conversations</h2>
-                    <span>
-                        @_conversationList.Count
-                    </span>
-                </div>
-
-                <div class="sidebar-actions">
-                    <a href="/settings">
-                        @Ui("Préférences", "Preferences")
-                    </a>
-
-                    <button type="button"
-                            disabled="@(_isCreatingConversation || _isSending)"
-                            @onclick="CreateConversationAsync">
-                        @Ui("Nouvelle", "New")
-                    </button>
-                </div>
-            </div>
-
-            <nav class="conversation-list"
-                 aria-label="Conversations">
-                @if (_conversationList.Count == 0)
-                {
-                    <p class="empty-list">
-                        @Ui("Aucune conversation.", "No conversations.")
-                    </p>
-                }
-
-                @foreach (var item in _conversationList)
-                {
-                    <a class="@GetConversationLinkClass(item.Id)"
-                       href="@GetConversationUrl(item.Id)">
-                        <span class="conversation-title">
-                            @item.Title
-                        </span>
-
-                        <span class="conversation-date">
-                            @item.CreatedAt
-                                .ToLocalTime()
-                                .ToString("dd/MM/yyyy HH:mm")
-                        </span>
-                    </a>
-                }
-            </nav>
-        </aside>
+    <section class="studio-layout"
+             @onkeydown="HandleShellKeyDown">
+        <StudioSidebar BibleEditions="@GetSidebarBibleEditions()"
+                       Conversations="@GetSidebarConversations()"
+                       Language="@_interfaceLanguage"
+                       IsOpen="@_isSidebarOpen"
+                       IsCreatingConversation="@(_isCreatingConversation || _isSending)"
+                       OnClose="CloseSidebar"
+                       OnCreateConversation="CreateConversationAsync" />
 
         <section class="chat-shell">
+            <button id="studio-sidebar-toggle"
+                    class="mobile-sidebar-toggle"
+                    type="button"
+                    aria-controls="studio-sidebar"
+                    aria-expanded="@(_isSidebarOpen ? "true" : "false")"
+                    aria-label="@Ui("Ouvrir la navigation", "Open navigation")"
+                    @onclick="OpenSidebar">
+                <span aria-hidden="true">☰</span>
+            </button>
+
             @if (_conversation is null)
             {
                 <div class="missing-conversation">
@@ -140,70 +116,89 @@ else
                     </div>
                 </header>
 
-                <main class="conversation-thread">
-                    @if (_conversation.Messages.Count == 0 &&
-                         string.IsNullOrEmpty(_streamingText))
+                <div class="thread-stage">
+                    <main class="conversation-thread"
+                          @ref="_conversationThread">
+                        @if (_conversation.Messages.Count == 0 &&
+                             string.IsNullOrEmpty(_streamingText))
+                        {
+                            <div class="empty-state">
+                                <h2>
+                                    @Ui("Commencez directement", "Start right away")
+                                </h2>
+
+                                <p>@Ui("Exemples :", "Examples:")</p>
+
+                                <button type="button"
+                                        @onclick="UseHistoricalSuggestion">
+                                    @Ui("Question historique", "Historical question")
+                                </button>
+
+                                <button type="button"
+                                        @onclick="UseApologeticSuggestion">
+                                    @Ui("Question apologétique", "Apologetics question")
+                                </button>
+                            </div>
+                        }
+
+                        @foreach (var message in _conversation.Messages)
+                        {
+                            <article class="@GetMessageCssClass(message)">
+                                <div class="message-author">
+                                    @GetMessageAuthor(message)
+                                </div>
+
+                                <div class="message-content">
+                                    @message.Content
+                                </div>
+                            </article>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_streamingText))
+                        {
+                            <article class="message agent streaming">
+                                <div class="message-author">
+                                    @(_activeAgentName ?? "Agent")
+                                </div>
+
+                                <div class="message-content">
+                                    @_streamingText
+                                    <span class="cursor">▋</span>
+                                </div>
+                            </article>
+                        }
+                    </main>
+
+                    @if (_showJumpToLatest)
                     {
-                        <div class="empty-state">
-                            <h2>
-                                @Ui("Commencez directement", "Start right away")
-                            </h2>
-
-                            <p>@Ui("Exemples :", "Examples:")</p>
-
-                            <button type="button"
-                                    @onclick="UseHistoricalSuggestion">
-                                @Ui("Question historique", "Historical question")
-                            </button>
-
-                            <button type="button"
-                                    @onclick="UseApologeticSuggestion">
-                                @Ui("Question apologétique", "Apologetics question")
-                            </button>
-                        </div>
+                        <button class="jump-to-latest"
+                                type="button"
+                                @onclick="JumpToLatestAsync">
+                            <span aria-hidden="true">↓</span>
+                            @Ui("Dernier message", "Latest message")
+                        </button>
                     }
+                </div>
 
-                    @foreach (var message in _conversation.Messages)
-                    {
-                        <article class="@GetMessageCssClass(message)">
-                            <div class="message-author">
-                                @GetMessageAuthor(message)
-                            </div>
-
-                            <div class="message-content">
-                                @message.Content
-                            </div>
-                        </article>
-                    }
-
-                    @if (!string.IsNullOrEmpty(_streamingText))
-                    {
-                        <article class="message agent streaming">
-                            <div class="message-author">
-                                @(_activeAgentName ?? "Agent")
-                            </div>
-
-                            <div class="message-content">
-                                @_streamingText
-                                <span class="cursor">▋</span>
-                            </div>
-                        </article>
-                    }
-                </main>
-
-                @if (!string.IsNullOrWhiteSpace(_routingReason))
+                @if (!string.IsNullOrWhiteSpace(_routingReason) ||
+                     !string.IsNullOrWhiteSpace(_errorMessage))
                 {
-                    <aside class="routing-information">
-                        <strong>@Ui("Routage :", "Routing:")</strong>
-                        @_routingReason
-                    </aside>
-                }
+                    <div class="chat-feedback">
+                        @if (!string.IsNullOrWhiteSpace(_routingReason))
+                        {
+                            <aside class="routing-information">
+                                <strong>@Ui("Routage :", "Routing:")</strong>
+                                @_routingReason
+                            </aside>
+                        }
 
-                @if (!string.IsNullOrWhiteSpace(_errorMessage))
-                {
-                    <aside class="error-information">
-                        @_errorMessage
-                    </aside>
+                        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                        {
+                            <aside class="error-information">
+                                @_errorMessage
+                            </aside>
+                        }
+                    </div>
                 }
 
                 <footer class="composer">
@@ -267,7 +262,12 @@ else
     private IReadOnlyList<ConversationListItem> _conversationList =
         Array.Empty<ConversationListItem>();
 
+    private IReadOnlyList<BibleEditionSummary> _bibleEditions =
+        Array.Empty<BibleEditionSummary>();
+
     private Conversation? _conversation;
+    private ElementReference _conversationThread;
+    private DotNetObjectReference<Home>? _dotNetReference;
     private Guid? _loadedConversationId;
     private string _draft = string.Empty;
     private string _renameDraft = string.Empty;
@@ -284,6 +284,13 @@ else
     private bool _isSending;
     private bool _isCreatingConversation;
     private bool _isRenaming;
+    private bool _isSidebarOpen;
+    private bool _isThreadNearBottom = true;
+    private bool _showJumpToLatest;
+    private bool _threadRegistered;
+    private bool _scrollThreadAfterRender;
+    private bool _focusSidebarAfterRender;
+    private bool _focusSidebarToggleAfterRender;
 
     private string ConversationTitleLabel =>
         Ui(
@@ -306,10 +313,62 @@ else
         await LoadRouteAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (_focusSidebarAfterRender)
+        {
+            _focusSidebarAfterRender = false;
+
+            await JsRuntime.InvokeVoidAsync(
+                "apologiaStudio.focusElementById",
+                "studio-sidebar-close");
+        }
+
+        if (_focusSidebarToggleAfterRender)
+        {
+            _focusSidebarToggleAfterRender = false;
+
+            await JsRuntime.InvokeVoidAsync(
+                "apologiaStudio.focusElementById",
+                "studio-sidebar-toggle");
+        }
+
+        if (_conversation is null)
+        {
+            return;
+        }
+
+        if (!_threadRegistered)
+        {
+            _dotNetReference ??=
+                DotNetObjectReference.Create(this);
+
+            await JsRuntime.InvokeVoidAsync(
+                "apologiaStudio.registerConversationThread",
+                _conversationThread,
+                _dotNetReference);
+
+            _threadRegistered = true;
+        }
+
+        if (_scrollThreadAfterRender)
+        {
+            _scrollThreadAfterRender = false;
+
+            await JsRuntime.InvokeVoidAsync(
+                "apologiaStudio.scrollConversationToEnd",
+                _conversationThread,
+                "auto");
+        }
+    }
+
     private async Task LoadRouteAsync()
     {
         _isLoading = true;
         _errorMessage = null;
+        _threadRegistered = false;
+        _scrollThreadAfterRender = false;
 
         try
         {
@@ -329,6 +388,14 @@ else
 
             _theologicalLanguage =
                 preferences.EffectiveTheologicalLanguage;
+
+            var bibleRepository =
+                scope.ServiceProvider.GetRequiredService<
+                    IBibleCorpusQueryRepository>();
+
+            _bibleEditions =
+                await bibleRepository.ListActiveEditionsAsync(
+                    CancellationToken.None);
 
             var listHandler =
                 scope.ServiceProvider
@@ -387,6 +454,11 @@ else
 
             _renameDraft =
                 _conversation?.Title ?? string.Empty;
+
+            _isThreadNearBottom = true;
+            _showJumpToLatest = false;
+            _scrollThreadAfterRender =
+                _conversation is not null;
         }
         catch (Exception exception)
         {
@@ -530,6 +602,8 @@ else
         _errorMessage = null;
         _activeAgentName = null;
         _isSending = true;
+        _scrollThreadAfterRender =
+            _isThreadNearBottom;
 
         try
         {
@@ -573,11 +647,15 @@ else
                             ?? throw new InvalidOperationException(
                                 "The conversation could not be reloaded.");
 
+                        RequestScrollToLatestIfFollowing();
+
                         break;
 
                     case TextDeltaEvent delta:
                         _streamingText +=
                             delta.Content;
+
+                        RequestScrollToLatestIfFollowing();
 
                         break;
 
@@ -591,6 +669,8 @@ else
 
                         _streamingText =
                             string.Empty;
+
+                        RequestScrollToLatestIfFollowing();
 
                         break;
                 }
@@ -621,6 +701,8 @@ else
         ConversationId conversationId,
         bool replace = false)
     {
+        _isSidebarOpen = false;
+
         NavigationManager.NavigateTo(
             GetConversationUrl(conversationId),
             replace);
@@ -632,12 +714,99 @@ else
         return $"/conversations/{conversationId.Value:D}";
     }
 
-    private string GetConversationLinkClass(
-        ConversationId conversationId)
+    private IReadOnlyList<StudioSidebarBibleEdition>
+        GetSidebarBibleEditions()
     {
-        return _conversation?.Id == conversationId
-            ? "conversation-link active"
-            : "conversation-link";
+        return _bibleEditions
+            .Select(
+                edition =>
+                    new StudioSidebarBibleEdition(
+                        edition.Code,
+                        edition.DisplayName,
+                        edition.LanguageTag))
+            .ToArray();
+    }
+
+    private IReadOnlyList<StudioSidebarConversation>
+        GetSidebarConversations()
+    {
+        return _conversationList
+            .Select(
+                conversation =>
+                    new StudioSidebarConversation(
+                        GetConversationUrl(conversation.Id),
+                        conversation.Title,
+                        _conversation?.Id == conversation.Id))
+            .ToArray();
+    }
+
+    private void OpenSidebar()
+    {
+        _isSidebarOpen = true;
+        _focusSidebarAfterRender = true;
+    }
+
+    private void CloseSidebar()
+    {
+        var restoreFocus =
+            _isSidebarOpen;
+
+        _isSidebarOpen = false;
+
+        if (restoreFocus)
+        {
+            _focusSidebarToggleAfterRender = true;
+        }
+    }
+
+    private void HandleShellKeyDown(
+        KeyboardEventArgs eventArgs)
+    {
+        if (_isSidebarOpen &&
+            eventArgs.Key.Equals(
+                "Escape",
+                StringComparison.Ordinal))
+        {
+            CloseSidebar();
+        }
+    }
+
+    private void RequestScrollToLatestIfFollowing()
+    {
+        if (_isThreadNearBottom)
+        {
+            _scrollThreadAfterRender = true;
+        }
+    }
+
+    private async Task JumpToLatestAsync()
+    {
+        _isThreadNearBottom = true;
+        _showJumpToLatest = false;
+
+        await JsRuntime.InvokeVoidAsync(
+            "apologiaStudio.scrollConversationToEnd",
+            _conversationThread,
+            "smooth");
+    }
+
+    [JSInvokable]
+    public async Task SetConversationThreadNearBottom(
+        bool isNearBottom)
+    {
+        if (_isThreadNearBottom == isNearBottom)
+        {
+            return;
+        }
+
+        _isThreadNearBottom = isNearBottom;
+        _showJumpToLatest =
+            !isNearBottom &&
+            (_conversation?.Messages.Count > 0 ||
+             !string.IsNullOrEmpty(_streamingText));
+
+        await InvokeAsync(
+            StateHasChanged);
     }
 
     private AgentId? ResolveRequestedAgentId()
@@ -720,5 +889,28 @@ else
                 ApplicationLanguage.English
             ? english
             : french;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_threadRegistered)
+        {
+            try
+            {
+                await JsRuntime.InvokeVoidAsync(
+                    "apologiaStudio.unregisterConversationThread",
+                    _conversationThread);
+            }
+            catch (JSDisconnectedException)
+            {
+                // The browser has already disconnected.
+            }
+            catch (InvalidOperationException)
+            {
+                // JavaScript interop is unavailable during shutdown.
+            }
+        }
+
+        _dotNetReference?.Dispose();
     }
 }
