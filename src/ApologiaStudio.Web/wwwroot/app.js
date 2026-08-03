@@ -15,6 +15,34 @@ window.apologiaStudio = {
         }
     },
 
+    async copyText(text) {
+        if (typeof text !== "string" || text.length === 0) {
+            return false;
+        }
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.setAttribute("readonly", "");
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.select();
+
+            const copied = document.execCommand("copy");
+            document.body.removeChild(textArea);
+
+            return copied;
+        } catch {
+            return false;
+        }
+    },
+
     registerConversationThread(element, dotNetReference) {
         if (!element || !dotNetReference) {
             return;

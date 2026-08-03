@@ -73,5 +73,20 @@ The conversation workspace uses a viewport-height application shell:
 
 Pinned is hidden when empty. Projects remains visible because it contains the
 project-creation control. Drag-and-drop and equivalent keyboard actions persist
-manual order. The Library entries remain read-only until a dedicated Bible
-reader is available.
+manual order. Library entries open the deterministic Bible reader described in
+the [Bible reader contract](docs/ux-bible-reader.md).
+
+## Bible reader
+
+Active, approved editions are available at stable routes:
+
+```text
+/library/{editionCode}
+/library/{editionCode}/{bookCode}/{chapterNumber}
+```
+
+The reader loads complete chapters from PostgreSQL, preserves imported verse
+labels, navigates across book boundaries, and lets the user select one verse or
+a continuous range. A selection can prepare a new conversation, but it is never
+sent automatically. The server revalidates every edition, book, chapter, and
+verse label before it creates the editable draft.

@@ -57,13 +57,17 @@
                 {
                     @foreach (var edition in BibleEditions)
                     {
-                        <div class="bible-edition" title="@edition.Code">
+                        <a class="bible-edition @(edition.IsActive ? "active" : null)"
+                           href="@edition.Url"
+                           title="@edition.Code"
+                           aria-current="@(edition.IsActive ? "page" : null)"
+                           @onclick="CloseAsync">
                             <span class="item-icon" aria-hidden="true">B</span>
                             <span class="item-copy">
                                 <strong>@edition.DisplayName</strong>
                                 <small>@GetLanguageLabel(edition.LanguageTag)</small>
                             </span>
-                        </div>
+                        </a>
                     }
                 }
             </div>

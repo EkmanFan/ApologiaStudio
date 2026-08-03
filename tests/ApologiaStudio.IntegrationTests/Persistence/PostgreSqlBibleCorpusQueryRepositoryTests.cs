@@ -1,4 +1,5 @@
 using ApologiaStudio.Domain.BibleCorpora;
+using ApologiaStudio.Application.BibleCorpora.Reader;
 using ApologiaStudio.Infrastructure.Persistence;
 using ApologiaStudio.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,19 @@ public sealed class PostgreSqlBibleCorpusQueryRepositoryTests
         Assert.Null(await repository.GetBooksAsync(
             new BibleEditionCode("web-classic"),
             CancellationToken.None));
+
+        var reader = await new GetBibleReaderHandler(repository)
+            .HandleAsync(
+                new GetBibleReaderQuery(
+                    "lsg1910",
+                    "GEN",
+                    1),
+                CancellationToken.None);
+
+        Assert.Equal(BibleReaderStatus.Ready, reader.Status);
+        Assert.Equal("Au commencement", reader.Chapter!.Verses[0].Text);
+        Assert.Null(reader.PreviousChapter);
+        Assert.Null(reader.NextChapter);
     }
 
     private static ApologiaStudioDbContext CreateContext()

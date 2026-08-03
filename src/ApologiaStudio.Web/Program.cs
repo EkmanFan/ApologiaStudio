@@ -6,6 +6,7 @@ using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.BibleCorpora.Queries;
+using ApologiaStudio.Application.BibleCorpora.Reader;
 using ApologiaStudio.Application.Conversations.CreateConversation;
 using ApologiaStudio.Application.Conversations.DeleteConversation;
 using ApologiaStudio.Application.Conversations.GetConversation;
@@ -249,6 +250,12 @@ builder.Services.AddScoped<
 
 builder.Services.AddScoped<
     CreateConversationHandler>();
+
+builder.Services.AddScoped<
+    GetBibleReaderHandler>();
+
+builder.Services.AddScoped<
+    PrepareBibleDiscussionDraftHandler>();
 
 builder.Services.AddScoped<
     DeleteConversationHandler>();

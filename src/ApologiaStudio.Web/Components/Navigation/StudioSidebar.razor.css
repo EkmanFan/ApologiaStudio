@@ -161,6 +161,17 @@
     align-items: center;
     gap: 0.62rem;
     padding: 0.58rem 0.6rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.bible-edition:hover {
+    background: #eceae4;
+}
+
+.bible-edition.active {
+    background: #dde7e1;
+    color: #214437;
 }
 
 .item-icon {

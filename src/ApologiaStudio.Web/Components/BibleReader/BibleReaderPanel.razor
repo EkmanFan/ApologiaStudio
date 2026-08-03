@@ -1,0 +1,500 @@
+@using ApologiaStudio.Application.BibleCorpora.Queries
+@using ApologiaStudio.Application.BibleCorpora.Reader
+@using ApologiaStudio.Domain.Users
+
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+
+<section class="bible-reader-shell">
+    <button id="studio-sidebar-toggle"
+            class="mobile-sidebar-toggle"
+            type="button"
+            aria-controls="studio-sidebar"
+            aria-expanded="@(SidebarIsOpen ? "true" : "false")"
+            aria-label="@Text("Ouvrir la navigation", "Open navigation")"
+            @onclick="OnOpenSidebar">
+        <span aria-hidden="true">☰</span>
+    </button>
+
+    @if (Reader.Status != BibleReaderStatus.Ready)
+    {
+        <main class="reader-state" role="status">
+            <span class="reader-state-icon" aria-hidden="true">B</span>
+            <h1>@GetStateTitle()</h1>
+            <p>@GetStateMessage()</p>
+
+            @if (Reader.Status != BibleReaderStatus.CorpusUnavailable &&
+                 Reader.Edition is not null)
+            {
+                <a class="reader-primary-link"
+                   href="@GetEditionUrl(Reader.Edition.Code)">
+                    @Text(
+                        "Ouvrir le début de cette édition",
+                        "Open the beginning of this edition")
+                </a>
+            }
+            else if (Reader.Status != BibleReaderStatus.CorpusUnavailable &&
+                     Reader.Editions.Count > 0)
+            {
+                <div class="available-editions">
+                    @foreach (var edition in Reader.Editions)
+                    {
+                        <a href="@GetEditionUrl(edition.Code)">
+                            @edition.DisplayName
+                        </a>
+                    }
+                </div>
+            }
+        </main>
+    }
+    else
+    {
+        var chapter = Reader.Chapter!;
+
+        <header class="reader-header">
+            <div>
+                <p class="reader-eyebrow">@Reader.Edition!.DisplayName</p>
+                <h1>@chapter.Book.DisplayName @chapter.ChapterNumber</h1>
+                <p>
+                    @Text(
+                        "Sélectionnez un verset, puis un second pour former une plage continue.",
+                        "Select one verse, then a second to create a continuous range.")
+                </p>
+            </div>
+
+            <span class="reader-mode-badge">
+                @Text("Corpus vérifié", "Verified corpus")
+            </span>
+        </header>
+
+        <div class="reader-toolbar"
+             aria-label="@Text("Navigation biblique", "Bible navigation")">
+            <label>
+                <span>@Text("Traduction", "Translation")</span>
+                <select value="@Reader.Edition.Code"
+                        @onchange="ChangeEdition">
+                    @foreach (var edition in Reader.Editions)
+                    {
+                        <option value="@edition.Code">
+                            @edition.DisplayName
+                        </option>
+                    }
+                </select>
+            </label>
+
+            <label>
+                <span>@Text("Livre", "Book")</span>
+                <select value="@chapter.Book.Code"
+                        @onchange="ChangeBook">
+                    @foreach (var book in Reader.Books)
+                    {
+                        <option value="@book.Code">@book.DisplayName</option>
+                    }
+                </select>
+            </label>
+
+            <label>
+                <span>@Text("Chapitre", "Chapter")</span>
+                <select value="@chapter.ChapterNumber"
+                        @onchange="ChangeChapter">
+                    @for (var chapterNumber = 1;
+                          chapterNumber <= chapter.Book.ChapterCount;
+                          chapterNumber++)
+                    {
+                        <option value="@chapterNumber">@chapterNumber</option>
+                    }
+                </select>
+            </label>
+        </div>
+
+        <nav class="chapter-navigation"
+             aria-label="@Text("Navigation entre les chapitres", "Chapter navigation")">
+            @if (Reader.PreviousChapter is { } previous)
+            {
+                <a href="@GetLocationUrl(previous)">
+                    <span aria-hidden="true">←</span>
+                    @Text("Chapitre précédent", "Previous chapter")
+                </a>
+            }
+            else
+            {
+                <span class="chapter-link-disabled" aria-disabled="true">
+                    <span aria-hidden="true">←</span>
+                    @Text("Chapitre précédent", "Previous chapter")
+                </span>
+            }
+
+            @if (Reader.NextChapter is { } next)
+            {
+                <a href="@GetLocationUrl(next)">
+                    @Text("Chapitre suivant", "Next chapter")
+                    <span aria-hidden="true">→</span>
+                </a>
+            }
+            else
+            {
+                <span class="chapter-link-disabled" aria-disabled="true">
+                    @Text("Chapitre suivant", "Next chapter")
+                    <span aria-hidden="true">→</span>
+                </span>
+            }
+        </nav>
+
+        <main class="verse-list"
+              aria-label="@($"{chapter.Book.DisplayName} {chapter.ChapterNumber}")">
+            @foreach (var verse in chapter.Verses)
+            {
+                <button class="verse-row @(IsSelected(verse.VerseOrdinal) ? "selected" : null)"
+                        type="button"
+                        aria-pressed="@(IsSelected(verse.VerseOrdinal) ? "true" : "false")"
+                        aria-label="@GetVerseAriaLabel(verse)"
+                        @onclick="() => SelectVerse(verse.VerseOrdinal)">
+                    <span class="verse-number">@verse.VerseLabel</span>
+                    <span class="verse-text">@verse.Text</span>
+                </button>
+            }
+        </main>
+
+        <footer class="selection-bar"
+                aria-live="polite">
+            @if (TryGetSelection(out var selection))
+            {
+                <div class="selection-copy">
+                    <strong>@GetSelectionReference(selection)</strong>
+                    <span>
+                        @Text(
+                            "La question sera préparée, mais jamais envoyée automatiquement.",
+                            "The question will be prepared, but never sent automatically.")
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(_copyStatus))
+                    {
+                        <span class="copy-status">@_copyStatus</span>
+                    }
+                </div>
+
+                <div class="selection-actions">
+                    <button type="button"
+                            disabled="@IsBusy"
+                            @onclick="ClearSelection">
+                        @Text("Effacer", "Clear")
+                    </button>
+
+                    <button type="button"
+                            disabled="@IsBusy"
+                            @onclick="CopyReferenceAsync">
+                        @Text("Copier la référence", "Copy reference")
+                    </button>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@IsBusy"
+                            @onclick="UseInDiscussionAsync">
+                        @Text(
+                            "Utiliser dans une discussion",
+                            "Use in a chat")
+                    </button>
+                </div>
+            }
+            else
+            {
+                <p>
+                    @Text(
+                        "Sélectionnez un verset pour préparer une référence.",
+                        "Select a verse to prepare a reference.")
+                </p>
+            }
+        </footer>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <aside class="reader-error" role="alert">@ErrorMessage</aside>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public BibleReaderView Reader { get; set; } = null!;
+
+    [Parameter]
+    public ApplicationLanguage Language { get; set; } =
+        ApplicationLanguage.French;
+
+    [Parameter]
+    public bool SidebarIsOpen { get; set; }
+
+    [Parameter]
+    public bool IsBusy { get; set; }
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenSidebar { get; set; }
+
+    [Parameter]
+    public EventCallback<BibleReaderSelection> OnUseInDiscussion { get; set; }
+
+    private string? _loadedChapterKey;
+    private int? _selectionAnchorOrdinal;
+    private int? _selectionEndOrdinal;
+    private string? _copyStatus;
+
+    protected override void OnParametersSet()
+    {
+        var chapter = Reader.Chapter;
+        var nextChapterKey = chapter is null
+            ? null
+            : $"{chapter.Edition.Code}/{chapter.Book.Code}/{chapter.ChapterNumber}";
+
+        if (nextChapterKey == _loadedChapterKey)
+        {
+            return;
+        }
+
+        _loadedChapterKey = nextChapterKey;
+        ClearSelection();
+    }
+
+    private void ChangeEdition(ChangeEventArgs eventArgs)
+    {
+        var editionCode = eventArgs.Value?.ToString();
+
+        if (!string.IsNullOrWhiteSpace(editionCode))
+        {
+            NavigationManager.NavigateTo(
+                GetEditionUrl(editionCode));
+        }
+    }
+
+    private void ChangeBook(ChangeEventArgs eventArgs)
+    {
+        var bookCode = eventArgs.Value?.ToString();
+
+        if (Reader.Edition is not null &&
+            !string.IsNullOrWhiteSpace(bookCode))
+        {
+            NavigationManager.NavigateTo(
+                GetLocationUrl(
+                    new BibleReaderLocation(
+                        Reader.Edition.Code,
+                        bookCode,
+                        1)));
+        }
+    }
+
+    private void ChangeChapter(ChangeEventArgs eventArgs)
+    {
+        if (Reader.Edition is null ||
+            Reader.Chapter is null ||
+            !int.TryParse(
+                eventArgs.Value?.ToString(),
+                out var chapterNumber))
+        {
+            return;
+        }
+
+        NavigationManager.NavigateTo(
+            GetLocationUrl(
+                new BibleReaderLocation(
+                    Reader.Edition.Code,
+                    Reader.Chapter.Book.Code,
+                    chapterNumber)));
+    }
+
+    private void SelectVerse(int verseOrdinal)
+    {
+        _copyStatus = null;
+
+        if (_selectionAnchorOrdinal is null)
+        {
+            _selectionAnchorOrdinal = verseOrdinal;
+            _selectionEndOrdinal = verseOrdinal;
+            return;
+        }
+
+        if (_selectionAnchorOrdinal == verseOrdinal &&
+            _selectionEndOrdinal == verseOrdinal)
+        {
+            ClearSelection();
+            return;
+        }
+
+        _selectionEndOrdinal = verseOrdinal;
+    }
+
+    private void ClearSelection()
+    {
+        _selectionAnchorOrdinal = null;
+        _selectionEndOrdinal = null;
+        _copyStatus = null;
+    }
+
+    private bool IsSelected(int verseOrdinal)
+    {
+        if (_selectionAnchorOrdinal is null ||
+            _selectionEndOrdinal is null)
+        {
+            return false;
+        }
+
+        var minimum = Math.Min(
+            _selectionAnchorOrdinal.Value,
+            _selectionEndOrdinal.Value);
+
+        var maximum = Math.Max(
+            _selectionAnchorOrdinal.Value,
+            _selectionEndOrdinal.Value);
+
+        return verseOrdinal >= minimum && verseOrdinal <= maximum;
+    }
+
+    private bool TryGetSelection(
+        out BibleReaderSelection selection)
+    {
+        selection = null!;
+
+        if (Reader.Edition is null ||
+            Reader.Chapter is null ||
+            _selectionAnchorOrdinal is null ||
+            _selectionEndOrdinal is null)
+        {
+            return false;
+        }
+
+        var minimum = Math.Min(
+            _selectionAnchorOrdinal.Value,
+            _selectionEndOrdinal.Value);
+
+        var maximum = Math.Max(
+            _selectionAnchorOrdinal.Value,
+            _selectionEndOrdinal.Value);
+
+        var startVerse = Reader.Chapter.Verses.SingleOrDefault(
+            verse => verse.VerseOrdinal == minimum);
+
+        var endVerse = Reader.Chapter.Verses.SingleOrDefault(
+            verse => verse.VerseOrdinal == maximum);
+
+        if (startVerse is null || endVerse is null)
+        {
+            return false;
+        }
+
+        selection = new BibleReaderSelection(
+            Reader.Edition.Code,
+            Reader.Chapter.Book.Code,
+            Reader.Chapter.ChapterNumber,
+            startVerse.VerseLabel,
+            endVerse.VerseLabel);
+
+        return true;
+    }
+
+    private async Task CopyReferenceAsync()
+    {
+        if (!TryGetSelection(out var selection))
+        {
+            return;
+        }
+
+        var copied = await JsRuntime.InvokeAsync<bool>(
+            "apologiaStudio.copyText",
+            GetSelectionReference(selection));
+
+        _copyStatus = copied
+            ? Text("Référence copiée.", "Reference copied.")
+            : Text(
+                "La copie automatique a échoué.",
+                "Automatic copying failed.");
+    }
+
+    private Task UseInDiscussionAsync()
+    {
+        return TryGetSelection(out var selection)
+            ? OnUseInDiscussion.InvokeAsync(selection)
+            : Task.CompletedTask;
+    }
+
+    private string GetSelectionReference(
+        BibleReaderSelection selection)
+    {
+        var end = selection.StartVerseLabel == selection.EndVerseLabel
+            ? string.Empty
+            : $"-{selection.EndVerseLabel}";
+
+        return $"{Reader.Chapter!.Book.DisplayName} " +
+               $"{selection.ChapterNumber}:" +
+               $"{selection.StartVerseLabel}{end} — " +
+               Reader.Edition!.DisplayName;
+    }
+
+    private string GetVerseAriaLabel(BibleVerseText verse)
+    {
+        return $"{Text("Verset", "Verse")} {verse.VerseLabel}: {verse.Text}";
+    }
+
+    private string GetStateTitle()
+    {
+        return Reader.Status switch
+        {
+            BibleReaderStatus.CorpusUnavailable =>
+                Text("Corpus indisponible", "Corpus unavailable"),
+            BibleReaderStatus.EditionNotFound =>
+                Text("Édition inconnue", "Unknown edition"),
+            BibleReaderStatus.BookNotFound =>
+                Text("Livre introuvable", "Book not found"),
+            BibleReaderStatus.ChapterNotFound =>
+                Text("Chapitre introuvable", "Chapter not found"),
+            _ => Text("Lecture indisponible", "Reader unavailable")
+        };
+    }
+
+    private string GetStateMessage()
+    {
+        return Reader.Status switch
+        {
+            BibleReaderStatus.CorpusUnavailable =>
+                Text(
+                    "Aucun corpus biblique actif et approuvé ne peut être lu pour le moment.",
+                    "No active and approved Bible corpus can be read right now."),
+            BibleReaderStatus.EditionNotFound =>
+                Text(
+                    "Cette édition n’existe pas ou n’est pas disponible.",
+                    "This edition does not exist or is unavailable."),
+            BibleReaderStatus.BookNotFound =>
+                Text(
+                    "Ce livre n’appartient pas à l’édition sélectionnée.",
+                    "This book does not belong to the selected edition."),
+            BibleReaderStatus.ChapterNotFound =>
+                Text(
+                    "Ce chapitre n’existe pas dans le livre sélectionné.",
+                    "This chapter does not exist in the selected book."),
+            _ => Text(
+                "Le lecteur ne peut pas afficher cette référence.",
+                "The reader cannot display this reference.")
+        };
+    }
+
+    private static string GetEditionUrl(string editionCode)
+    {
+        return $"/library/{Uri.EscapeDataString(editionCode)}";
+    }
+
+    private static string GetLocationUrl(
+        BibleReaderLocation location)
+    {
+        return $"/library/{Uri.EscapeDataString(location.EditionCode)}/" +
+               $"{Uri.EscapeDataString(location.BookCode)}/" +
+               location.ChapterNumber;
+    }
+
+    private string Text(
+        string french,
+        string english)
+    {
+        return Language == ApplicationLanguage.French
+            ? french
+            : english;
+    }
+}

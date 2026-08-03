@@ -1,14 +1,18 @@
 @page "/"
 @page "/conversations/{ConversationIdValue:guid}"
+@page "/library/{LibraryEditionCode}"
+@page "/library/{LibraryEditionCode}/{LibraryBookCode}/{LibraryChapterNumber:int}"
 
 @implements IAsyncDisposable
 
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.Extensions.DependencyInjection
 @using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.Application.Agents
 @using ApologiaStudio.Application.Abstractions.BibleCorpora
 @using ApologiaStudio.Application.BibleCorpora.Queries
+@using ApologiaStudio.Application.BibleCorpora.Reader
 @using ApologiaStudio.Application.Conversations.CreateConversation
 @using ApologiaStudio.Application.Conversations.DeleteConversation
 @using ApologiaStudio.Application.Conversations.GetConversation
@@ -31,6 +35,7 @@
 @using ApologiaStudio.Domain.Projects
 @using ApologiaStudio.Domain.Users
 @using ApologiaStudio.Web.Components.Navigation
+@using ApologiaStudio.Web.Components.BibleReader
 
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
@@ -38,13 +43,15 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
-<PageTitle>Apologia Studio</PageTitle>
+<PageTitle>@GetPageTitle()</PageTitle>
 <DocumentLanguage Language="@_interfaceLanguage" />
 
 @if (_isLoading)
 {
     <div class="loading">
-        @Ui("Chargement des conversations…", "Loading conversations…")
+        @(IsLibraryRoute
+            ? Ui("Chargement du lecteur…", "Loading reader…")
+            : Ui("Chargement des conversations…", "Loading conversations…"))
     </div>
 }
 else
@@ -71,7 +78,19 @@ else
                        OnDelete="DeleteSidebarItemAsync"
                        OnRestoreConversation="RestoreConversationAsync" />
 
-        <section class="chat-shell">
+        @if (IsLibraryRoute && _bibleReader is not null)
+        {
+            <BibleReaderPanel Reader="@_bibleReader"
+                              Language="@_interfaceLanguage"
+                              SidebarIsOpen="@_isSidebarOpen"
+                              IsBusy="@_isCreatingConversation"
+                              ErrorMessage="@_errorMessage"
+                              OnOpenSidebar="OpenSidebar"
+                              OnUseInDiscussion="UseBibleSelectionAsync" />
+        }
+        else
+        {
+            <section class="chat-shell">
             <button id="studio-sidebar-toggle"
                     class="mobile-sidebar-toggle"
                     type="button"
@@ -275,7 +294,8 @@ else
                     </div>
                 </footer>
             }
-        </section>
+            </section>
+        }
     </section>
 }
 
@@ -283,16 +303,27 @@ else
     [Parameter]
     public Guid? ConversationIdValue { get; set; }
 
+    [Parameter]
+    public string? LibraryEditionCode { get; set; }
+
+    [Parameter]
+    public string? LibraryBookCode { get; set; }
+
+    [Parameter]
+    public int? LibraryChapterNumber { get; set; }
+
     private SidebarNavigationView _sidebarNavigation =
         SidebarNavigationView.Empty;
 
     private IReadOnlyList<BibleEditionSummary> _bibleEditions =
         Array.Empty<BibleEditionSummary>();
 
+    private BibleReaderView? _bibleReader;
     private Conversation? _conversation;
     private ElementReference _conversationThread;
     private DotNetObjectReference<Home>? _dotNetReference;
-    private Guid? _loadedConversationId;
+    private string? _loadedRouteKey;
+    private string? _preparedDraftRouteKey;
     private string _draft = string.Empty;
     private string _renameDraft = string.Empty;
     private string _selectedAgentSlug = string.Empty;
@@ -317,6 +348,11 @@ else
     private bool _focusSidebarAfterRender;
     private bool _focusSidebarToggleAfterRender;
 
+    private bool IsLibraryRoute =>
+        GetRelativePath().StartsWith(
+            "library/",
+            StringComparison.OrdinalIgnoreCase);
+
     private string ConversationTitleLabel =>
         Ui(
             "Titre de la conversation",
@@ -329,11 +365,15 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (_conversation is not null &&
-            ConversationIdValue == _loadedConversationId)
+        var routeKey = GetRouteKey();
+
+        if (routeKey == _loadedRouteKey)
         {
             return;
         }
+
+        _loadedRouteKey = routeKey;
+        _preparedDraftRouteKey = null;
 
         await LoadRouteAsync();
     }
@@ -392,6 +432,7 @@ else
     {
         _isLoading = true;
         _errorMessage = null;
+        _bibleReader = null;
         _threadRegistered = false;
         _scrollThreadAfterRender = false;
 
@@ -430,7 +471,29 @@ else
                 await navigationHandler.HandleAsync(
                     CancellationToken.None);
 
-            if (ConversationIdValue is null)
+            if (IsLibraryRoute)
+            {
+                var libraryRoute = GetLibraryRoute()
+                    ?? throw new InvalidOperationException(
+                        "The Bible reader route is invalid.");
+
+                var readerHandler =
+                    scope.ServiceProvider.GetRequiredService<
+                        GetBibleReaderHandler>();
+
+                _bibleReader = await readerHandler.HandleAsync(
+                    new GetBibleReaderQuery(
+                        libraryRoute.EditionCode,
+                        libraryRoute.BookCode,
+                        libraryRoute.ChapterNumber),
+                    CancellationToken.None);
+
+                _conversation = null;
+                _draft = string.Empty;
+                return;
+            }
+
+            if (string.IsNullOrEmpty(GetRelativePath()))
             {
                 if (_sidebarNavigation.DefaultConversationId is { }
                     defaultConversationId)
@@ -462,6 +525,10 @@ else
                 return;
             }
 
+            var conversationIdValue = ConversationIdValue
+                ?? throw new InvalidOperationException(
+                    "The conversation route is missing its identifier.");
+
             var getHandler =
                 scope.ServiceProvider
                     .GetRequiredService<GetConversationHandler>();
@@ -469,11 +536,8 @@ else
             _conversation =
                 await getHandler.HandleAsync(
                     new ConversationId(
-                        ConversationIdValue.Value),
+                        conversationIdValue),
                     CancellationToken.None);
-
-            _loadedConversationId =
-                ConversationIdValue;
 
             _renameDraft =
                 _conversation?.Title ?? string.Empty;
@@ -482,15 +546,29 @@ else
             _showJumpToLatest = false;
             _scrollThreadAfterRender =
                 _conversation is not null;
+
+            await PrepareBibleDraftAsync(
+                scope.ServiceProvider,
+                CancellationToken.None);
         }
         catch (Exception exception)
         {
             _conversation = null;
-            _errorMessage =
-                Ui(
-                    "La conversation n’a pas pu être chargée : ",
-                    "The conversation could not be loaded: ") +
-                exception.Message;
+
+            if (IsLibraryRoute)
+            {
+                _bibleReader = new BibleReaderView(
+                    BibleReaderStatus.CorpusUnavailable,
+                    _bibleEditions);
+            }
+            else
+            {
+                _errorMessage =
+                    Ui(
+                        "La conversation n’a pas pu être chargée : ",
+                        "The conversation could not be loaded: ") +
+                    exception.Message;
+            }
         }
         finally
         {
@@ -541,6 +619,140 @@ else
         {
             _isCreatingConversation = false;
         }
+    }
+
+    private async Task UseBibleSelectionAsync(
+        BibleReaderSelection selection)
+    {
+        if (_isCreatingConversation)
+        {
+            return;
+        }
+
+        _isCreatingConversation = true;
+        _errorMessage = null;
+
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    CreateConversationHandler>();
+
+            var conversation = await handler.HandleAsync(
+                new CreateConversationCommand(
+                    Ui("Étude biblique", "Bible study")),
+                CancellationToken.None);
+
+            NavigationManager.NavigateTo(
+                GetBibleDiscussionUrl(
+                    conversation.Id,
+                    selection));
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                Ui(
+                    "La discussion n’a pas pu être préparée : ",
+                    "The chat could not be prepared: ") +
+                exception.Message;
+        }
+        finally
+        {
+            _isCreatingConversation = false;
+        }
+    }
+
+    private async Task PrepareBibleDraftAsync(
+        IServiceProvider serviceProvider,
+        CancellationToken cancellationToken)
+    {
+        if (_conversation is null ||
+            _conversation.Messages.Count > 0 ||
+            _preparedDraftRouteKey == _loadedRouteKey)
+        {
+            return;
+        }
+
+        var queryValues = QueryHelpers.ParseQuery(
+            new Uri(NavigationManager.Uri).Query);
+
+        var bibleParameterNames = new[]
+        {
+            "bibleEdition",
+            "bibleBook",
+            "bibleChapter",
+            "bibleStart",
+            "bibleEnd"
+        };
+
+        var hasAnyBibleParameter = bibleParameterNames.Any(
+            queryValues.ContainsKey);
+
+        if (!hasAnyBibleParameter)
+        {
+            return;
+        }
+
+        _preparedDraftRouteKey = _loadedRouteKey;
+
+        var editionCode = queryValues
+            .GetValueOrDefault("bibleEdition")
+            .ToString();
+
+        var bookCode = queryValues
+            .GetValueOrDefault("bibleBook")
+            .ToString();
+
+        var startVerseLabel = queryValues
+            .GetValueOrDefault("bibleStart")
+            .ToString();
+
+        var endVerseLabel = queryValues
+            .GetValueOrDefault("bibleEnd")
+            .ToString();
+
+        if (string.IsNullOrWhiteSpace(editionCode) ||
+            string.IsNullOrWhiteSpace(bookCode) ||
+            !int.TryParse(
+                queryValues
+                    .GetValueOrDefault("bibleChapter")
+                    .ToString(),
+                out var chapterNumber) ||
+            string.IsNullOrWhiteSpace(startVerseLabel))
+        {
+            _errorMessage = Ui(
+                "La référence biblique transmise est incomplète.",
+                "The supplied Bible reference is incomplete.");
+
+            return;
+        }
+
+        var handler = serviceProvider.GetRequiredService<
+            PrepareBibleDiscussionDraftHandler>();
+
+        var draft = await handler.HandleAsync(
+            new PrepareBibleDiscussionDraftQuery(
+                editionCode,
+                bookCode,
+                chapterNumber,
+                startVerseLabel,
+                endVerseLabel,
+                _theologicalLanguage),
+            cancellationToken);
+
+        if (draft is null)
+        {
+            _errorMessage = Ui(
+                "La référence biblique n’existe pas dans le corpus actif.",
+                "The Bible reference does not exist in the active corpus.");
+
+            return;
+        }
+
+        _draft = draft.Prompt;
     }
 
     private async Task RenameConversationAsync()
@@ -1018,6 +1230,84 @@ else
         return $"/conversations/{conversationId.Value:D}";
     }
 
+    private static string GetBibleDiscussionUrl(
+        ConversationId conversationId,
+        BibleReaderSelection selection)
+    {
+        return GetConversationUrl(conversationId) +
+               $"?bibleEdition={Uri.EscapeDataString(selection.EditionCode)}" +
+               $"&bibleBook={Uri.EscapeDataString(selection.BookCode)}" +
+               $"&bibleChapter={selection.ChapterNumber}" +
+               $"&bibleStart={Uri.EscapeDataString(selection.StartVerseLabel)}" +
+               $"&bibleEnd={Uri.EscapeDataString(selection.EndVerseLabel)}";
+    }
+
+    private string GetRouteKey()
+    {
+        return NavigationManager.Uri;
+    }
+
+    private string GetRelativePath()
+    {
+        return NavigationManager
+            .ToBaseRelativePath(NavigationManager.Uri)
+            .Split('?', 2)[0]
+            .Trim('/');
+    }
+
+    private LibraryRouteValues? GetLibraryRoute()
+    {
+        var segments = GetRelativePath()
+            .Split(
+                '/',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length is not (2 or 4) ||
+            !segments[0].Equals(
+                "library",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var editionCode = Uri.UnescapeDataString(segments[1]);
+
+        if (segments.Length == 2)
+        {
+            return new LibraryRouteValues(
+                editionCode,
+                null,
+                null);
+        }
+
+        if (!int.TryParse(segments[3], out var chapterNumber))
+        {
+            return null;
+        }
+
+        return new LibraryRouteValues(
+            editionCode,
+            Uri.UnescapeDataString(segments[2]),
+            chapterNumber);
+    }
+
+    private string GetPageTitle()
+    {
+        if (_bibleReader?.Chapter is { } chapter)
+        {
+            return $"{chapter.Book.DisplayName} {chapter.ChapterNumber} — Apologia Studio";
+        }
+
+        return IsLibraryRoute
+            ? Ui("Lecteur biblique — Apologia Studio", "Bible Reader — Apologia Studio")
+            : "Apologia Studio";
+    }
+
+    private sealed record LibraryRouteValues(
+        string EditionCode,
+        string? BookCode,
+        int? ChapterNumber);
+
     private IReadOnlyList<StudioSidebarBibleEdition>
         GetSidebarBibleEditions()
     {
@@ -1027,7 +1317,12 @@ else
                     new StudioSidebarBibleEdition(
                         edition.Code,
                         edition.DisplayName,
-                        edition.LanguageTag))
+                        edition.LanguageTag,
+                        $"/library/{Uri.EscapeDataString(edition.Code)}",
+                        GetLibraryRoute() is { } route &&
+                        edition.Code.Equals(
+                            route.EditionCode,
+                            StringComparison.OrdinalIgnoreCase)))
             .ToArray();
     }
 

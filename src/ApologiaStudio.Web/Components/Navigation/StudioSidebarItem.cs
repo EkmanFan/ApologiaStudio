@@ -76,7 +76,23 @@ public sealed record StudioSidebarDeletedConversation(
 public sealed record StudioSidebarBibleEdition(
     string Code,
     string DisplayName,
-    string LanguageTag);
+    string LanguageTag,
+    string Url,
+    bool IsActive)
+{
+    public StudioSidebarBibleEdition(
+        string code,
+        string displayName,
+        string languageTag)
+        : this(
+            code,
+            displayName,
+            languageTag,
+            $"/library/{Uri.EscapeDataString(code)}",
+            false)
+    {
+    }
+}
 
 public sealed record StudioSidebarRenameRequest(
     Guid TargetId,

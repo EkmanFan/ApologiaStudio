@@ -43,6 +43,8 @@ public sealed class StudioSidebarComponentTests
         Assert.True(chatsIndex > libraryIndex);
         Assert.Contains("Louis Segond 1910", markup);
         Assert.Contains("World English Bible Classic", markup);
+        Assert.Contains("href=\"/library/lsg1910\"", markup);
+        Assert.Contains("href=\"/library/web-classic\"", markup);
         Assert.Contains("The resurrection", markup);
         Assert.DoesNotContain("href=\"/api/bible", markup);
     }
