@@ -36,7 +36,10 @@ public sealed class EfConversationRepository(
             .Where(
                 conversation =>
                     conversation.OwnerId == ownerId)
-            .OrderByDescending(
+            .OrderBy(
+                conversation =>
+                    conversation.SortOrder)
+            .ThenByDescending(
                 conversation =>
                     conversation.CreatedAt)
             .FirstOrDefaultAsync(

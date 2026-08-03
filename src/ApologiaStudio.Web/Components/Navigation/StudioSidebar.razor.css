@@ -150,7 +150,8 @@
 }
 
 .bible-edition,
-.conversation-link {
+.conversation-link,
+.pinned-link {
     min-width: 0;
     border-radius: 0.55rem;
 }
@@ -185,7 +186,8 @@
     white-space: nowrap;
 }
 
-.conversation-link {
+.conversation-link,
+.pinned-link {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
@@ -196,20 +198,34 @@
     text-decoration: none;
 }
 
-.conversation-link > span:last-child {
+.conversation-link > span:last-child,
+.pinned-link > span:last-child,
+.project-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.conversation-link:hover {
+.conversation-link:hover,
+.pinned-link:hover {
     background: #eceae4;
 }
 
-.conversation-link.active {
+.conversation-link.active,
+.pinned-link.active {
     background: #dde7e1;
     color: #214437;
     font-weight: 700;
+}
+
+.pinned-icon {
+    color: #7b6652;
+    font-size: 0.7rem;
+}
+
+.project-shortcut .pinned-icon {
+    color: #315f4e;
+    font-size: 0.82rem;
 }
 
 .conversation-bullet {
@@ -222,6 +238,57 @@
 .conversation-link.active .conversation-bullet {
     background: #315f4e;
     box-shadow: 0 0 0 0.22rem rgba(49, 95, 78, 0.13);
+}
+
+.sidebar-project {
+    scroll-margin-top: 0.5rem;
+    border-radius: 0.55rem;
+}
+
+.sidebar-project > summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.58rem 0.62rem;
+    border-radius: 0.55rem;
+    color: #343a34;
+    font-size: 0.83rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.sidebar-project > summary::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-project > summary:hover,
+.sidebar-project:target > summary {
+    background: #e7ebe6;
+}
+
+.project-count {
+    color: #777d76;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.project-conversations {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.05rem 0 0.35rem 0.45rem;
+}
+
+.conversation-link.nested {
+    padding-block: 0.52rem;
+}
+
+.project-empty {
+    margin: 0;
+    padding: 0.45rem 0.65rem 0.55rem;
+    color: #777d76;
+    font-size: 0.76rem;
 }
 
 .section-empty {

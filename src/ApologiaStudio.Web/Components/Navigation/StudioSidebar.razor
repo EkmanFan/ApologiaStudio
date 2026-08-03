@@ -69,6 +69,92 @@
             </div>
         </details>
 
+        @if (PinnedItems.Count > 0)
+        {
+            <details class="sidebar-section" open>
+                <summary>
+                    <span>@Text("Épinglés", "Pinned")</span>
+                    <span class="section-count">@PinnedItems.Count</span>
+                </summary>
+
+                <nav class="section-content pinned-list"
+                     aria-label="@Text("Épinglés", "Pinned")">
+                    @foreach (var item in PinnedItems)
+                    {
+                        @if (item.IsProject)
+                        {
+                            <a class="pinned-link project-shortcut"
+                               href="@item.Url">
+                                <span class="pinned-icon" aria-hidden="true">▣</span>
+                                <span>@item.Title</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="pinned-link @(item.IsActive ? "active" : null)"
+                               href="@item.Url"
+                               aria-current="@(item.IsActive ? "page" : null)"
+                               @onclick="CloseAsync">
+                                <span class="pinned-icon" aria-hidden="true">●</span>
+                                <span>@item.Title</span>
+                            </a>
+                        }
+                    }
+                </nav>
+            </details>
+        }
+
+        @if (Projects.Count > 0)
+        {
+            <details class="sidebar-section" open>
+                <summary>
+                    <span>@Text("Projets", "Projects")</span>
+                    <span class="section-count">@Projects.Count</span>
+                </summary>
+
+                <div class="section-content project-list">
+                    @foreach (var project in Projects)
+                    {
+                        <details id="@project.AnchorId"
+                                 class="sidebar-project"
+                                 open>
+                            <summary>
+                                <span class="project-name">@project.Name</span>
+                                <span class="project-count">
+                                    @project.Conversations.Count
+                                </span>
+                            </summary>
+
+                            <nav class="project-conversations"
+                                 aria-label="@project.Name">
+                                @if (project.Conversations.Count == 0)
+                                {
+                                    <p class="project-empty">
+                                        @Text(
+                                            "Aucune discussion dans ce projet.",
+                                            "No chats in this project.")
+                                    </p>
+                                }
+                                else
+                                {
+                                    @foreach (var conversation in project.Conversations)
+                                    {
+                                        <a class="conversation-link nested @(conversation.IsActive ? "active" : null)"
+                                           href="@conversation.Url"
+                                           aria-current="@(conversation.IsActive ? "page" : null)"
+                                           @onclick="CloseAsync">
+                                            <span class="conversation-bullet" aria-hidden="true"></span>
+                                            <span>@conversation.Title</span>
+                                        </a>
+                                    }
+                                }
+                            </nav>
+                        </details>
+                    }
+                </div>
+            </details>
+        }
+
         <details class="sidebar-section" open>
             <summary>
                 <span>@Text("Discussions", "Chats")</span>
@@ -126,6 +212,14 @@
     [Parameter, EditorRequired]
     public IReadOnlyList<StudioSidebarConversation> Conversations { get; set; } =
         Array.Empty<StudioSidebarConversation>();
+
+    [Parameter]
+    public IReadOnlyList<StudioSidebarPinnedItem> PinnedItems { get; set; } =
+        Array.Empty<StudioSidebarPinnedItem>();
+
+    [Parameter]
+    public IReadOnlyList<StudioSidebarProject> Projects { get; set; } =
+        Array.Empty<StudioSidebarProject>();
 
     [Parameter]
     public ApplicationLanguage Language { get; set; } =

@@ -12,6 +12,7 @@ using ApologiaStudio.Application.Conversations.ListConversations;
 using ApologiaStudio.Application.Conversations.RenameConversation;
 using ApologiaStudio.Application.Conversations.SendMessage;
 using ApologiaStudio.Application.Preferences;
+using ApologiaStudio.Application.Navigation.GetSidebarNavigation;
 using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.Components;
 using ApologiaStudio.Web.Endpoints;
@@ -245,6 +246,9 @@ builder.Services.AddScoped<
 
 builder.Services.AddScoped<
     ListConversationsHandler>();
+
+builder.Services.AddScoped<
+    GetSidebarNavigationHandler>();
 
 builder.Services.AddScoped<
     RenameConversationHandler>();

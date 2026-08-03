@@ -1,4 +1,5 @@
 using ApologiaStudio.Domain.Conversations;
+using ApologiaStudio.Domain.Projects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -38,14 +39,34 @@ internal sealed class ConversationConfiguration
             .HasColumnType("timestamp with time zone")
             .IsRequired();
 
+        builder.Property(conversation => conversation.ProjectId)
+            .HasColumnName("project_id")
+            .HasColumnType("uuid")
+            .HasConversion(
+                StronglyTypedIdConverters
+                    .NullableConversationProjectIdConverter);
+
+        builder.Property(conversation => conversation.SortOrder)
+            .HasColumnName("sort_order")
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.HasIndex(
                 conversation => new
                 {
                     conversation.OwnerId,
+                    conversation.ProjectId,
+                    conversation.SortOrder,
                     conversation.CreatedAt
                 })
             .HasDatabaseName(
-                "ix_conversations_owner_created_at");
+                "ix_conversations_owner_project_sort_order");
+
+        builder.HasOne<ConversationProject>()
+            .WithMany()
+            .HasForeignKey(
+                conversation => conversation.ProjectId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(
                 conversation => conversation.Messages)

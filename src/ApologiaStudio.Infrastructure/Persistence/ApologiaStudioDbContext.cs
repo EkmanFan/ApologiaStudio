@@ -1,4 +1,6 @@
 using ApologiaStudio.Domain.Conversations;
+using ApologiaStudio.Domain.Navigation;
+using ApologiaStudio.Domain.Projects;
 using ApologiaStudio.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +15,12 @@ public sealed class ApologiaStudioDbContext(
 
     public DbSet<ConversationMessage> ConversationMessages =>
         Set<ConversationMessage>();
+
+    public DbSet<ConversationProject> ConversationProjects =>
+        Set<ConversationProject>();
+
+    public DbSet<SidebarPin> SidebarPins =>
+        Set<SidebarPin>();
 
     public DbSet<UserPreferences> UserPreferences =>
         Set<UserPreferences>();

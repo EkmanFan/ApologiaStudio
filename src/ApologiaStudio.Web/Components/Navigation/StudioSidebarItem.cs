@@ -5,6 +5,17 @@ public sealed record StudioSidebarConversation(
     string Title,
     bool IsActive);
 
+public sealed record StudioSidebarPinnedItem(
+    string Url,
+    string Title,
+    bool IsProject,
+    bool IsActive);
+
+public sealed record StudioSidebarProject(
+    string AnchorId,
+    string Name,
+    IReadOnlyList<StudioSidebarConversation> Conversations);
+
 public sealed record StudioSidebarBibleEdition(
     string Code,
     string DisplayName,

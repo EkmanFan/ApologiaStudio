@@ -1,6 +1,8 @@
 using ApologiaStudio.Domain.Agents;
 using ApologiaStudio.Domain.BibleCorpora;
 using ApologiaStudio.Domain.Conversations;
+using ApologiaStudio.Domain.Navigation;
+using ApologiaStudio.Domain.Projects;
 using ApologiaStudio.Domain.Users;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -37,6 +39,42 @@ internal static class StronglyTypedIdConverters
     { get; } = new(
             id => id.Value,
             value => new ConversationId(value));
+
+    public static ValueConverter<ConversationId?, Guid?>
+        NullableConversationIdConverter
+    { get; } = new(
+            id =>
+                id.HasValue
+                    ? id.Value.Value
+                    : null,
+            value =>
+                value.HasValue
+                    ? new ConversationId(value.Value)
+                    : null);
+
+    public static ValueConverter<ConversationProjectId, Guid>
+        ConversationProjectIdConverter
+    { get; } = new(
+            id => id.Value,
+            value => new ConversationProjectId(value));
+
+    public static ValueConverter<ConversationProjectId?, Guid?>
+        NullableConversationProjectIdConverter
+    { get; } = new(
+            id =>
+                id.HasValue
+                    ? id.Value.Value
+                    : null,
+            value =>
+                value.HasValue
+                    ? new ConversationProjectId(value.Value)
+                    : null);
+
+    public static ValueConverter<SidebarPinId, Guid>
+        SidebarPinIdConverter
+    { get; } = new(
+            id => id.Value,
+            value => new SidebarPinId(value));
 
     public static ValueConverter<MessageId, Guid>
         MessageIdConverter

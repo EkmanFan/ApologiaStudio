@@ -15,8 +15,10 @@
 @using ApologiaStudio.Application.Conversations.RenameConversation
 @using ApologiaStudio.Application.Conversations.SendMessage
 @using ApologiaStudio.Application.Preferences
+@using ApologiaStudio.Application.Navigation.GetSidebarNavigation
 @using ApologiaStudio.Domain.Agents
 @using ApologiaStudio.Domain.Conversations
+@using ApologiaStudio.Domain.Navigation
 @using ApologiaStudio.Domain.Users
 @using ApologiaStudio.Web.Components.Navigation
 
@@ -40,6 +42,8 @@ else
     <section class="studio-layout"
              @onkeydown="HandleShellKeyDown">
         <StudioSidebar BibleEditions="@GetSidebarBibleEditions()"
+                       PinnedItems="@GetSidebarPinnedItems()"
+                       Projects="@GetSidebarProjects()"
                        Conversations="@GetSidebarConversations()"
                        Language="@_interfaceLanguage"
                        IsOpen="@_isSidebarOpen"
@@ -259,8 +263,8 @@ else
     [Parameter]
     public Guid? ConversationIdValue { get; set; }
 
-    private IReadOnlyList<ConversationListItem> _conversationList =
-        Array.Empty<ConversationListItem>();
+    private SidebarNavigationView _sidebarNavigation =
+        SidebarNavigationView.Empty;
 
     private IReadOnlyList<BibleEditionSummary> _bibleEditions =
         Array.Empty<BibleEditionSummary>();
@@ -397,23 +401,21 @@ else
                 await bibleRepository.ListActiveEditionsAsync(
                     CancellationToken.None);
 
-            var listHandler =
+            var navigationHandler =
                 scope.ServiceProvider
-                    .GetRequiredService<ListConversationsHandler>();
+                    .GetRequiredService<GetSidebarNavigationHandler>();
 
-            _conversationList =
-                await listHandler.HandleAsync(
+            _sidebarNavigation =
+                await navigationHandler.HandleAsync(
                     CancellationToken.None);
 
             if (ConversationIdValue is null)
             {
-                var latestConversation =
-                    _conversationList.FirstOrDefault();
-
-                if (latestConversation is not null)
+                if (_sidebarNavigation.DefaultConversationId is { }
+                    defaultConversationId)
                 {
                     NavigateToConversation(
-                        latestConversation.Id,
+                        defaultConversationId,
                         replace: true);
 
                     return;
@@ -730,7 +732,7 @@ else
     private IReadOnlyList<StudioSidebarConversation>
         GetSidebarConversations()
     {
-        return _conversationList
+        return _sidebarNavigation.Chats
             .Select(
                 conversation =>
                     new StudioSidebarConversation(
@@ -738,6 +740,64 @@ else
                         conversation.Title,
                         _conversation?.Id == conversation.Id))
             .ToArray();
+    }
+
+    private IReadOnlyList<StudioSidebarPinnedItem>
+        GetSidebarPinnedItems()
+    {
+        return _sidebarNavigation.PinnedItems
+            .Select(
+                item =>
+                {
+                    var isProject =
+                        item.TargetKind ==
+                        SidebarPinTargetKind.Project;
+
+                    var url = isProject
+                        ? GetProjectAnchorUrl(item.TargetId)
+                        : GetConversationUrl(
+                            new ConversationId(item.TargetId));
+
+                    return new StudioSidebarPinnedItem(
+                        url,
+                        item.Title,
+                        isProject,
+                        !isProject &&
+                        _conversation?.Id.Value == item.TargetId);
+                })
+            .ToArray();
+    }
+
+    private IReadOnlyList<StudioSidebarProject>
+        GetSidebarProjects()
+    {
+        return _sidebarNavigation.Projects
+            .Select(
+                project =>
+                    new StudioSidebarProject(
+                        GetProjectAnchorId(project.Id.Value),
+                        project.Name,
+                        project.Conversations
+                            .Select(
+                                conversation =>
+                                    new StudioSidebarConversation(
+                                        GetConversationUrl(
+                                            conversation.Id),
+                                        conversation.Title,
+                                        _conversation?.Id ==
+                                            conversation.Id))
+                            .ToArray()))
+            .ToArray();
+    }
+
+    private static string GetProjectAnchorUrl(Guid projectId)
+    {
+        return $"#{GetProjectAnchorId(projectId)}";
+    }
+
+    private static string GetProjectAnchorId(Guid projectId)
+    {
+        return $"sidebar-project-{projectId:N}";
     }
 
     private void OpenSidebar()

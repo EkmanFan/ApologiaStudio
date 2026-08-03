@@ -94,10 +94,87 @@ public sealed class StudioSidebarComponentTests
             markup);
     }
 
+    [Fact]
+    public async Task Sidebar_ShouldRenderPinnedProjectsAndChatsInOrder()
+    {
+        var markup = await RenderAsync(
+            [
+                new StudioSidebarBibleEdition(
+                    "lsg1910",
+                    "Louis Segond 1910",
+                    "fr")
+            ],
+            [
+                new StudioSidebarConversation(
+                    "/conversations/33333333-3333-3333-3333-333333333333",
+                    "Free chat",
+                    false)
+            ],
+            ApplicationLanguage.English,
+            [
+                new StudioSidebarPinnedItem(
+                    "/conversations/11111111-1111-1111-1111-111111111111",
+                    "Pinned chat",
+                    false,
+                    false)
+            ],
+            [
+                new StudioSidebarProject(
+                    "sidebar-project-22222222222222222222222222222222",
+                    "Church history",
+                    [
+                        new StudioSidebarConversation(
+                            "/conversations/22222222-2222-2222-2222-222222222222",
+                            "Council of Nicaea",
+                            true)
+                    ])
+            ]);
+
+        var libraryIndex = markup.IndexOf(
+            "Library",
+            StringComparison.Ordinal);
+
+        var pinnedIndex = markup.IndexOf(
+            "Pinned",
+            StringComparison.Ordinal);
+
+        var projectsIndex = markup.IndexOf(
+            "Projects",
+            StringComparison.Ordinal);
+
+        var chatsIndex = markup.IndexOf(
+            "Chats",
+            StringComparison.Ordinal);
+
+        Assert.True(libraryIndex >= 0);
+        Assert.True(pinnedIndex > libraryIndex);
+        Assert.True(projectsIndex > pinnedIndex);
+        Assert.True(chatsIndex > projectsIndex);
+        Assert.Contains("Pinned chat", markup);
+        Assert.Contains("Church history", markup);
+        Assert.Contains("Council of Nicaea", markup);
+        Assert.Contains("Free chat", markup);
+    }
+
+    [Fact]
+    public async Task Sidebar_ShouldHideEmptyPinnedAndProjectSections()
+    {
+        var markup = await RenderAsync(
+            Array.Empty<StudioSidebarBibleEdition>(),
+            Array.Empty<StudioSidebarConversation>(),
+            ApplicationLanguage.English);
+
+        Assert.DoesNotContain(">Pinned<", markup);
+        Assert.DoesNotContain(">Projects<", markup);
+        Assert.Contains(">Chats<", markup);
+    }
+
     private static async Task<string> RenderAsync(
         IReadOnlyList<StudioSidebarBibleEdition> bibleEditions,
         IReadOnlyList<StudioSidebarConversation> conversations,
-        ApplicationLanguage language)
+        ApplicationLanguage language,
+        IReadOnlyList<StudioSidebarPinnedItem>? pinnedItems = null,
+        IReadOnlyList<StudioSidebarProject>? projects = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -124,6 +201,12 @@ public sealed class StudioSidebarComponentTests
                                 bibleEditions,
                             [nameof(StudioSidebar.Conversations)] =
                                 conversations,
+                            [nameof(StudioSidebar.PinnedItems)] =
+                                pinnedItems ??
+                                Array.Empty<StudioSidebarPinnedItem>(),
+                            [nameof(StudioSidebar.Projects)] =
+                                projects ??
+                                Array.Empty<StudioSidebarProject>(),
                             [nameof(StudioSidebar.Language)] =
                                 language
                         });

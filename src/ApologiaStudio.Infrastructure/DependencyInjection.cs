@@ -2,6 +2,8 @@ using ApologiaStudio.Application.Abstractions.Conversations;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Persistence;
 using ApologiaStudio.Application.Abstractions.Preferences;
+using ApologiaStudio.Application.Abstractions.Navigation;
+using ApologiaStudio.Application.Abstractions.Projects;
 using ApologiaStudio.Application.BibleCorpora.Ingestion;
 using ApologiaStudio.Infrastructure.BibleCorpora.Ingestion;
 using ApologiaStudio.Infrastructure.Persistence;
@@ -44,6 +46,14 @@ public static class DependencyInjection
         services.AddScoped<
             IUserPreferencesRepository,
             EfUserPreferencesRepository>();
+
+        services.AddScoped<
+            IConversationProjectRepository,
+            EfConversationProjectRepository>();
+
+        services.AddScoped<
+            ISidebarPinRepository,
+            EfSidebarPinRepository>();
 
         services.AddScoped<
             IUnitOfWork,

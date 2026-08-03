@@ -1,4 +1,5 @@
 using ApologiaStudio.Domain.Agents;
+using ApologiaStudio.Domain.Projects;
 using ApologiaStudio.Domain.Users;
 
 namespace ApologiaStudio.Domain.Conversations;
@@ -26,6 +27,10 @@ public sealed class Conversation
     public string Title { get; private set; }
 
     public DateTimeOffset CreatedAt { get; }
+
+    public ConversationProjectId? ProjectId { get; private set; }
+
+    public int SortOrder { get; private set; }
 
     public IReadOnlyList<ConversationMessage> Messages => _messages;
 
@@ -80,6 +85,37 @@ public sealed class Conversation
     {
         ValidateTitle(title);
         Title = title.Trim();
+    }
+
+    public void MoveToProject(
+        ConversationProject project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        if (project.OwnerId != OwnerId)
+        {
+            throw new InvalidOperationException(
+                "A conversation cannot be moved to another user's project.");
+        }
+
+        ProjectId = project.Id;
+    }
+
+    public void MoveToChats()
+    {
+        ProjectId = null;
+    }
+
+    public void Reorder(int sortOrder)
+    {
+        if (sortOrder < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(sortOrder),
+                "Conversation sort order cannot be negative.");
+        }
+
+        SortOrder = sortOrder;
     }
 
     private static void ValidateTitle(string title)

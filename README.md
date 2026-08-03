@@ -47,16 +47,26 @@ requested language, but it never selects the application default.
 
 ## Application shell
 
+The sidebar data rules are defined in the
+[sidebar organization contract](docs/ux-sidebar-organization.md).
+
 The conversation workspace uses a viewport-height application shell:
 
 - the sidebar header and local-account footer remain visible;
-- Library and Chats scroll independently from the conversation;
+- Library, Pinned, Projects, and Chats scroll independently from the
+  conversation;
 - Library lists active, approved Bible editions from PostgreSQL;
+- conversations may belong to one project or remain in Chats;
+- pinned projects and conversations are shortcuts and do not change their
+  underlying location;
+- projects, conversations, and pinned shortcuts have a persistent manual sort
+  order scoped to the current user;
 - the message thread scrolls independently while the composer remains visible;
 - automatic scrolling follows new content only while the reader is already near
   the latest message;
 - below 900 pixels, the sidebar becomes a dismissible navigation drawer.
 
-Pinned conversations and Projects are intentionally deferred until their
-persistent data model is implemented. The Library entries are read-only until a
-dedicated Bible reader is available.
+Pinned and Projects are hidden when empty. Their persistent model and read-only
+sidebar projection are implemented; creation, pinning, moving, and drag-and-drop
+controls are delivered by the next UX increment. The Library entries remain
+read-only until a dedicated Bible reader is available.
