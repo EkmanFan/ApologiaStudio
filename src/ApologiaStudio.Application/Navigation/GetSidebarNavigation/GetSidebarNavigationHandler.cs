@@ -24,6 +24,11 @@ public sealed class GetSidebarNavigationHandler(
                 ownerId,
                 cancellationToken);
 
+        var deletedConversations =
+            await conversationRepository.ListDeletedByOwnerAsync(
+                ownerId,
+                cancellationToken);
+
         var projects =
             await projectRepository.ListByOwnerAsync(
                 ownerId,
@@ -35,7 +40,10 @@ public sealed class GetSidebarNavigationHandler(
                 cancellationToken);
 
         var ownedConversations = conversations
-            .Where(conversation => conversation.OwnerId == ownerId)
+            .Where(
+                conversation =>
+                    conversation.OwnerId == ownerId &&
+                    !conversation.IsDeleted)
             .ToArray();
 
         var ownedProjects = projects
@@ -89,11 +97,29 @@ public sealed class GetSidebarNavigationHandler(
                     (ConversationId?)conversation.Id)
             .FirstOrDefault();
 
+        var deletedChats = deletedConversations
+            .Where(
+                conversation =>
+                    conversation.OwnerId == ownerId &&
+                    conversation.DeletedAt.HasValue)
+            .OrderByDescending(
+                conversation => conversation.DeletedAt)
+            .ThenByDescending(
+                conversation => conversation.CreatedAt)
+            .Select(
+                conversation =>
+                    new SidebarDeletedConversationItem(
+                        conversation.Id,
+                        conversation.Title,
+                        conversation.DeletedAt!.Value))
+            .ToArray();
+
         return new SidebarNavigationView(
             defaultConversationId,
             pinnedItems,
             projectItems,
-            chats);
+            chats,
+            deletedChats);
     }
 
     private static IReadOnlyList<SidebarConversationItem>

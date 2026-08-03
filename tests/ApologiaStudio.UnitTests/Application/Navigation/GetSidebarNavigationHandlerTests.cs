@@ -74,8 +74,37 @@ public sealed class GetSidebarNavigationHandlerTests
         Assert.Equal(chat.Id, Assert.Single(result.Chats).Id);
     }
 
+    [Fact]
+    public async Task Handler_ShouldExposeDeletedConversationsOnlyInTrash()
+    {
+        var ownerId = UserId.New();
+        var deleted = Conversation.Create(
+            ownerId,
+            "Recoverable",
+            DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        deleted.Delete(DateTimeOffset.UtcNow);
+
+        var handler = new GetSidebarNavigationHandler(
+            new FakeConversationRepository([], [deleted]),
+            new FakeProjectRepository([]),
+            new FakePinRepository([]),
+            new FakeCurrentUser(ownerId));
+
+        var result = await handler.HandleAsync(
+            CancellationToken.None);
+
+        Assert.Empty(result.Chats);
+        Assert.Null(result.DefaultConversationId);
+
+        var deletedItem = Assert.Single(result.DeletedChats);
+        Assert.Equal(deleted.Id, deletedItem.Id);
+        Assert.Equal(deleted.DeletedAt, deletedItem.DeletedAt);
+    }
+
     private sealed class FakeConversationRepository(
-        IReadOnlyList<Conversation> conversations)
+        IReadOnlyList<Conversation> conversations,
+        IReadOnlyList<Conversation>? deletedConversations = null)
         : IConversationRepository
     {
         public Task<Conversation?> GetByIdAsync(
@@ -93,6 +122,14 @@ public sealed class GetSidebarNavigationHandlerTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult(conversations);
+        }
+
+        public Task<IReadOnlyList<Conversation>> ListDeletedByOwnerAsync(
+            UserId ownerId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<Conversation>>(
+                deletedConversations ?? []);
         }
 
         public void Add(Conversation conversation)
@@ -116,6 +153,11 @@ public sealed class GetSidebarNavigationHandlerTests
         {
             throw new NotSupportedException();
         }
+
+        public void Remove(ConversationProject project)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class FakePinRepository(
@@ -130,6 +172,11 @@ public sealed class GetSidebarNavigationHandlerTests
         }
 
         public void Add(SidebarPin pin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void Remove(SidebarPin pin)
         {
             throw new NotSupportedException();
         }

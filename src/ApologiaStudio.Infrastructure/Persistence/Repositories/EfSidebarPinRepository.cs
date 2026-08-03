@@ -14,7 +14,6 @@ public sealed class EfSidebarPinRepository(
         CancellationToken cancellationToken)
     {
         return await dbContext.SidebarPins
-            .AsNoTracking()
             .Where(pin => pin.OwnerId == ownerId)
             .OrderBy(pin => pin.SortOrder)
             .ThenBy(pin => pin.CreatedAt)
@@ -25,5 +24,11 @@ public sealed class EfSidebarPinRepository(
     {
         ArgumentNullException.ThrowIfNull(pin);
         dbContext.SidebarPins.Add(pin);
+    }
+
+    public void Remove(SidebarPin pin)
+    {
+        ArgumentNullException.ThrowIfNull(pin);
+        dbContext.SidebarPins.Remove(pin);
     }
 }

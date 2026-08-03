@@ -17,7 +17,7 @@ public sealed class GetConversationHandler(
                 conversationId,
                 cancellationToken);
 
-        if (conversation is null)
+        if (conversation is null || conversation.IsDeleted)
         {
             return null;
         }

@@ -20,6 +20,22 @@ public sealed class EfConversationRepository(
                         message => message.CreatedAt))
             .SingleOrDefaultAsync(
                 conversation =>
+                    conversation.Id == conversationId &&
+                    conversation.DeletedAt == null,
+                cancellationToken);
+    }
+
+    public Task<Conversation?> GetByIdIncludingDeletedAsync(
+        ConversationId conversationId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Conversations
+            .Include(
+                conversation =>
+                    conversation.Messages.OrderBy(
+                        message => message.CreatedAt))
+            .SingleOrDefaultAsync(
+                conversation =>
                     conversation.Id == conversationId,
                 cancellationToken);
     }
@@ -35,7 +51,8 @@ public sealed class EfConversationRepository(
                         message => message.CreatedAt))
             .Where(
                 conversation =>
-                    conversation.OwnerId == ownerId)
+                    conversation.OwnerId == ownerId &&
+                    conversation.DeletedAt == null)
             .OrderBy(
                 conversation =>
                     conversation.SortOrder)
@@ -51,11 +68,30 @@ public sealed class EfConversationRepository(
         CancellationToken cancellationToken)
     {
         return await dbContext.Conversations
-            .AsNoTracking()
             .Where(
                 conversation =>
-                    conversation.OwnerId == ownerId)
+                    conversation.OwnerId == ownerId &&
+                    conversation.DeletedAt == null)
             .OrderByDescending(
+                conversation =>
+                    conversation.CreatedAt)
+            .ToListAsync(
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Conversation>> ListDeletedByOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Conversations
+            .Where(
+                conversation =>
+                    conversation.OwnerId == ownerId &&
+                    conversation.DeletedAt != null)
+            .OrderByDescending(
+                conversation =>
+                    conversation.DeletedAt)
+            .ThenByDescending(
                 conversation =>
                     conversation.CreatedAt)
             .ToListAsync(

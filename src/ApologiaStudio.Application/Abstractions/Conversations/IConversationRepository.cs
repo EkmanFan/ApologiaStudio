@@ -9,6 +9,15 @@ public interface IConversationRepository
         ConversationId conversationId,
         CancellationToken cancellationToken);
 
+    Task<Conversation?> GetByIdIncludingDeletedAsync(
+        ConversationId conversationId,
+        CancellationToken cancellationToken)
+    {
+        return GetByIdAsync(
+            conversationId,
+            cancellationToken);
+    }
+
     Task<Conversation?> GetLatestByOwnerAsync(
         UserId ownerId,
         CancellationToken cancellationToken)
@@ -17,6 +26,14 @@ public interface IConversationRepository
     }
 
     Task<IReadOnlyList<Conversation>> ListByOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult<IReadOnlyList<Conversation>>(
+            Array.Empty<Conversation>());
+    }
+
+    Task<IReadOnlyList<Conversation>> ListDeletedByOwnerAsync(
         UserId ownerId,
         CancellationToken cancellationToken)
     {

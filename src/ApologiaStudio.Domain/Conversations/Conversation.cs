@@ -32,6 +32,10 @@ public sealed class Conversation
 
     public int SortOrder { get; private set; }
 
+    public DateTimeOffset? DeletedAt { get; private set; }
+
+    public bool IsDeleted => DeletedAt.HasValue;
+
     public IReadOnlyList<ConversationMessage> Messages => _messages;
 
     public static Conversation Create(
@@ -116,6 +120,23 @@ public sealed class Conversation
         }
 
         SortOrder = sortOrder;
+    }
+
+    public void Delete(DateTimeOffset deletedAt)
+    {
+        if (deletedAt < CreatedAt)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(deletedAt),
+                "A conversation cannot be deleted before it was created.");
+        }
+
+        DeletedAt ??= deletedAt;
+    }
+
+    public void Restore()
+    {
+        DeletedAt = null;
     }
 
     private static void ValidateTitle(string title)

@@ -8,6 +8,47 @@ namespace ApologiaStudio.UnitTests.Domain.Conversations;
 public sealed class ConversationTests
 {
     [Fact]
+    public void DeleteAndRestore_ShouldPreserveConversationState()
+    {
+        var createdAt = DateTimeOffset.UtcNow;
+        var conversation = Conversation.Create(
+            UserId.New(),
+            "Recoverable",
+            createdAt);
+
+        conversation.AddUserMessage(
+            "Keep this",
+            createdAt.AddMinutes(1));
+
+        var deletedAt = createdAt.AddMinutes(2);
+        conversation.Delete(deletedAt);
+
+        Assert.True(conversation.IsDeleted);
+        Assert.Equal(deletedAt, conversation.DeletedAt);
+        Assert.Single(conversation.Messages);
+
+        conversation.Restore();
+
+        Assert.False(conversation.IsDeleted);
+        Assert.Null(conversation.DeletedAt);
+        Assert.Single(conversation.Messages);
+    }
+
+    [Fact]
+    public void Delete_ShouldRejectTimestampBeforeCreation()
+    {
+        var createdAt = DateTimeOffset.UtcNow;
+        var conversation = Conversation.Create(
+            UserId.New(),
+            "Recoverable",
+            createdAt);
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => conversation.Delete(
+                createdAt.AddTicks(-1)));
+    }
+
+    [Fact]
     public void Create_ShouldCreateEmptyConversation()
     {
         var now = DateTimeOffset.UtcNow;

@@ -7,12 +7,21 @@ using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.BibleCorpora.Queries;
 using ApologiaStudio.Application.Conversations.CreateConversation;
+using ApologiaStudio.Application.Conversations.DeleteConversation;
 using ApologiaStudio.Application.Conversations.GetConversation;
 using ApologiaStudio.Application.Conversations.ListConversations;
+using ApologiaStudio.Application.Conversations.MoveConversation;
 using ApologiaStudio.Application.Conversations.RenameConversation;
+using ApologiaStudio.Application.Conversations.RestoreConversation;
 using ApologiaStudio.Application.Conversations.SendMessage;
+using ApologiaStudio.Application.Navigation.ReorderPinnedItems;
+using ApologiaStudio.Application.Navigation.ReorderProjects;
+using ApologiaStudio.Application.Navigation.SetSidebarPin;
 using ApologiaStudio.Application.Preferences;
 using ApologiaStudio.Application.Navigation.GetSidebarNavigation;
+using ApologiaStudio.Application.Projects.CreateProject;
+using ApologiaStudio.Application.Projects.DeleteProject;
+using ApologiaStudio.Application.Projects.RenameProject;
 using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.Components;
 using ApologiaStudio.Web.Endpoints;
@@ -242,16 +251,43 @@ builder.Services.AddScoped<
     CreateConversationHandler>();
 
 builder.Services.AddScoped<
+    DeleteConversationHandler>();
+
+builder.Services.AddScoped<
     GetConversationHandler>();
 
 builder.Services.AddScoped<
     ListConversationsHandler>();
 
 builder.Services.AddScoped<
+    MoveConversationHandler>();
+
+builder.Services.AddScoped<
     GetSidebarNavigationHandler>();
 
 builder.Services.AddScoped<
+    SetSidebarPinHandler>();
+
+builder.Services.AddScoped<
+    ReorderProjectsHandler>();
+
+builder.Services.AddScoped<
+    ReorderPinnedItemsHandler>();
+
+builder.Services.AddScoped<
     RenameConversationHandler>();
+
+builder.Services.AddScoped<
+    RestoreConversationHandler>();
+
+builder.Services.AddScoped<
+    CreateProjectHandler>();
+
+builder.Services.AddScoped<
+    RenameProjectHandler>();
+
+builder.Services.AddScoped<
+    DeleteProjectHandler>();
 
 builder.Services.AddScoped<
     SendMessageHandler>();

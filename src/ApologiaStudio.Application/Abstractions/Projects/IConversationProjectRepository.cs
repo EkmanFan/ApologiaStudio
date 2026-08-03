@@ -10,4 +10,6 @@ public interface IConversationProjectRepository
         CancellationToken cancellationToken);
 
     void Add(ConversationProject project);
+
+    void Remove(ConversationProject project);
 }

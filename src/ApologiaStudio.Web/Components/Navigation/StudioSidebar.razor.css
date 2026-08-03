@@ -409,3 +409,308 @@ button:disabled {
         transition: none;
     }
 }
+
+.section-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.1rem 0.45rem 0.25rem;
+}
+
+.section-toolbar button,
+.project-actions button,
+.deleted-row button {
+    border: 0;
+    border-radius: 0.42rem;
+    background: transparent;
+    color: #4c574f;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.section-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.38rem 0.48rem;
+}
+
+.section-toolbar button:hover,
+.project-actions button:hover,
+.deleted-row button:hover {
+    background: #e5e8e3;
+}
+
+.sidebar-item-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    min-width: 0;
+    border-radius: 0.55rem;
+}
+
+.sidebar-item-row:hover {
+    background: #eceae4;
+}
+
+.sidebar-item-row .conversation-link,
+.sidebar-item-row .pinned-link {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    padding-right: 0.2rem;
+}
+
+.sidebar-item-row .conversation-link:hover,
+.sidebar-item-row .pinned-link:hover {
+    background: transparent;
+}
+
+.drag-handle {
+    color: #9aa098;
+    font-size: 0.62rem;
+    letter-spacing: -0.18rem;
+    cursor: grab;
+    user-select: none;
+}
+
+.sidebar-item-row:active .drag-handle,
+.project-row:active .drag-handle {
+    cursor: grabbing;
+}
+
+.item-actions {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.sidebar-section .item-actions > summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    padding: 0;
+    border-radius: 0.4rem;
+    color: #6c726b;
+    font-size: 0.68rem;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.item-action-menu {
+    position: absolute;
+    top: calc(100% + 0.2rem);
+    right: 0;
+    z-index: 25;
+    display: grid;
+    width: max-content;
+    min-width: 8.5rem;
+    padding: 0.3rem;
+    border: 1px solid #d5d3cc;
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 0.55rem 1.4rem rgba(26, 31, 27, 0.16);
+}
+
+.item-action-menu button {
+    padding: 0.45rem 0.55rem;
+    border: 0;
+    border-radius: 0.35rem;
+    background: transparent;
+    color: #364039;
+    font-size: 0.76rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.item-action-menu button:hover {
+    background: #edf0ec;
+}
+
+.item-action-menu .danger-action,
+.project-actions .danger-action {
+    color: #982f29;
+}
+
+.project-row {
+    border-radius: 0.55rem;
+}
+
+.sidebar-project > summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.project-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.18rem;
+    padding: 0 0.45rem 0.35rem 1.05rem;
+}
+
+.project-actions button {
+    padding: 0.28rem 0.4rem;
+}
+
+.drop-zone {
+    min-height: 0.35rem;
+    border-radius: 999px;
+}
+
+.drop-zone:hover {
+    background: rgba(49, 95, 78, 0.16);
+}
+
+.trash-section {
+    padding-bottom: 0.35rem;
+}
+
+.deleted-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.5rem;
+    border-radius: 0.45rem;
+    color: #626a63;
+    font-size: 0.78rem;
+}
+
+.deleted-row > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.deleted-row button {
+    padding: 0.3rem 0.4rem;
+    color: #315f4e;
+}
+
+.management-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(21, 27, 23, 0.52);
+}
+
+.management-dialog {
+    display: grid;
+    gap: 0.85rem;
+    width: min(29rem, 100%);
+    max-height: min(38rem, calc(100dvh - 2rem));
+    overflow-y: auto;
+    padding: 1rem;
+    border: 1px solid #d8d5cd;
+    border-radius: 0.75rem;
+    background: #fbfaf7;
+    box-shadow: 0 1rem 3rem rgba(19, 24, 21, 0.24);
+}
+
+.management-dialog > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.management-dialog h2 {
+    margin: 0;
+    color: #2c332e;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.15rem;
+}
+
+.management-dialog > header button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 0.45rem;
+    background: transparent;
+    color: #566058;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.management-dialog label {
+    color: #4b544d;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.management-dialog input,
+.management-dialog select {
+    width: 100%;
+    padding: 0.6rem 0.65rem;
+    border: 1px solid #b9c0b9;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #252823;
+}
+
+.management-dialog p {
+    margin: 0;
+    color: #555e57;
+    line-height: 1.45;
+}
+
+.dialog-target {
+    overflow-wrap: anywhere;
+    color: #303730;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 0.2rem;
+}
+
+.dialog-actions button {
+    padding: 0.52rem 0.72rem;
+    border: 1px solid #bdc3bc;
+    border-radius: 0.48rem;
+    background: #fff;
+    color: #39423b;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dialog-actions .primary-action {
+    border-color: #315f4e;
+    background: #315f4e;
+    color: #fff;
+}
+
+.dialog-actions .danger-confirm {
+    border-color: #a53c35;
+    background: #a53c35;
+    color: #fff;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (max-width: 520px) {
+    .dialog-actions {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .dialog-actions button {
+        width: 100%;
+    }
+}

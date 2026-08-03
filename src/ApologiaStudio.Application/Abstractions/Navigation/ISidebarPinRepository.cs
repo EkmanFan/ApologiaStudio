@@ -10,4 +10,6 @@ public interface ISidebarPinRepository
         CancellationToken cancellationToken);
 
     void Add(SidebarPin pin);
+
+    void Remove(SidebarPin pin);
 }

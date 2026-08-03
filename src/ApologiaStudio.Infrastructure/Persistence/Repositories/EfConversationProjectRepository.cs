@@ -14,7 +14,6 @@ public sealed class EfConversationProjectRepository(
         CancellationToken cancellationToken)
     {
         return await dbContext.ConversationProjects
-            .AsNoTracking()
             .Where(project => project.OwnerId == ownerId)
             .OrderBy(project => project.SortOrder)
             .ThenBy(project => project.CreatedAt)
@@ -25,5 +24,11 @@ public sealed class EfConversationProjectRepository(
     {
         ArgumentNullException.ThrowIfNull(project);
         dbContext.ConversationProjects.Add(project);
+    }
+
+    public void Remove(ConversationProject project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        dbContext.ConversationProjects.Remove(project);
     }
 }

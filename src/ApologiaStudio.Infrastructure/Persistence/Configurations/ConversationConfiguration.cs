@@ -51,10 +51,17 @@ internal sealed class ConversationConfiguration
             .HasDefaultValue(0)
             .IsRequired();
 
+        builder.Property(conversation => conversation.DeletedAt)
+            .HasColumnName("deleted_at")
+            .HasColumnType("timestamp with time zone");
+
+        builder.Ignore(conversation => conversation.IsDeleted);
+
         builder.HasIndex(
                 conversation => new
                 {
                     conversation.OwnerId,
+                    conversation.DeletedAt,
                     conversation.ProjectId,
                     conversation.SortOrder,
                     conversation.CreatedAt

@@ -60,7 +60,7 @@ public sealed class StudioSidebarComponentTests
             markup);
 
         Assert.Contains(
-            "No chats yet.",
+            "No unassigned chats.",
             markup);
     }
 
@@ -157,7 +157,7 @@ public sealed class StudioSidebarComponentTests
     }
 
     [Fact]
-    public async Task Sidebar_ShouldHideEmptyPinnedAndProjectSections()
+    public async Task Sidebar_ShouldHideEmptyPinnedAndTrashButShowProjects()
     {
         var markup = await RenderAsync(
             Array.Empty<StudioSidebarBibleEdition>(),
@@ -165,8 +165,31 @@ public sealed class StudioSidebarComponentTests
             ApplicationLanguage.English);
 
         Assert.DoesNotContain(">Pinned<", markup);
-        Assert.DoesNotContain(">Projects<", markup);
+        Assert.Contains(">Projects<", markup);
+        Assert.Contains("New project", markup);
         Assert.Contains(">Chats<", markup);
+        Assert.DoesNotContain(">Trash<", markup);
+    }
+
+    [Fact]
+    public async Task Sidebar_ShouldRenderRecoverableDeletedConversations()
+    {
+        var markup = await RenderAsync(
+            Array.Empty<StudioSidebarBibleEdition>(),
+            Array.Empty<StudioSidebarConversation>(),
+            ApplicationLanguage.English,
+            deletedConversations:
+            [
+                new StudioSidebarDeletedConversation(
+                    Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                    "Recoverable chat",
+                    DateTimeOffset.Parse("2026-08-03T12:00:00Z"))
+            ]);
+
+        Assert.Contains(">Trash<", markup);
+        Assert.Contains("Recoverable chat", markup);
+        Assert.Contains("Restore", markup);
+        Assert.DoesNotContain("permanent", markup, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<string> RenderAsync(
@@ -174,7 +197,9 @@ public sealed class StudioSidebarComponentTests
         IReadOnlyList<StudioSidebarConversation> conversations,
         ApplicationLanguage language,
         IReadOnlyList<StudioSidebarPinnedItem>? pinnedItems = null,
-        IReadOnlyList<StudioSidebarProject>? projects = null)
+        IReadOnlyList<StudioSidebarProject>? projects = null,
+        IReadOnlyList<StudioSidebarDeletedConversation>?
+            deletedConversations = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -207,6 +232,9 @@ public sealed class StudioSidebarComponentTests
                             [nameof(StudioSidebar.Projects)] =
                                 projects ??
                                 Array.Empty<StudioSidebarProject>(),
+                            [nameof(StudioSidebar.DeletedConversations)] =
+                                deletedConversations ??
+                                Array.Empty<StudioSidebarDeletedConversation>(),
                             [nameof(StudioSidebar.Language)] =
                                 language
                         });

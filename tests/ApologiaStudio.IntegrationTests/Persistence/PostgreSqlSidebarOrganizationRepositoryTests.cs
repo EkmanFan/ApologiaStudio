@@ -12,6 +12,111 @@ namespace ApologiaStudio.IntegrationTests.Persistence;
 public sealed class PostgreSqlSidebarOrganizationRepositoryTests
 {
     [Fact]
+    public async Task ConversationRepository_ShouldSeparateDeletedAndActiveChats()
+    {
+        var connectionString =
+            Environment.GetEnvironmentVariable(
+                "APOLOGIASTUDIO_TEST_DB_CONNECTION");
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(connectionString),
+            "APOLOGIASTUDIO_TEST_DB_CONNECTION was not configured.");
+
+        var options =
+            new DbContextOptionsBuilder<ApologiaStudioDbContext>()
+                .UseNpgsql(connectionString)
+                .Options;
+
+        await using (
+            var initializationContext =
+                new ApologiaStudioDbContext(options))
+        {
+            await initializationContext.Database.EnsureDeletedAsync();
+            await initializationContext.Database.EnsureCreatedAsync();
+        }
+
+        var ownerId = UserId.New();
+        var createdAt = new DateTimeOffset(
+            2026,
+            8,
+            3,
+            12,
+            0,
+            0,
+            TimeSpan.Zero);
+
+        var conversation = Conversation.Create(
+            ownerId,
+            "Recoverable",
+            createdAt);
+
+        conversation.AddUserMessage(
+            "This message must survive.",
+            createdAt.AddMinutes(1));
+
+        conversation.Delete(createdAt.AddMinutes(2));
+
+        await using (
+            var writeContext =
+                new ApologiaStudioDbContext(options))
+        {
+            new EfConversationRepository(writeContext).Add(conversation);
+            await writeContext.SaveChangesAsync();
+        }
+
+        await using (
+            var deletedReadContext =
+                new ApologiaStudioDbContext(options))
+        {
+            var repository =
+                new EfConversationRepository(deletedReadContext);
+
+            Assert.Empty(
+                await repository.ListByOwnerAsync(
+                    ownerId,
+                    CancellationToken.None));
+
+            Assert.Null(
+                await repository.GetByIdAsync(
+                    conversation.Id,
+                    CancellationToken.None));
+
+            var deleted = Assert.Single(
+                await repository.ListDeletedByOwnerAsync(
+                    ownerId,
+                    CancellationToken.None));
+
+            Assert.True(deleted.IsDeleted);
+
+            var includingDeleted =
+                await repository.GetByIdIncludingDeletedAsync(
+                    conversation.Id,
+                    CancellationToken.None);
+
+            Assert.NotNull(includingDeleted);
+            Assert.Equal(
+                "This message must survive.",
+                Assert.Single(includingDeleted.Messages).Content);
+
+            includingDeleted.Restore();
+            await deletedReadContext.SaveChangesAsync();
+        }
+
+        await using (
+            var restoredReadContext =
+                new ApologiaStudioDbContext(options))
+        {
+            var restored = Assert.Single(
+                await new EfConversationRepository(restoredReadContext)
+                    .ListByOwnerAsync(
+                        ownerId,
+                        CancellationToken.None));
+
+            Assert.False(restored.IsDeleted);
+        }
+    }
+
+    [Fact]
     public async Task Repositories_ShouldPersistProjectsPinsAndManualOrder()
     {
         var connectionString =

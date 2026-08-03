@@ -48,7 +48,8 @@ requested language, but it never selects the application default.
 ## Application shell
 
 The sidebar data rules are defined in the
-[sidebar organization contract](docs/ux-sidebar-organization.md).
+[sidebar organization contract](docs/ux-sidebar-organization.md) and the
+[sidebar management contract](docs/ux-sidebar-management.md).
 
 The conversation workspace uses a viewport-height application shell:
 
@@ -61,12 +62,16 @@ The conversation workspace uses a viewport-height application shell:
   underlying location;
 - projects, conversations, and pinned shortcuts have a persistent manual sort
   order scoped to the current user;
+- projects and conversations expose rename, pin, move, reorder, and confirmed
+  deletion controls as applicable;
+- conversation deletion is recoverable from Trash and never deletes messages;
+- deleting a project returns its conversations to Chats;
 - the message thread scrolls independently while the composer remains visible;
 - automatic scrolling follows new content only while the reader is already near
   the latest message;
 - below 900 pixels, the sidebar becomes a dismissible navigation drawer.
 
-Pinned and Projects are hidden when empty. Their persistent model and read-only
-sidebar projection are implemented; creation, pinning, moving, and drag-and-drop
-controls are delivered by the next UX increment. The Library entries remain
-read-only until a dedicated Bible reader is available.
+Pinned is hidden when empty. Projects remains visible because it contains the
+project-creation control. Drag-and-drop and equivalent keyboard actions persist
+manual order. The Library entries remain read-only until a dedicated Bible
+reader is available.

@@ -1,4 +1,5 @@
 @using ApologiaStudio.Domain.Users
+@using Microsoft.AspNetCore.Components.Web
 
 <button class="sidebar-scrim @(IsOpen ? "visible" : null)"
         type="button"
@@ -29,7 +30,7 @@
 
         <button class="new-chat"
                 type="button"
-                disabled="@IsCreatingConversation"
+                disabled="@(IsCreatingConversation || IsBusy)"
                 @onclick="CreateConversationAsync">
             <span class="new-chat-icon" aria-hidden="true">＋</span>
             <span>@Text("Nouvelle discussion", "New chat")</span>
@@ -56,8 +57,7 @@
                 {
                     @foreach (var edition in BibleEditions)
                     {
-                        <div class="bible-edition"
-                             title="@edition.Code">
+                        <div class="bible-edition" title="@edition.Code">
                             <span class="item-icon" aria-hidden="true">B</span>
                             <span class="item-copy">
                                 <strong>@edition.DisplayName</strong>
@@ -79,81 +79,267 @@
 
                 <nav class="section-content pinned-list"
                      aria-label="@Text("Épinglés", "Pinned")">
-                    @foreach (var item in PinnedItems)
+                    @for (var index = 0; index < PinnedItems.Count; index++)
                     {
-                        @if (item.IsProject)
-                        {
-                            <a class="pinned-link project-shortcut"
-                               href="@item.Url">
-                                <span class="pinned-icon" aria-hidden="true">▣</span>
-                                <span>@item.Title</span>
-                            </a>
-                        }
-                        else
-                        {
-                            <a class="pinned-link @(item.IsActive ? "active" : null)"
+                        var item = PinnedItems[index];
+                        var itemIndex = index;
+
+                        <div class="sidebar-item-row pinned-row"
+                             draggable="@(!IsBusy ? "true" : "false")"
+                             @ondragstart="() => BeginPinDrag(item.PinId)"
+                             @ondragend="ClearDrag"
+                             @ondragover:preventDefault
+                             @ondrop="() => DropPinAsync(itemIndex)">
+                            <a class="pinned-link @(item.IsProject ? "project-shortcut" : null) @(item.IsActive ? "active" : null)"
                                href="@item.Url"
                                aria-current="@(item.IsActive ? "page" : null)"
-                               @onclick="CloseAsync">
-                                <span class="pinned-icon" aria-hidden="true">●</span>
+                               @onclick="() => HandlePinnedClickAsync(item.IsProject)">
+                                <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+                                <span class="pinned-icon" aria-hidden="true">
+                                    @(item.IsProject ? "▣" : "●")
+                                </span>
                                 <span>@item.Title</span>
                             </a>
-                        }
+
+                            <details class="item-actions">
+                                <summary aria-label="@Text("Actions", "Actions")">•••</summary>
+                                <div class="item-action-menu">
+                                    @if (itemIndex > 0)
+                                    {
+                                        <button type="button"
+                                                disabled="@IsBusy"
+                                                @onclick="() => ReorderPinAsync(item.PinId, itemIndex - 1)">
+                                            @Text("Monter", "Move up")
+                                        </button>
+                                    }
+
+                                    @if (itemIndex < PinnedItems.Count - 1)
+                                    {
+                                        <button type="button"
+                                                disabled="@IsBusy"
+                                                @onclick="() => ReorderPinAsync(item.PinId, itemIndex + 1)">
+                                            @Text("Descendre", "Move down")
+                                        </button>
+                                    }
+
+                                    <button type="button"
+                                            disabled="@IsBusy"
+                                            @onclick="() => SetPinAsync(item.TargetId, item.IsProject, false)">
+                                        @Text("Désépingler", "Unpin")
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
                     }
+
+                    <div class="drop-zone"
+                         @ondragover:preventDefault
+                         @ondrop="() => DropPinAsync(PinnedItems.Count)">
+                    </div>
                 </nav>
             </details>
         }
 
-        @if (Projects.Count > 0)
-        {
-            <details class="sidebar-section" open>
-                <summary>
-                    <span>@Text("Projets", "Projects")</span>
-                    <span class="section-count">@Projects.Count</span>
-                </summary>
+        <details class="sidebar-section" open>
+            <summary>
+                <span>@Text("Projets", "Projects")</span>
+                <span class="section-count">@Projects.Count</span>
+            </summary>
 
-                <div class="section-content project-list">
-                    @foreach (var project in Projects)
-                    {
+            <div class="section-toolbar">
+                <button type="button"
+                        disabled="@IsBusy"
+                        @onclick="OpenCreateProjectDialog">
+                    <span aria-hidden="true">＋</span>
+                    @Text("Nouveau projet", "New project")
+                </button>
+            </div>
+
+            <div class="section-content project-list">
+                @if (Projects.Count == 0)
+                {
+                    <p class="section-empty">
+                        @Text(
+                            "Aucun projet. Créez-en un pour classer vos discussions.",
+                            "No projects yet. Create one to organize your chats.")
+                    </p>
+                }
+
+                @for (var projectIndex = 0;
+                      projectIndex < Projects.Count;
+                      projectIndex++)
+                {
+                    var project = Projects[projectIndex];
+                    var currentProjectIndex = projectIndex;
+
+                    <div class="project-row"
+                         draggable="@(!IsBusy ? "true" : "false")"
+                         @ondragstart="() => BeginProjectDrag(project.Id)"
+                         @ondragend="ClearDrag"
+                         @ondragover:preventDefault
+                         @ondrop="() => DropProjectAsync(currentProjectIndex)">
                         <details id="@project.AnchorId"
                                  class="sidebar-project"
                                  open>
                             <summary>
+                                <span class="drag-handle" aria-hidden="true">⋮⋮</span>
                                 <span class="project-name">@project.Name</span>
                                 <span class="project-count">
                                     @project.Conversations.Count
                                 </span>
                             </summary>
 
+                            <div class="project-actions">
+                                <button type="button"
+                                        disabled="@IsBusy"
+                                        @onclick="() => SetPinAsync(project.Id, true, !project.IsPinned)">
+                                    @(project.IsPinned
+                                        ? Text("Désépingler", "Unpin")
+                                        : Text("Épingler", "Pin"))
+                                </button>
+
+                                <button type="button"
+                                        disabled="@IsBusy"
+                                        @onclick="() => OpenRenameDialog(project.Id, true, project.Name)">
+                                    @Text("Renommer", "Rename")
+                                </button>
+
+                                @if (currentProjectIndex > 0)
+                                {
+                                    <button type="button"
+                                            disabled="@IsBusy"
+                                            @onclick="() => ReorderProjectAsync(project.Id, currentProjectIndex - 1)">
+                                        ↑
+                                        <span class="visually-hidden">
+                                            @Text("Monter le projet", "Move project up")
+                                        </span>
+                                    </button>
+                                }
+
+                                @if (currentProjectIndex < Projects.Count - 1)
+                                {
+                                    <button type="button"
+                                            disabled="@IsBusy"
+                                            @onclick="() => ReorderProjectAsync(project.Id, currentProjectIndex + 1)">
+                                        ↓
+                                        <span class="visually-hidden">
+                                            @Text("Descendre le projet", "Move project down")
+                                        </span>
+                                    </button>
+                                }
+
+                                <button class="danger-action"
+                                        type="button"
+                                        disabled="@IsBusy"
+                                        @onclick="() => OpenDeleteDialog(project.Id, true, project.Name)">
+                                    @Text("Supprimer", "Delete")
+                                </button>
+                            </div>
+
                             <nav class="project-conversations"
-                                 aria-label="@project.Name">
+                                 aria-label="@project.Name"
+                                 @ondragover:preventDefault
+                                 @ondrop="() => DropConversationAsync(project.Id, project.Conversations.Count)">
                                 @if (project.Conversations.Count == 0)
                                 {
                                     <p class="project-empty">
                                         @Text(
-                                            "Aucune discussion dans ce projet.",
-                                            "No chats in this project.")
+                                            "Déposez une discussion ici.",
+                                            "Drop a chat here.")
                                     </p>
                                 }
                                 else
                                 {
-                                    @foreach (var conversation in project.Conversations)
+                                    @for (var conversationIndex = 0;
+                                          conversationIndex < project.Conversations.Count;
+                                          conversationIndex++)
                                     {
-                                        <a class="conversation-link nested @(conversation.IsActive ? "active" : null)"
-                                           href="@conversation.Url"
-                                           aria-current="@(conversation.IsActive ? "page" : null)"
-                                           @onclick="CloseAsync">
-                                            <span class="conversation-bullet" aria-hidden="true"></span>
-                                            <span>@conversation.Title</span>
-                                        </a>
+                                        var conversation = project.Conversations[conversationIndex];
+                                        var currentConversationIndex = conversationIndex;
+
+                                        <div class="sidebar-item-row conversation-row"
+                                             draggable="@(!IsBusy ? "true" : "false")"
+                                             @ondragstart="() => BeginConversationDrag(conversation.Id)"
+                                             @ondragstart:stopPropagation
+                                             @ondragend="ClearDrag"
+                                             @ondragover:preventDefault
+                                             @ondrop="() => DropConversationAsync(project.Id, currentConversationIndex)"
+                                             @ondrop:stopPropagation>
+                                            <a class="conversation-link nested @(conversation.IsActive ? "active" : null)"
+                                               href="@conversation.Url"
+                                               aria-current="@(conversation.IsActive ? "page" : null)"
+                                               @onclick="CloseAsync">
+                                                <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+                                                <span class="conversation-bullet" aria-hidden="true"></span>
+                                                <span>@conversation.Title</span>
+                                            </a>
+
+                                            <details class="item-actions">
+                                                <summary aria-label="@Text("Actions", "Actions")">•••</summary>
+                                                <div class="item-action-menu">
+                                                    <button type="button"
+                                                            disabled="@IsBusy"
+                                                            @onclick="() => SetPinAsync(conversation.Id, false, !conversation.IsPinned)">
+                                                        @(conversation.IsPinned
+                                                            ? Text("Désépingler", "Unpin")
+                                                            : Text("Épingler", "Pin"))
+                                                    </button>
+
+                                                    <button type="button"
+                                                            disabled="@IsBusy"
+                                                            @onclick="() => OpenRenameDialog(conversation.Id, false, conversation.Title)">
+                                                        @Text("Renommer", "Rename")
+                                                    </button>
+
+                                                    @if (HasAlternativeDestination(conversation.ProjectId))
+                                                    {
+                                                        <button type="button"
+                                                                disabled="@IsBusy"
+                                                                @onclick="() => OpenMoveDialog(conversation)">
+                                                            @Text("Déplacer…", "Move…")
+                                                        </button>
+                                                    }
+
+                                                    @if (currentConversationIndex > 0)
+                                                    {
+                                                        <button type="button"
+                                                                disabled="@IsBusy"
+                                                                @onclick="() => MoveConversationAsync(conversation.Id, project.Id, currentConversationIndex - 1)">
+                                                            @Text("Monter", "Move up")
+                                                        </button>
+                                                    }
+
+                                                    @if (currentConversationIndex < project.Conversations.Count - 1)
+                                                    {
+                                                        <button type="button"
+                                                                disabled="@IsBusy"
+                                                                @onclick="() => MoveConversationAsync(conversation.Id, project.Id, currentConversationIndex + 1)">
+                                                            @Text("Descendre", "Move down")
+                                                        </button>
+                                                    }
+
+                                                    <button class="danger-action"
+                                                            type="button"
+                                                            disabled="@IsBusy"
+                                                            @onclick="() => OpenDeleteDialog(conversation.Id, false, conversation.Title)">
+                                                        @Text("Supprimer", "Delete")
+                                                    </button>
+                                                </div>
+                                            </details>
+                                        </div>
                                     }
                                 }
                             </nav>
                         </details>
-                    }
+                    </div>
+                }
+
+                <div class="drop-zone"
+                     @ondragover:preventDefault
+                     @ondrop="() => DropProjectAsync(Projects.Count)">
                 </div>
-            </details>
-        }
+            </div>
+        </details>
 
         <details class="sidebar-section" open>
             <summary>
@@ -162,30 +348,122 @@
             </summary>
 
             <nav class="section-content conversation-list"
-                 aria-label="@Text("Discussions", "Chats")">
+                 aria-label="@Text("Discussions", "Chats")"
+                 @ondragover:preventDefault
+                 @ondrop="() => DropConversationAsync(null, Conversations.Count)">
                 @if (Conversations.Count == 0)
                 {
                     <p class="section-empty">
                         @Text(
-                            "Aucune discussion.",
-                            "No chats yet.")
+                            "Aucune discussion non classée.",
+                            "No unassigned chats.")
                     </p>
                 }
                 else
                 {
-                    @foreach (var conversation in Conversations)
+                    @for (var conversationIndex = 0;
+                          conversationIndex < Conversations.Count;
+                          conversationIndex++)
                     {
-                        <a class="conversation-link @(conversation.IsActive ? "active" : null)"
-                           href="@conversation.Url"
-                           aria-current="@(conversation.IsActive ? "page" : null)"
-                           @onclick="CloseAsync">
-                            <span class="conversation-bullet" aria-hidden="true"></span>
-                            <span>@conversation.Title</span>
-                        </a>
+                        var conversation = Conversations[conversationIndex];
+                        var currentConversationIndex = conversationIndex;
+
+                        <div class="sidebar-item-row conversation-row"
+                             draggable="@(!IsBusy ? "true" : "false")"
+                             @ondragstart="() => BeginConversationDrag(conversation.Id)"
+                             @ondragend="ClearDrag"
+                             @ondragover:preventDefault
+                             @ondrop="() => DropConversationAsync(null, currentConversationIndex)">
+                            <a class="conversation-link @(conversation.IsActive ? "active" : null)"
+                               href="@conversation.Url"
+                               aria-current="@(conversation.IsActive ? "page" : null)"
+                               @onclick="CloseAsync">
+                                <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+                                <span class="conversation-bullet" aria-hidden="true"></span>
+                                <span>@conversation.Title</span>
+                            </a>
+
+                            <details class="item-actions">
+                                <summary aria-label="@Text("Actions", "Actions")">•••</summary>
+                                <div class="item-action-menu">
+                                    <button type="button"
+                                            disabled="@IsBusy"
+                                            @onclick="() => SetPinAsync(conversation.Id, false, !conversation.IsPinned)">
+                                        @(conversation.IsPinned
+                                            ? Text("Désépingler", "Unpin")
+                                            : Text("Épingler", "Pin"))
+                                    </button>
+
+                                    <button type="button"
+                                            disabled="@IsBusy"
+                                            @onclick="() => OpenRenameDialog(conversation.Id, false, conversation.Title)">
+                                        @Text("Renommer", "Rename")
+                                    </button>
+
+                                    @if (HasAlternativeDestination(conversation.ProjectId))
+                                    {
+                                        <button type="button"
+                                                disabled="@IsBusy"
+                                                @onclick="() => OpenMoveDialog(conversation)">
+                                            @Text("Déplacer…", "Move…")
+                                        </button>
+                                    }
+
+                                    @if (currentConversationIndex > 0)
+                                    {
+                                        <button type="button"
+                                                disabled="@IsBusy"
+                                                @onclick="() => MoveConversationAsync(conversation.Id, null, currentConversationIndex - 1)">
+                                            @Text("Monter", "Move up")
+                                        </button>
+                                    }
+
+                                    @if (currentConversationIndex < Conversations.Count - 1)
+                                    {
+                                        <button type="button"
+                                                disabled="@IsBusy"
+                                                @onclick="() => MoveConversationAsync(conversation.Id, null, currentConversationIndex + 1)">
+                                            @Text("Descendre", "Move down")
+                                        </button>
+                                    }
+
+                                    <button class="danger-action"
+                                            type="button"
+                                            disabled="@IsBusy"
+                                            @onclick="() => OpenDeleteDialog(conversation.Id, false, conversation.Title)">
+                                        @Text("Supprimer", "Delete")
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
                     }
                 }
             </nav>
         </details>
+
+        @if (DeletedConversations.Count > 0)
+        {
+            <details class="sidebar-section trash-section">
+                <summary>
+                    <span>@Text("Corbeille", "Trash")</span>
+                    <span class="section-count">@DeletedConversations.Count</span>
+                </summary>
+
+                <div class="section-content deleted-list">
+                    @foreach (var conversation in DeletedConversations)
+                    {
+                        <div class="deleted-row">
+                            <span title="@conversation.Title">@conversation.Title</span>
+                            <button type="button"
+                                    disabled="@IsBusy"
+                                    @onclick="() => RestoreConversationAsync(conversation.Id)">
+                                @Text("Restaurer", "Restore")
+                            </button>
+                        </div>
+                    }
+                </div>
+            </details>
+        }
     </div>
 
     <footer class="account-zone">
@@ -203,6 +481,122 @@
         </a>
     </footer>
 </aside>
+
+@if (_dialogKind != SidebarDialogKind.None)
+{
+    <div class="management-dialog-backdrop" @onclick="CloseDialog">
+        <section class="management-dialog"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="sidebar-dialog-title"
+                 tabindex="-1"
+                 @onclick:stopPropagation
+                 @onkeydown="HandleDialogKeyDown"
+                 @onkeydown:stopPropagation>
+            <header>
+                <h2 id="sidebar-dialog-title">@GetDialogTitle()</h2>
+                <button type="button"
+                        aria-label="@Text("Fermer", "Close")"
+                        @onclick="CloseDialog">
+                    ×
+                </button>
+            </header>
+
+            @if (_dialogKind is SidebarDialogKind.CreateProject or
+                 SidebarDialogKind.Rename)
+            {
+                <label for="sidebar-dialog-text">
+                    @(_dialogKind == SidebarDialogKind.CreateProject
+                        ? Text("Nom du projet", "Project name")
+                        : Text("Nouveau nom", "New name"))
+                </label>
+
+                <input id="sidebar-dialog-text"
+                       type="text"
+                       maxlength="@(_dialogTargetIsProject ? 120 : 200)"
+                       disabled="@IsBusy"
+                       autofocus
+                       @bind="_dialogText" />
+
+                <div class="dialog-actions">
+                    <button type="button" @onclick="CloseDialog">
+                        @Text("Annuler", "Cancel")
+                    </button>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@(IsBusy || string.IsNullOrWhiteSpace(_dialogText))"
+                            @onclick="SubmitTextDialogAsync">
+                        @Text("Enregistrer", "Save")
+                    </button>
+                </div>
+            }
+            else if (_dialogKind == SidebarDialogKind.MoveConversation)
+            {
+                <label for="sidebar-dialog-project">
+                    @Text("Destination", "Destination")
+                </label>
+
+                <select id="sidebar-dialog-project"
+                        disabled="@IsBusy"
+                        @bind="_dialogDestination">
+                    @if (_dialogSourceProjectId is not null)
+                    {
+                        <option value="">@Text("Discussions", "Chats")</option>
+                    }
+
+                    @foreach (var project in Projects.Where(
+                                  project => project.Id != _dialogSourceProjectId))
+                    {
+                        <option value="@(project.Id.ToString("D"))">
+                            @project.Name
+                        </option>
+                    }
+                </select>
+
+                <div class="dialog-actions">
+                    <button type="button" @onclick="CloseDialog">
+                        @Text("Annuler", "Cancel")
+                    </button>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@IsBusy"
+                            @onclick="SubmitMoveDialogAsync">
+                        @Text("Déplacer", "Move")
+                    </button>
+                </div>
+            }
+            else if (_dialogKind == SidebarDialogKind.Delete)
+            {
+                <p>
+                    @(_dialogTargetIsProject
+                        ? Text(
+                            "Les discussions du projet seront replacées dans Discussions. Aucune discussion ne sera supprimée.",
+                            "The project's chats will return to Chats. No chat will be deleted.")
+                        : Text(
+                            "La discussion sera placée dans la Corbeille et pourra être restaurée.",
+                            "The chat will be moved to Trash and can be restored."))
+                </p>
+
+                <strong class="dialog-target">@_dialogText</strong>
+
+                <div class="dialog-actions">
+                    <button type="button" @onclick="CloseDialog">
+                        @Text("Annuler", "Cancel")
+                    </button>
+
+                    <button class="danger-confirm"
+                            type="button"
+                            disabled="@IsBusy"
+                            @onclick="SubmitDeleteDialogAsync">
+                        @Text("Confirmer la suppression", "Confirm deletion")
+                    </button>
+                </div>
+            }
+        </section>
+    </div>
+}
 
 @code {
     [Parameter, EditorRequired]
@@ -222,6 +616,10 @@
         Array.Empty<StudioSidebarProject>();
 
     [Parameter]
+    public IReadOnlyList<StudioSidebarDeletedConversation> DeletedConversations { get; set; } =
+        Array.Empty<StudioSidebarDeletedConversation>();
+
+    [Parameter]
     public ApplicationLanguage Language { get; set; } =
         ApplicationLanguage.French;
 
@@ -232,14 +630,57 @@
     public bool IsCreatingConversation { get; set; }
 
     [Parameter]
+    public bool IsBusy { get; set; }
+
+    [Parameter]
     public EventCallback OnClose { get; set; }
 
     [Parameter]
     public EventCallback OnCreateConversation { get; set; }
 
+    [Parameter]
+    public EventCallback<string> OnCreateProject { get; set; }
+
+    [Parameter]
+    public EventCallback<StudioSidebarRenameRequest> OnRename { get; set; }
+
+    [Parameter]
+    public EventCallback<StudioSidebarPinRequest> OnSetPin { get; set; }
+
+    [Parameter]
+    public EventCallback<StudioSidebarMoveConversationRequest> OnMoveConversation { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<Guid>> OnReorderProjects { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<Guid>> OnReorderPinnedItems { get; set; }
+
+    [Parameter]
+    public EventCallback<StudioSidebarDeleteRequest> OnDelete { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnRestoreConversation { get; set; }
+
+    private SidebarDialogKind _dialogKind;
+    private SidebarDragKind _dragKind;
+    private Guid _dialogTargetId;
+    private Guid? _dialogSourceProjectId;
+    private Guid _draggedId;
+    private bool _dialogTargetIsProject;
+    private string _dialogText = string.Empty;
+    private string _dialogDestination = string.Empty;
+
     private Task CloseAsync()
     {
         return OnClose.InvokeAsync();
+    }
+
+    private Task HandlePinnedClickAsync(bool isProject)
+    {
+        return isProject
+            ? Task.CompletedTask
+            : OnClose.InvokeAsync();
     }
 
     private async Task CreateConversationAsync()
@@ -248,25 +689,336 @@
         await OnClose.InvokeAsync();
     }
 
+    private void OpenCreateProjectDialog()
+    {
+        _dialogKind = SidebarDialogKind.CreateProject;
+        _dialogTargetIsProject = true;
+        _dialogText = string.Empty;
+    }
+
+    private void OpenRenameDialog(
+        Guid targetId,
+        bool isProject,
+        string name)
+    {
+        _dialogKind = SidebarDialogKind.Rename;
+        _dialogTargetId = targetId;
+        _dialogTargetIsProject = isProject;
+        _dialogText = name;
+    }
+
+    private void OpenMoveDialog(
+        StudioSidebarConversation conversation)
+    {
+        _dialogKind = SidebarDialogKind.MoveConversation;
+        _dialogTargetId = conversation.Id;
+        _dialogTargetIsProject = false;
+        _dialogSourceProjectId = conversation.ProjectId;
+        _dialogText = conversation.Title;
+
+        _dialogDestination = conversation.ProjectId is not null
+            ? string.Empty
+            : Projects
+                .First(project => project.Id != conversation.ProjectId)
+                .Id
+                .ToString("D");
+    }
+
+    private void OpenDeleteDialog(
+        Guid targetId,
+        bool isProject,
+        string name)
+    {
+        _dialogKind = SidebarDialogKind.Delete;
+        _dialogTargetId = targetId;
+        _dialogTargetIsProject = isProject;
+        _dialogText = name;
+    }
+
+    private void CloseDialog()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        _dialogKind = SidebarDialogKind.None;
+        _dialogTargetId = Guid.Empty;
+        _dialogSourceProjectId = null;
+        _dialogTargetIsProject = false;
+        _dialogText = string.Empty;
+        _dialogDestination = string.Empty;
+    }
+
+    private void HandleDialogKeyDown(KeyboardEventArgs eventArgs)
+    {
+        if (eventArgs.Key.Equals("Escape", StringComparison.Ordinal))
+        {
+            CloseDialog();
+        }
+    }
+
+    private async Task SubmitTextDialogAsync()
+    {
+        var text = _dialogText.Trim();
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        if (_dialogKind == SidebarDialogKind.CreateProject)
+        {
+            await OnCreateProject.InvokeAsync(text);
+        }
+        else
+        {
+            await OnRename.InvokeAsync(
+                new StudioSidebarRenameRequest(
+                    _dialogTargetId,
+                    _dialogTargetIsProject,
+                    text));
+        }
+
+        CloseDialog();
+    }
+
+    private async Task SubmitMoveDialogAsync()
+    {
+        Guid? projectId = string.IsNullOrWhiteSpace(_dialogDestination)
+            ? null
+            : Guid.Parse(_dialogDestination);
+
+        var position = projectId is null
+            ? Conversations.Count
+            : Projects.Single(project => project.Id == projectId.Value)
+                .Conversations.Count;
+
+        await MoveConversationAsync(
+            _dialogTargetId,
+            projectId,
+            position);
+
+        CloseDialog();
+    }
+
+    private async Task SubmitDeleteDialogAsync()
+    {
+        await OnDelete.InvokeAsync(
+            new StudioSidebarDeleteRequest(
+                _dialogTargetId,
+                _dialogTargetIsProject));
+
+        CloseDialog();
+    }
+
+    private Task SetPinAsync(
+        Guid targetId,
+        bool isProject,
+        bool isPinned)
+    {
+        return OnSetPin.InvokeAsync(
+            new StudioSidebarPinRequest(
+                targetId,
+                isProject,
+                isPinned));
+    }
+
+    private Task MoveConversationAsync(
+        Guid conversationId,
+        Guid? projectId,
+        int position)
+    {
+        return OnMoveConversation.InvokeAsync(
+            new StudioSidebarMoveConversationRequest(
+                conversationId,
+                projectId,
+                position));
+    }
+
+    private Task RestoreConversationAsync(Guid conversationId)
+    {
+        return OnRestoreConversation.InvokeAsync(conversationId);
+    }
+
+    private void BeginConversationDrag(Guid conversationId)
+    {
+        _dragKind = SidebarDragKind.Conversation;
+        _draggedId = conversationId;
+    }
+
+    private void BeginProjectDrag(Guid projectId)
+    {
+        _dragKind = SidebarDragKind.Project;
+        _draggedId = projectId;
+    }
+
+    private void BeginPinDrag(Guid pinId)
+    {
+        _dragKind = SidebarDragKind.Pin;
+        _draggedId = pinId;
+    }
+
+    private void ClearDrag()
+    {
+        _dragKind = SidebarDragKind.None;
+        _draggedId = Guid.Empty;
+    }
+
+    private async Task DropConversationAsync(
+        Guid? projectId,
+        int position)
+    {
+        if (_dragKind != SidebarDragKind.Conversation)
+        {
+            return;
+        }
+
+        var conversationId = _draggedId;
+        ClearDrag();
+
+        var sourceConversation = Conversations
+            .Concat(
+                Projects.SelectMany(project => project.Conversations))
+            .SingleOrDefault(
+                conversation => conversation.Id == conversationId);
+
+        var destinationCount = projectId is null
+            ? Conversations.Count
+            : Projects.Single(project => project.Id == projectId.Value)
+                .Conversations.Count;
+
+        if (sourceConversation?.ProjectId == projectId)
+        {
+            destinationCount--;
+        }
+
+        position = Math.Clamp(position, 0, destinationCount);
+
+        await MoveConversationAsync(
+            conversationId,
+            projectId,
+            position);
+    }
+
+    private async Task DropProjectAsync(int position)
+    {
+        if (_dragKind != SidebarDragKind.Project)
+        {
+            return;
+        }
+
+        var projectId = _draggedId;
+        ClearDrag();
+
+        await ReorderProjectAsync(projectId, position);
+    }
+
+    private async Task ReorderProjectAsync(
+        Guid projectId,
+        int position)
+    {
+        var ids = Projects.Select(project => project.Id).ToList();
+        var sourceIndex = ids.IndexOf(projectId);
+
+        if (sourceIndex < 0)
+        {
+            return;
+        }
+
+        ids.RemoveAt(sourceIndex);
+        ids.Insert(Math.Clamp(position, 0, ids.Count), projectId);
+
+        await OnReorderProjects.InvokeAsync(ids);
+    }
+
+    private async Task DropPinAsync(int position)
+    {
+        if (_dragKind != SidebarDragKind.Pin)
+        {
+            return;
+        }
+
+        var pinId = _draggedId;
+        ClearDrag();
+
+        await ReorderPinAsync(pinId, position);
+    }
+
+    private async Task ReorderPinAsync(
+        Guid pinId,
+        int position)
+    {
+        var ids = PinnedItems.Select(item => item.PinId).ToList();
+        var sourceIndex = ids.IndexOf(pinId);
+
+        if (sourceIndex < 0)
+        {
+            return;
+        }
+
+        ids.RemoveAt(sourceIndex);
+        ids.Insert(Math.Clamp(position, 0, ids.Count), pinId);
+
+        await OnReorderPinnedItems.InvokeAsync(ids);
+    }
+
+    private bool HasAlternativeDestination(Guid? currentProjectId)
+    {
+        return currentProjectId is not null ||
+               Projects.Any(project => project.Id != currentProjectId);
+    }
+
+    private string GetDialogTitle()
+    {
+        return _dialogKind switch
+        {
+            SidebarDialogKind.CreateProject =>
+                Text("Créer un projet", "Create a project"),
+
+            SidebarDialogKind.Rename =>
+                Text("Renommer", "Rename"),
+
+            SidebarDialogKind.MoveConversation =>
+                Text("Déplacer la discussion", "Move chat"),
+
+            SidebarDialogKind.Delete =>
+                Text("Confirmer la suppression", "Confirm deletion"),
+
+            _ => string.Empty
+        };
+    }
+
     private string GetLanguageLabel(string languageTag)
     {
-        return languageTag.Equals(
-                "fr",
-                StringComparison.OrdinalIgnoreCase)
+        return languageTag.Equals("fr", StringComparison.OrdinalIgnoreCase)
             ? Text("Français", "French")
-            : languageTag.Equals(
-                "en",
-                StringComparison.OrdinalIgnoreCase)
+            : languageTag.Equals("en", StringComparison.OrdinalIgnoreCase)
                 ? Text("Anglais", "English")
                 : languageTag;
     }
 
-    private string Text(
-        string french,
-        string english)
+    private string Text(string french, string english)
     {
         return Language == ApplicationLanguage.English
             ? english
             : french;
+    }
+
+    private enum SidebarDialogKind
+    {
+        None,
+        CreateProject,
+        Rename,
+        MoveConversation,
+        Delete
+    }
+
+    private enum SidebarDragKind
+    {
+        None,
+        Conversation,
+        Project,
+        Pin
     }
 }
