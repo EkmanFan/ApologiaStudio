@@ -73,16 +73,24 @@
             </div>
         </details>
 
-        @if (PinnedItems.Count > 0)
-        {
-            <details class="sidebar-section" open>
-                <summary>
-                    <span>@Text("Épinglés", "Pinned")</span>
-                    <span class="section-count">@PinnedItems.Count</span>
-                </summary>
+        <details class="sidebar-section" open>
+            <summary>
+                <span>@Text("Épinglés", "Pinned")</span>
+                <span class="section-count">@PinnedItems.Count</span>
+            </summary>
 
-                <nav class="section-content pinned-list"
-                     aria-label="@Text("Épinglés", "Pinned")">
+            <nav class="section-content pinned-list"
+                 aria-label="@Text("Épinglés", "Pinned")">
+                @if (PinnedItems.Count == 0)
+                {
+                    <p class="section-empty">
+                        @Text(
+                            "Aucun élément épinglé.",
+                            "No pinned items.")
+                    </p>
+                }
+                else
+                {
                     @for (var index = 0; index < PinnedItems.Count; index++)
                     {
                         var item = PinnedItems[index];
@@ -140,24 +148,29 @@
                          @ondragover:preventDefault
                          @ondrop="() => DropPinAsync(PinnedItems.Count)">
                     </div>
-                </nav>
-            </details>
-        }
+                }
+            </nav>
+        </details>
 
-        <details class="sidebar-section" open>
+        <details class="sidebar-section projects-section" open>
             <summary>
                 <span>@Text("Projets", "Projects")</span>
-                <span class="section-count">@Projects.Count</span>
-            </summary>
 
-            <div class="section-toolbar">
-                <button type="button"
-                        disabled="@IsBusy"
-                        @onclick="OpenCreateProjectDialog">
-                    <span aria-hidden="true">＋</span>
-                    @Text("Nouveau projet", "New project")
-                </button>
-            </div>
+                <span class="section-summary-controls">
+                    <button id="projects-action-trigger"
+                            class="menu-bubble"
+                            type="button"
+                            popovertarget="projects-action-menu"
+                            aria-haspopup="menu"
+                            aria-label="@Text("Actions des projets", "Project actions")"
+                            @onpointerdown:stopPropagation
+                            @onclick:stopPropagation>
+                        <span aria-hidden="true">•••</span>
+                    </button>
+
+                    <span class="section-count">@Projects.Count</span>
+                </span>
+            </summary>
 
             <div class="section-content project-list">
                 @if (Projects.Count == 0)
@@ -175,6 +188,16 @@
                 {
                     var project = Projects[projectIndex];
                     var currentProjectIndex = projectIndex;
+                    var projectMenuId =
+                        $"project-action-menu-{project.Id:N}-{currentProjectIndex}";
+                    var projectAnchorName =
+                        $"--project-action-trigger-{project.Id:N}-{currentProjectIndex}";
+                    var projectTriggerStyle =
+                        $"anchor-name: {projectAnchorName};";
+                    var projectMenuStyle =
+                        $"position-anchor: {projectAnchorName};";
+                    var projectActionsLabel =
+                        $"{Text("Actions du projet", "Project actions")}: {project.Name}";
 
                     <div class="project-row"
                          draggable="@(!IsBusy ? "true" : "false")"
@@ -188,57 +211,24 @@
                             <summary>
                                 <span class="drag-handle" aria-hidden="true">⋮⋮</span>
                                 <span class="project-name">@project.Name</span>
-                                <span class="project-count">
-                                    @project.Conversations.Count
+
+                                <span class="project-summary-controls">
+                                    <button class="menu-bubble project-menu-trigger"
+                                            type="button"
+                                            style="@projectTriggerStyle"
+                                            popovertarget="@projectMenuId"
+                                            aria-haspopup="menu"
+                                            aria-label="@projectActionsLabel"
+                                            @onpointerdown:stopPropagation
+                                            @onclick:stopPropagation>
+                                        <span aria-hidden="true">•••</span>
+                                    </button>
+
+                                    <span class="project-count section-count">
+                                        @project.Conversations.Count
+                                    </span>
                                 </span>
                             </summary>
-
-                            <div class="project-actions">
-                                <button type="button"
-                                        disabled="@IsBusy"
-                                        @onclick="() => SetPinAsync(project.Id, true, !project.IsPinned)">
-                                    @(project.IsPinned
-                                        ? Text("Désépingler", "Unpin")
-                                        : Text("Épingler", "Pin"))
-                                </button>
-
-                                <button type="button"
-                                        disabled="@IsBusy"
-                                        @onclick="() => OpenRenameDialog(project.Id, true, project.Name)">
-                                    @Text("Renommer", "Rename")
-                                </button>
-
-                                @if (currentProjectIndex > 0)
-                                {
-                                    <button type="button"
-                                            disabled="@IsBusy"
-                                            @onclick="() => ReorderProjectAsync(project.Id, currentProjectIndex - 1)">
-                                        ↑
-                                        <span class="visually-hidden">
-                                            @Text("Monter le projet", "Move project up")
-                                        </span>
-                                    </button>
-                                }
-
-                                @if (currentProjectIndex < Projects.Count - 1)
-                                {
-                                    <button type="button"
-                                            disabled="@IsBusy"
-                                            @onclick="() => ReorderProjectAsync(project.Id, currentProjectIndex + 1)">
-                                        ↓
-                                        <span class="visually-hidden">
-                                            @Text("Descendre le projet", "Move project down")
-                                        </span>
-                                    </button>
-                                }
-
-                                <button class="danger-action"
-                                        type="button"
-                                        disabled="@IsBusy"
-                                        @onclick="() => OpenDeleteDialog(project.Id, true, project.Name)">
-                                    @Text("Supprimer", "Delete")
-                                </button>
-                            </div>
 
                             <nav class="project-conversations"
                                  aria-label="@project.Name"
@@ -335,6 +325,43 @@
                                 }
                             </nav>
                         </details>
+
+                        <div id="@projectMenuId"
+                             class="sidebar-action-popover"
+                             style="@projectMenuStyle"
+                             popover="auto"
+                             role="menu"
+                             aria-label="@projectActionsLabel">
+                            <button type="button"
+                                    role="menuitem"
+                                    disabled="@IsBusy"
+                                    popovertarget="@projectMenuId"
+                                    popovertargetaction="hide"
+                                    @onclick="() => SetPinAsync(project.Id, true, !project.IsPinned)">
+                                @(project.IsPinned
+                                    ? Text("Désépingler", "Unpin")
+                                    : Text("Épingler", "Pin"))
+                            </button>
+
+                            <button type="button"
+                                    role="menuitem"
+                                    disabled="@IsBusy"
+                                    popovertarget="@projectMenuId"
+                                    popovertargetaction="hide"
+                                    @onclick="() => OpenRenameDialog(project.Id, true, project.Name)">
+                                @Text("Renommer", "Rename")
+                            </button>
+
+                            <button class="danger-action"
+                                    type="button"
+                                    role="menuitem"
+                                    disabled="@IsBusy"
+                                    popovertarget="@projectMenuId"
+                                    popovertargetaction="hide"
+                                    @onclick="() => OpenDeleteDialog(project.Id, true, project.Name)">
+                                @Text("Supprimer", "Delete")
+                            </button>
+                        </div>
                     </div>
                 }
 
@@ -344,6 +371,21 @@
                 </div>
             </div>
         </details>
+
+        <div id="projects-action-menu"
+             class="sidebar-action-popover"
+             popover="auto"
+             role="menu"
+             aria-label="@Text("Actions des projets", "Project actions")">
+            <button type="button"
+                    role="menuitem"
+                    disabled="@IsBusy"
+                    popovertarget="projects-action-menu"
+                    popovertargetaction="hide"
+                    @onclick="OpenCreateProjectDialog">
+                @Text("Nouveau projet", "New project")
+            </button>
+        </div>
 
         <details class="sidebar-section" open>
             <summary>

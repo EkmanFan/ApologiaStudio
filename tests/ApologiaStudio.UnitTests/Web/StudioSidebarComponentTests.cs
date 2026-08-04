@@ -159,18 +159,92 @@ public sealed class StudioSidebarComponentTests
     }
 
     [Fact]
-    public async Task Sidebar_ShouldHideEmptyPinnedAndTrashButShowProjects()
+    public async Task Sidebar_ShouldAlwaysRenderCoreSections()
     {
         var markup = await RenderAsync(
             Array.Empty<StudioSidebarBibleEdition>(),
             Array.Empty<StudioSidebarConversation>(),
             ApplicationLanguage.English);
 
-        Assert.DoesNotContain(">Pinned<", markup);
-        Assert.Contains(">Projects<", markup);
-        Assert.Contains("New project", markup);
-        Assert.Contains(">Chats<", markup);
+        var libraryIndex = markup.IndexOf(
+            "Library",
+            StringComparison.Ordinal);
+
+        var pinnedIndex = markup.IndexOf(
+            "Pinned",
+            StringComparison.Ordinal);
+
+        var projectsIndex = markup.IndexOf(
+            "Projects",
+            StringComparison.Ordinal);
+
+        var chatsIndex = markup.IndexOf(
+            "Chats",
+            StringComparison.Ordinal);
+
+        Assert.True(libraryIndex >= 0);
+        Assert.True(pinnedIndex > libraryIndex);
+        Assert.True(projectsIndex > pinnedIndex);
+        Assert.True(chatsIndex > projectsIndex);
+        Assert.Contains("No pinned items.", markup);
+        Assert.Contains("No projects yet.", markup);
+        Assert.Contains("No unassigned chats.", markup);
         Assert.DoesNotContain(">Trash<", markup);
+    }
+
+    [Fact]
+    public async Task Sidebar_ShouldRenderProjectActionsInMenus()
+    {
+        var projectId =
+            Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        var markup = await RenderAsync(
+            Array.Empty<StudioSidebarBibleEdition>(),
+            Array.Empty<StudioSidebarConversation>(),
+            ApplicationLanguage.English,
+            projects:
+            [
+                new StudioSidebarProject(
+                    projectId,
+                    "sidebar-project-55555555555555555555555555555555",
+                    "Test project",
+                    true,
+                    Array.Empty<StudioSidebarConversation>())
+            ]);
+
+        Assert.Contains(
+            "id=\"projects-action-trigger\"",
+            markup);
+
+        Assert.Contains(
+            "id=\"projects-action-menu\"",
+            markup);
+
+        Assert.Contains(
+            "popover=\"auto\"",
+            markup);
+
+        Assert.Contains(
+            "New project",
+            markup);
+
+        Assert.Contains(
+            "class=\"menu-bubble project-menu-trigger\"",
+            markup);
+
+        Assert.Contains(
+            "Project actions: Test project",
+            markup);
+
+        Assert.Contains("Unpin", markup);
+        Assert.Contains("Rename", markup);
+        Assert.Contains("Delete", markup);
+        Assert.DoesNotContain(
+            "class=\"section-toolbar\"",
+            markup);
+        Assert.DoesNotContain(
+            "class=\"project-actions\"",
+            markup);
     }
 
     [Fact]
