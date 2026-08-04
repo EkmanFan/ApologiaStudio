@@ -245,52 +245,54 @@ else
                 }
 
                 <footer class="composer">
-                    <div class="composer-options">
-                        <label for="agent-selection">
-                            @Ui("Expert", "Specialist")
-                        </label>
+                    <div class="composer-surface">
+                        <div class="composer-options">
+                            <label for="agent-selection">
+                                @Ui("Expert", "Specialist")
+                            </label>
 
-                        <select id="agent-selection"
-                                @bind="_selectedAgentSlug"
-                                disabled="@_isSending">
-                            <option value="">
-                                @Ui("Routage automatique", "Automatic routing")
-                            </option>
+                            <select id="agent-selection"
+                                    @bind="_selectedAgentSlug"
+                                    disabled="@_isSending">
+                                <option value="">
+                                    @Ui("Routage automatique", "Automatic routing")
+                                </option>
 
-                            <option value="historian">
-                                @Ui("Historien des religions", "Historian of Religions")
-                            </option>
+                                <option value="historian">
+                                    @Ui("Historien des religions", "Historian of Religions")
+                                </option>
 
-                            <option value="protestant-apologist">
-                                @Ui("Apologète protestant", "Protestant Apologist")
-                            </option>
-                        </select>
-                    </div>
+                                <option value="protestant-apologist">
+                                    @Ui("Apologète protestant", "Protestant Apologist")
+                                </option>
+                            </select>
+                        </div>
 
-                    <textarea @bind="_draft"
-                              @bind:event="oninput"
-                              disabled="@_isSending"
-                              maxlength="50000"
-                              rows="4"
-                              placeholder="@QuestionPlaceholder">
-                    </textarea>
+                        <textarea @bind="_draft"
+                                  @bind:event="oninput"
+                                  disabled="@_isSending"
+                                  maxlength="50000"
+                                  rows="4"
+                                  placeholder="@QuestionPlaceholder">
+                        </textarea>
 
-                    <div class="composer-actions">
-                        <span>
-                            @(_isSending
-                                ? Ui("Réponse en cours…", "Generating response…")
-                                : Ui(
-                                    "Routage automatique ou sélection manuelle.",
-                                    "Automatic routing or manual selection."))
-                        </span>
+                        <div class="composer-actions">
+                            <span>
+                                @(_isSending
+                                    ? Ui("Réponse en cours…", "Generating response…")
+                                    : Ui(
+                                        "Routage automatique ou sélection manuelle.",
+                                        "Automatic routing or manual selection."))
+                            </span>
 
-                        <button type="button"
-                                disabled="@(_isSending ||
-                                           string.IsNullOrWhiteSpace(
-                                               _draft))"
-                                @onclick="SendAsync">
-                            @Ui("Envoyer", "Send")
-                        </button>
+                            <button type="button"
+                                    disabled="@(_isSending ||
+                                               string.IsNullOrWhiteSpace(
+                                                   _draft))"
+                                    @onclick="SendAsync">
+                                @Ui("Envoyer", "Send")
+                            </button>
+                        </div>
                     </div>
                 </footer>
             }
