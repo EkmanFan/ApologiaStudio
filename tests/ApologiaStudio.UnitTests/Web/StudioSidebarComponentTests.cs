@@ -194,6 +194,26 @@ public sealed class StudioSidebarComponentTests
         Assert.DoesNotContain("permanent", markup, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Sidebar_ShouldRenderAccountMenuWithAvailableActionsOnly()
+    {
+        var markup = await RenderAsync(
+            Array.Empty<StudioSidebarBibleEdition>(),
+            Array.Empty<StudioSidebarConversation>(),
+            ApplicationLanguage.English);
+
+        Assert.Contains("class=\"account-trigger\"", markup);
+        Assert.Contains("popovertarget=\"local-account-menu\"", markup);
+        Assert.Contains("class=\"account-menu-popover\"", markup);
+        Assert.Contains("popover=\"auto\"", markup);
+        Assert.Contains("Local account", markup);
+        Assert.Contains("Demo profile", markup);
+        Assert.Contains("href=\"/settings\"", markup);
+        Assert.Contains("Settings", markup);
+        Assert.DoesNotContain("Upgrade plan", markup);
+        Assert.DoesNotContain("Log out", markup);
+    }
+
     private static async Task<string> RenderAsync(
         IReadOnlyList<StudioSidebarBibleEdition> bibleEditions,
         IReadOnlyList<StudioSidebarConversation> conversations,

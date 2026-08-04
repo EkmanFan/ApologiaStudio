@@ -310,13 +310,29 @@
 }
 
 .account-zone {
+    padding: 0.55rem;
+    border-top: 1px solid #dedbd4;
+    background: #f1efe9;
+}
+
+.account-trigger {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.65rem;
-    padding: 0.82rem 0.9rem;
-    border-top: 1px solid #dedbd4;
-    background: #f1efe9;
+    width: 100%;
+    padding: 0.58rem 0.55rem;
+    border: 0;
+    border-radius: 0.72rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.account-trigger:hover {
+    background: #e5e2da;
 }
 
 .account-avatar {
@@ -330,7 +346,81 @@
     font-size: 0.82rem;
 }
 
-.settings-link,
+.account-trigger-chevron {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: none;
+    stroke: #60665f;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.account-menu-popover {
+    position: fixed;
+    inset: auto auto 4.65rem 0.55rem;
+    width: 17.4rem;
+    max-width: calc(100vw - 1.1rem);
+    margin: 0;
+    padding: 0.42rem;
+    border: 1px solid #d4d1c9;
+    border-radius: 0.85rem;
+    background: #fbfaf7;
+    color: #252823;
+    box-shadow: 0 0.9rem 2.4rem rgba(25, 30, 26, 0.2);
+}
+
+.account-menu-identity {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem;
+}
+
+.account-local-badge {
+    padding: 0.22rem 0.42rem;
+    border-radius: 999px;
+    background: #e4ece7;
+    color: #315f4e;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}
+
+.account-menu-separator {
+    height: 1px;
+    margin: 0.25rem 0.35rem;
+    background: #dedbd4;
+}
+
+.account-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.72rem;
+    padding: 0.68rem 0.62rem;
+    border-radius: 0.55rem;
+    color: #303730;
+    font-size: 0.86rem;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.account-menu-item:hover {
+    background: #eceae4;
+}
+
+.account-menu-item svg {
+    width: 1.3rem;
+    height: 1.3rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+}
+
 .sidebar-close {
     align-items: center;
     justify-content: center;
@@ -343,11 +433,6 @@
     text-decoration: none;
 }
 
-.settings-link {
-    display: inline-flex;
-}
-
-.settings-link:hover,
 .sidebar-close:hover {
     background: #e1ded6;
 }
@@ -411,6 +496,10 @@ button:disabled {
         display: inline-flex;
         cursor: pointer;
         font-size: 1.35rem;
+    }
+
+    .account-menu-popover {
+        width: calc(min(19rem, 88vw) - 1.1rem);
     }
 }
 
