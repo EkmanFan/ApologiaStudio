@@ -2,15 +2,11 @@ namespace ApologiaStudio.AgentRuntime.Routing.Semantic;
 
 public sealed class OllamaRoutingOptions
 {
-    public Uri BaseAddress { get; init; } =
-        new("http://127.0.0.1:11434/");
+    public Uri BaseAddress { get; init; } = null!;
 
-    public string Model { get; init; } =
-        "qwen3:8b";
+    public string Model { get; init; } = string.Empty;
 
-    public TimeSpan RequestTimeout { get; init; } =
-        TimeSpan.FromSeconds(60);
+    public TimeSpan RequestTimeout { get; init; }
 
-    public string KeepAlive { get; init; } =
-        "10m";
+    public string KeepAlive { get; init; } = string.Empty;
 }

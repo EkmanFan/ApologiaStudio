@@ -1,0 +1,164 @@
+@rendermode InteractiveServer
+@using ApologiaStudio.AgentRuntime.Routing.Semantic
+@inject IOllamaRoutingSettingsStore RoutingSettingsStore
+
+<section class="ollama-routing-settings"
+         aria-labelledby="ollama-routing-settings-title">
+    <header>
+        <div>
+            <p class="settings-kicker">Ollama</p>
+            <h2 id="ollama-routing-settings-title">
+                Routage sémantique local
+            </h2>
+            <p>
+                Ces paramètres sont globaux pour cette instance
+                d’Apologia Studio. Ils s’appliquent dès la prochaine
+                décision de routage, sans redémarrage.
+            </p>
+        </div>
+
+        <span class="local-only-badge">Local uniquement</span>
+    </header>
+
+    <div class="settings-grid">
+        <label>
+            <span>Adresse du serveur Ollama</span>
+            <input type="url"
+                   autocomplete="off"
+                   spellcheck="false"
+                   disabled="@_isSaving"
+                   @bind="_baseAddress" />
+            <small>
+                Une adresse de bouclage est imposée
+                (127.0.0.1, localhost ou ::1).
+            </small>
+        </label>
+
+        <label>
+            <span>Modèle de routage</span>
+            <input type="text"
+                   maxlength="200"
+                   autocomplete="off"
+                   spellcheck="false"
+                   disabled="@_isSaving"
+                   @bind="_model" />
+            <small>Exemple : qwen3:8b.</small>
+        </label>
+
+        <label>
+            <span>Délai maximal de routage</span>
+            <div class="number-field">
+                <input type="number"
+                       min="1"
+                       max="300"
+                       step="1"
+                       disabled="@_isSaving"
+                       @bind="_requestTimeoutSeconds" />
+                <span>secondes</span>
+            </div>
+        </label>
+
+        <label>
+            <span>Conservation du modèle en mémoire</span>
+            <input type="text"
+                   maxlength="32"
+                   autocomplete="off"
+                   spellcheck="false"
+                   disabled="@_isSaving"
+                   @bind="_keepAlive" />
+            <small>Exemples : 10m, 1h, 0 ou -1.</small>
+        </label>
+    </div>
+
+    <footer>
+        <p class="settings-note">
+            Ce réglage contrôle le classificateur de routage. Le modèle
+            de génération des réponses reste configuré séparément.
+        </p>
+
+        <button type="button"
+                disabled="@_isSaving"
+                @onclick="SaveAsync">
+            @(_isSaving ? "Enregistrement…" : "Enregistrer")
+        </button>
+    </footer>
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <p class="settings-status @(_isError ? "error" : "success")"
+           role="@(_isError ? "alert" : "status")">
+            @_statusMessage
+        </p>
+    }
+</section>
+
+@code {
+    private string _baseAddress = string.Empty;
+    private string _model = string.Empty;
+    private int _requestTimeoutSeconds;
+    private string _keepAlive = string.Empty;
+    private string? _statusMessage;
+    private bool _isSaving;
+    private bool _isError;
+
+    protected override void OnInitialized()
+    {
+        Load(RoutingSettingsStore.Current);
+    }
+
+    private async Task SaveAsync()
+    {
+        _isSaving = true;
+        _statusMessage = null;
+        _isError = false;
+
+        try
+        {
+            var settings =
+                new OllamaRoutingSettings(
+                    _baseAddress,
+                    _model,
+                    _requestTimeoutSeconds,
+                    _keepAlive);
+
+            var normalized =
+                OllamaRoutingSettingsValidator.ToOptions(settings);
+
+            await RoutingSettingsStore.SaveAsync(
+                new OllamaRoutingSettings(
+                    normalized.BaseAddress.ToString(),
+                    normalized.Model,
+                    checked(
+                        (int)normalized.RequestTimeout.TotalSeconds),
+                    normalized.KeepAlive));
+
+            Load(RoutingSettingsStore.Current);
+
+            _statusMessage =
+                "Les paramètres de routage ont été enregistrés. " +
+                "Ils seront utilisés dès la prochaine requête.";
+        }
+        catch (Exception exception)
+            when (exception is ArgumentException or
+                  InvalidOperationException or
+                  IOException or
+                  UnauthorizedAccessException)
+        {
+            _isError = true;
+            _statusMessage = exception.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Load(OllamaRoutingSettings settings)
+    {
+        _baseAddress = settings.BaseAddress;
+        _model = settings.Model;
+        _requestTimeoutSeconds =
+            settings.RequestTimeoutSeconds;
+        _keepAlive = settings.KeepAlive;
+    }
+}

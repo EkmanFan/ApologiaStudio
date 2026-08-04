@@ -5,3 +5,6 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 .env.apologia.local
+
+# Local runtime settings
+/src/ApologiaStudio.Web/App_Data/ollama-routing-settings.json

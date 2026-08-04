@@ -50,9 +50,13 @@ builder.Services.AddSingleton<
 builder.Services.AddSingleton<
     DeterministicAgentRouter>();
 
+// APOLOGIA-DYNAMIC-OLLAMA-ROUTING-SETTINGS
+// appsettings provides startup defaults. The Settings page persists
+// application-wide overrides read for every semantic-routing call.
 var ollamaBaseUrlText =
     builder.Configuration["Ollama:BaseUrl"]
-    ?? "http://127.0.0.1:11434";
+    ?? throw new InvalidOperationException(
+        "Ollama:BaseUrl is required.");
 
 if (!Uri.TryCreate(
         ollamaBaseUrlText,
@@ -72,18 +76,24 @@ if (!ollamaBaseUri.IsLoopback)
 
 var ollamaModel =
     builder.Configuration["Ollama:RoutingModel"]
-    ?? "qwen3:8b";
+    ?? throw new InvalidOperationException(
+        "Ollama:RoutingModel is required.");
 
 var timeoutSeconds =
     builder.Configuration.GetValue<int?>(
         "Ollama:TimeoutSeconds")
-    ?? 60;
+    ?? throw new InvalidOperationException(
+        "Ollama:TimeoutSeconds is required.");
 
-if (timeoutSeconds is < 1 or > 300)
-{
-    throw new InvalidOperationException(
-        "Ollama:TimeoutSeconds must be between 1 and 300.");
-}
+var ollamaKeepAlive =
+    builder.Configuration["Ollama:KeepAlive"]
+    ?? throw new InvalidOperationException(
+        "Ollama:KeepAlive is required.");
+
+var routingSettingsRelativePath =
+    builder.Configuration["Ollama:RoutingSettingsPath"]
+    ?? throw new InvalidOperationException(
+        "Ollama:RoutingSettingsPath is required.");
 
 var normalizedBaseAddress =
     new Uri(
@@ -91,41 +101,41 @@ var normalizedBaseAddress =
             .ToString()
             .TrimEnd('/') + "/");
 
-var ollamaOptions =
-    new OllamaRoutingOptions
-    {
-        BaseAddress =
-            normalizedBaseAddress,
-        Model =
-            ollamaModel,
-        RequestTimeout =
-            TimeSpan.FromSeconds(
-                timeoutSeconds),
-        KeepAlive =
-            builder.Configuration["Ollama:KeepAlive"]
-            ?? "10m"
-    };
+var initialOllamaRoutingSettings =
+    new OllamaRoutingSettings(
+        normalizedBaseAddress.ToString(),
+        ollamaModel,
+        timeoutSeconds,
+        ollamaKeepAlive);
 
-builder.Services.AddSingleton(
-    ollamaOptions);
+OllamaRoutingSettingsValidator.ToOptions(
+    initialOllamaRoutingSettings);
+
+var routingSettingsPath =
+    Path.IsPathRooted(routingSettingsRelativePath)
+        ? routingSettingsRelativePath
+        : Path.Combine(
+            builder.Environment.ContentRootPath,
+            routingSettingsRelativePath);
+
+builder.Services.AddSingleton<
+    IOllamaRoutingSettingsStore>(
+    new FileOllamaRoutingSettingsStore(
+        routingSettingsPath,
+        initialOllamaRoutingSettings));
 
 builder.Services.AddSingleton<
     ISemanticRoutingClassifier>(
-    _ =>
-    {
-        var httpClient =
-            new HttpClient
-            {
-                BaseAddress =
-                    ollamaOptions.BaseAddress,
-                Timeout =
-                    ollamaOptions.RequestTimeout
-            };
-
-        return new OllamaSemanticRoutingClassifier(
-            httpClient,
-            ollamaOptions);
-    });
+    serviceProvider =>
+        new DynamicOllamaSemanticRoutingClassifier(
+            serviceProvider.GetRequiredService<
+                IOllamaRoutingSettingsStore>(),
+            options =>
+                new HttpClient
+                {
+                    BaseAddress = options.BaseAddress,
+                    Timeout = options.RequestTimeout
+                }));
 
 builder.Services.AddSingleton(
     new HybridRoutingOptions());
@@ -199,8 +209,7 @@ var ollamaGenerationOptions =
             TimeSpan.FromSeconds(
                 generationTimeoutSeconds),
         KeepAlive =
-            builder.Configuration["Ollama:KeepAlive"]
-            ?? "10m",
+            ollamaKeepAlive,
         MaximumHistoryMessages =
             maximumHistoryMessages,
         MaximumHistoryCharacters =

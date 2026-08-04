@@ -1,0 +1,159 @@
+.ollama-routing-settings {
+    display: grid;
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+    padding: 1.35rem;
+    border: 1px solid #d8d7d1;
+    border-radius: 1rem;
+    background: #fff;
+    color: #252823;
+    box-shadow: 0 0.45rem 1.4rem rgba(34, 39, 35, 0.06);
+}
+
+.ollama-routing-settings > header,
+.ollama-routing-settings > footer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.ollama-routing-settings h2,
+.ollama-routing-settings p {
+    margin: 0;
+}
+
+.ollama-routing-settings header p:last-child {
+    max-width: 48rem;
+    margin-top: 0.35rem;
+    color: #697069;
+    line-height: 1.5;
+}
+
+.settings-kicker {
+    color: #315f4e;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.local-only-badge {
+    flex: 0 0 auto;
+    padding: 0.35rem 0.58rem;
+    border-radius: 999px;
+    background: #e5eee9;
+    color: #315f4e;
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.settings-grid label {
+    display: grid;
+    align-content: start;
+    gap: 0.38rem;
+    min-width: 0;
+    color: #353b36;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.settings-grid input {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.65rem;
+    padding: 0.62rem 0.72rem;
+    border: 1px solid #cfd2cd;
+    border-radius: 0.65rem;
+    background: #fbfcfa;
+    color: #252823;
+    font: inherit;
+    font-weight: 500;
+}
+
+.settings-grid input:focus-visible {
+    border-color: #658a79;
+    outline: 3px solid rgba(49, 95, 78, 0.16);
+}
+
+.settings-grid small,
+.settings-note {
+    color: #747b75;
+    font-size: 0.72rem;
+    font-weight: 450;
+    line-height: 1.4;
+}
+
+.number-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ollama-routing-settings > footer {
+    align-items: center;
+}
+
+.ollama-routing-settings button {
+    flex: 0 0 auto;
+    min-height: 2.55rem;
+    padding: 0.58rem 0.9rem;
+    border: 0;
+    border-radius: 0.65rem;
+    background: #315f4e;
+    color: #fff;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.ollama-routing-settings button:hover:not(:disabled) {
+    background: #244a3d;
+}
+
+.ollama-routing-settings button:disabled {
+    cursor: wait;
+    opacity: 0.62;
+}
+
+.settings-status {
+    padding: 0.72rem 0.82rem;
+    border-radius: 0.65rem;
+    font-size: 0.8rem;
+}
+
+.settings-status.success {
+    background: #e8f2ec;
+    color: #28513f;
+}
+
+.settings-status.error {
+    background: #f8e9e7;
+    color: #8a3029;
+}
+
+@media (max-width: 720px) {
+    .ollama-routing-settings > header,
+    .ollama-routing-settings > footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .local-only-badge {
+        align-self: flex-start;
+    }
+
+    .ollama-routing-settings button {
+        width: 100%;
+    }
+}
