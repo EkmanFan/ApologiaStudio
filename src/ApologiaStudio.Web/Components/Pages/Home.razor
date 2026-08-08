@@ -10,6 +10,7 @@
 @using Microsoft.Extensions.DependencyInjection
 @using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.Application.Agents
+@using ApologiaStudio.Application.Agents.Settings
 @using ApologiaStudio.Application.Abstractions.BibleCorpora
 @using ApologiaStudio.Application.BibleCorpora.Queries
 @using ApologiaStudio.Application.BibleCorpora.Reader
@@ -186,27 +187,47 @@ else
 
                         @foreach (var message in _conversation.Messages)
                         {
-                            <article class="@GetMessageCssClass(message)">
-                                <div class="message-author">
-                                    @GetMessageAuthor(message)
-                                </div>
+                            <article class="@GetMessageCssClass(message)"
+                                     style="@GetMessageStyle(message)">
+                                @if (message.Role == MessageRole.Agent &&
+                                     message.AgentId is { } messageAgentId)
+                                {
+                                    <div class="message-avatar"
+                                         aria-hidden="true">
+                                        @GetAgentAvatar(messageAgentId)
+                                    </div>
+                                }
 
-                                <div class="message-content">
-                                    @message.Content
+                                <div class="message-body">
+                                    <div class="message-author">
+                                        @GetMessageAuthor(message)
+                                    </div>
+
+                                    <div class="message-content">
+                                        @message.Content
+                                    </div>
                                 </div>
                             </article>
                         }
 
                         @if (!string.IsNullOrEmpty(_streamingText))
                         {
-                            <article class="message agent streaming">
-                                <div class="message-author">
-                                    @(_activeAgentName ?? "Agent")
+                            <article class="message agent streaming"
+                                     style="@GetAgentStyle(_activeAgentId)">
+                                <div class="message-avatar"
+                                     aria-hidden="true">
+                                    @GetAgentAvatar(_activeAgentId)
                                 </div>
 
-                                <div class="message-content">
-                                    @_streamingText
-                                    <span class="cursor">▋</span>
+                                <div class="message-body">
+                                    <div class="message-author">
+                                        @(_activeAgentName ?? "Agent")
+                                    </div>
+
+                                    <div class="message-content">
+                                        @_streamingText
+                                        <span class="cursor">▋</span>
+                                    </div>
                                 </div>
                             </article>
                         }
@@ -258,13 +279,14 @@ else
                                     @Ui("Routage automatique", "Automatic routing")
                                 </option>
 
-                                <option value="historian">
-                                    @Ui("Historien des religions", "Historian of Religions")
-                                </option>
-
-                                <option value="protestant-apologist">
-                                    @Ui("Apologète protestant", "Protestant Apologist")
-                                </option>
+                                @foreach (var agent in BuiltInAgents.All)
+                                {
+                                    <option value="@agent.Slug">
+                                        @GetAgentDisplayName(
+                                            agent.Id,
+                                            agent.DisplayName)
+                                    </option>
+                                }
                             </select>
                         </div>
 
@@ -331,6 +353,9 @@ else
     private string _selectedAgentSlug = string.Empty;
     private string _streamingText = string.Empty;
     private string? _activeAgentName;
+    private AgentId? _activeAgentId;
+    private IReadOnlyDictionary<AgentId, AgentSettingsSnapshot> _agentSettings =
+        new Dictionary<AgentId, AgentSettingsSnapshot>();
     private string? _routingReason;
     private string? _errorMessage;
     private ApplicationLanguage _interfaceLanguage =
@@ -456,6 +481,10 @@ else
 
             _theologicalLanguage =
                 preferences.EffectiveTheologicalLanguage;
+
+            await RefreshAgentSettingsAsync(
+                scope.ServiceProvider,
+                CancellationToken.None);
 
             var bibleRepository =
                 scope.ServiceProvider.GetRequiredService<
@@ -1119,6 +1148,7 @@ else
         _routingReason = null;
         _errorMessage = null;
         _activeAgentName = null;
+        _activeAgentId = null;
         _isSending = true;
         _scrollThreadAfterRender =
             _isThreadNearBottom;
@@ -1127,6 +1157,10 @@ else
         {
             await using var scope =
                 ServiceScopeFactory.CreateAsyncScope();
+
+            await RefreshAgentSettingsAsync(
+                scope.ServiceProvider,
+                CancellationToken.None);
 
             var sendMessageHandler =
                 scope.ServiceProvider
@@ -1150,6 +1184,7 @@ else
                 switch (agentEvent)
                 {
                     case AgentSelectedEvent selected:
+                        _activeAgentId = selected.AgentId;
                         _activeAgentName =
                             GetAgentDisplayName(
                                 selected.AgentId,
@@ -1510,16 +1545,18 @@ else
 
     private AgentId? ResolveRequestedAgentId()
     {
-        return _selectedAgentSlug switch
+        if (string.IsNullOrWhiteSpace(_selectedAgentSlug))
         {
-            "historian" =>
-                BuiltInAgents.Historian.Id,
+            return null;
+        }
 
-            "protestant-apologist" =>
-                BuiltInAgents.ProtestantApologist.Id,
-
-            _ => null
-        };
+        return BuiltInAgents.All
+            .FirstOrDefault(
+                agent => string.Equals(
+                    agent.Slug,
+                    _selectedAgentSlug,
+                    StringComparison.OrdinalIgnoreCase))
+            ?.Id;
     }
 
     private static string GetMessageCssClass(
@@ -1536,6 +1573,13 @@ else
             _ =>
                 "message system"
         };
+    }
+
+    private string? GetMessageStyle(ConversationMessage message)
+    {
+        return message.Role == MessageRole.Agent
+            ? GetAgentStyle(message.AgentId)
+            : null;
     }
 
     private string GetMessageAuthor(
@@ -1563,21 +1607,91 @@ else
         AgentId agentId,
         string fallback)
     {
-        if (agentId == BuiltInAgents.Historian.Id)
+        return GetAgentSettings(agentId)?.DisplayName
+               ?? fallback;
+    }
+
+    private string GetAgentAvatar(AgentId? agentId)
+    {
+        if (agentId is null)
         {
-            return Ui(
-                "Historien des religions",
-                "Historian of Religions");
+            return "AI";
         }
 
-        if (agentId == BuiltInAgents.ProtestantApologist.Id)
+        return GetAgentSettings(agentId.Value)?.Avatar
+               ?? "AI";
+    }
+
+    private string? GetAgentStyle(AgentId? agentId)
+    {
+        if (agentId is null)
         {
-            return Ui(
-                "Apologète protestant",
-                "Protestant Apologist");
+            return null;
         }
 
-        return fallback;
+        var settings = GetAgentSettings(agentId.Value);
+        if (settings is null)
+        {
+            return null;
+        }
+
+        var textColor = GetContrastTextColor(settings.BubbleColor);
+        return $"--agent-bubble-color:{settings.BubbleColor};" +
+               $"--agent-text-color:{textColor};";
+    }
+
+    private AgentSettingsSnapshot? GetAgentSettings(AgentId agentId)
+    {
+        return _agentSettings.TryGetValue(
+            agentId,
+            out var settings)
+            ? settings
+            : null;
+    }
+
+    private async Task RefreshAgentSettingsAsync(
+        IServiceProvider serviceProvider,
+        CancellationToken cancellationToken)
+    {
+        var handler =
+            serviceProvider.GetRequiredService<
+                GetAgentSettingsHandler>();
+        var settings =
+            await handler.HandleAsync(cancellationToken);
+
+        _agentSettings = settings.ToDictionary(
+            item => item.AgentId);
+    }
+
+    private static string GetContrastTextColor(string color)
+    {
+        if (color.Length != 7 ||
+            color[0] != '#' ||
+            !int.TryParse(
+                color.AsSpan(1, 2),
+                System.Globalization.NumberStyles.HexNumber,
+                null,
+                out var red) ||
+            !int.TryParse(
+                color.AsSpan(3, 2),
+                System.Globalization.NumberStyles.HexNumber,
+                null,
+                out var green) ||
+            !int.TryParse(
+                color.AsSpan(5, 2),
+                System.Globalization.NumberStyles.HexNumber,
+                null,
+                out var blue))
+        {
+            return "#252823";
+        }
+
+        var luminance =
+            (0.299 * red + 0.587 * green + 0.114 * blue) / 255.0;
+
+        return luminance > 0.58
+            ? "#252823"
+            : "#FFFFFF";
     }
 
     private string Ui(

@@ -2,31 +2,36 @@
     display: grid;
     gap: 1.25rem;
     margin-top: 1.5rem;
-    padding: 1.35rem;
-    border: 1px solid #d8d7d1;
-    border-radius: 1rem;
-    background: #fff;
     color: #252823;
-    box-shadow: 0 0.45rem 1.4rem rgba(34, 39, 35, 0.06);
 }
 
 .ollama-routing-settings > header,
-.ollama-routing-settings > footer,
-.catalog-actions {
+.runtime-footer,
+.catalog-actions,
+.agent-card-footer {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
 }
 
+.ollama-routing-settings > header {
+    padding: 1.35rem;
+    border: 1px solid #d8d7d1;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 0.45rem 1.4rem rgba(34, 39, 35, 0.06);
+}
+
 .ollama-routing-settings h2,
 .ollama-routing-settings h3,
+.ollama-routing-settings h4,
 .ollama-routing-settings p {
     margin: 0;
 }
 
-.ollama-routing-settings header p:last-child,
-.agent-models > div:first-child p {
+.ollama-routing-settings > header p:last-child,
+.section-heading > p {
     max-width: 52rem;
     margin-top: 0.35rem;
     color: #697069;
@@ -51,8 +56,32 @@
     font-weight: 750;
 }
 
+.runtime-settings,
+.agents-settings {
+    display: grid;
+    gap: 1.15rem;
+    padding: 1.35rem;
+    border: 1px solid #d8d7d1;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 0.45rem 1.4rem rgba(34, 39, 35, 0.05);
+}
+
+.section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.section-heading h3 {
+    margin-top: 0.1rem;
+    color: #303730;
+    font-size: 1.1rem;
+}
+
 .settings-grid,
-.agent-model-grid {
+.agent-fields-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
@@ -63,7 +92,10 @@
 }
 
 .settings-grid label,
-.model-field {
+.agent-fields-grid label,
+.model-field,
+.color-field,
+.prompt-field {
     display: grid;
     align-content: start;
     gap: 0.38rem;
@@ -75,7 +107,10 @@
 
 .settings-grid input,
 .settings-grid select,
-.model-field select {
+.agent-fields-grid input,
+.agent-fields-grid select,
+.model-field select,
+.prompt-field textarea {
     width: 100%;
     min-width: 0;
     min-height: 2.65rem;
@@ -88,17 +123,32 @@
     font-weight: 500;
 }
 
+.prompt-field textarea {
+    min-height: 18rem;
+    resize: vertical;
+    font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+    font-size: 0.8rem;
+    line-height: 1.48;
+}
+
 .settings-grid input:focus-visible,
 .settings-grid select:focus-visible,
-.model-field select:focus-visible {
+.agent-fields-grid input:focus-visible,
+.agent-fields-grid select:focus-visible,
+.model-field select:focus-visible,
+.prompt-field textarea:focus-visible {
     border-color: #658a79;
     outline: 3px solid rgba(49, 95, 78, 0.16);
 }
 
 .settings-grid small,
+.agent-fields-grid small,
 .model-field small,
+.color-field small,
+.prompt-field small,
 .settings-note,
-.catalog-note {
+.catalog-note,
+.agent-status {
     color: #747b75;
     font-size: 0.72rem;
     font-weight: 450;
@@ -112,7 +162,6 @@
     gap: 0.5rem;
 }
 
-.agent-models,
 .execution-settings {
     display: grid;
     gap: 0.9rem;
@@ -120,10 +169,9 @@
     border-top: 1px solid #e2e1dc;
 }
 
-.agent-models h3,
-.execution-settings h3 {
+.execution-settings h4 {
     color: #303730;
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 .catalog-actions {
@@ -148,14 +196,194 @@
     line-height: 1.4;
 }
 
-.catalog-message.error {
+.catalog-message.error,
+.agent-status .error {
     color: #8a3029;
 }
 
-.ollama-routing-settings > footer {
+.agent-status .success {
+    color: #28513f;
+}
+
+.runtime-footer {
     align-items: center;
     padding-top: 1rem;
     border-top: 1px solid #e2e1dc;
+}
+
+.agent-stack {
+    display: grid;
+    gap: 1rem;
+}
+
+.agent-card {
+    overflow: clip;
+    border: 1px solid #deddd7;
+    border-radius: 0.9rem;
+    background: #fcfcfa;
+}
+
+.agent-card-summary,
+.prompt-section-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.agent-card-summary {
+    padding: 1rem 1.1rem;
+}
+
+.agent-card-summary::-webkit-details-marker,
+.prompt-section-summary::-webkit-details-marker {
+    display: none;
+}
+
+.agent-card[open] > .agent-card-summary {
+    border-bottom: 1px solid #e7e5df;
+}
+
+.agent-card-body {
+    display: grid;
+    gap: 1rem;
+    padding: 1.1rem;
+}
+
+.agent-summary-meta,
+.prompt-summary-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.collapse-chevron {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-right: 2px solid #69716b;
+    border-bottom: 2px solid #69716b;
+    transform: rotate(45deg);
+    transition: transform 120ms ease;
+}
+
+.agent-card[open] > .agent-card-summary .collapse-chevron,
+.prompt-section[open] > .prompt-section-summary .collapse-chevron {
+    transform: rotate(225deg);
+}
+
+.agent-identity-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.agent-avatar-preview {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 2.7rem;
+    height: 2.7rem;
+    overflow: hidden;
+    border: 1px solid rgba(37, 40, 35, 0.1);
+    border-radius: 0.8rem;
+    background: var(--agent-preview-color, #f3f2ee);
+    font-size: 1.25rem;
+}
+
+.agent-identity-preview div {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.agent-identity-preview strong {
+    overflow: hidden;
+    color: #282d29;
+    font-size: 0.96rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-identity-preview small,
+.agent-id {
+    color: #7a817b;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.agent-id {
+    overflow: hidden;
+    max-width: 17rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.color-input-row {
+    display: grid;
+    grid-template-columns: 3.3rem minmax(0, 1fr);
+    gap: 0.55rem;
+}
+
+.agent-fields-grid .color-picker {
+    min-height: 2.65rem;
+    padding: 0.22rem;
+    cursor: pointer;
+}
+
+.prompt-section {
+    overflow: clip;
+    border: 1px solid #e0e2dd;
+    border-radius: 0.75rem;
+    background: #f8f9f6;
+}
+
+.prompt-section-summary {
+    padding: 0.72rem 0.82rem;
+    color: #353b36;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.prompt-section-summary small {
+    color: #747b75;
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.prompt-section[open] > .prompt-section-summary {
+    border-bottom: 1px solid #e0e2dd;
+}
+
+.prompt-section .prompt-field {
+    padding: 0.8rem;
+}
+
+.prompt-section .prompt-field textarea {
+    min-height: 18rem;
+    resize: vertical;
+}
+
+.agent-card-footer {
+    align-items: center;
+    padding-top: 0.85rem;
+    border-top: 1px solid #e7e5df;
+}
+
+.agent-status {
+    min-width: 0;
+}
+
+.agent-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.55rem;
 }
 
 .ollama-routing-settings button {
@@ -187,7 +415,9 @@
 .ollama-routing-settings button:disabled,
 .settings-grid input:disabled,
 .settings-grid select:disabled,
-.model-field select:disabled {
+.agent-fields-grid input:disabled,
+.agent-fields-grid select:disabled,
+.prompt-field textarea:disabled {
     cursor: not-allowed;
     opacity: 0.62;
 }
@@ -208,16 +438,19 @@
     color: #8a3029;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 820px) {
     .ollama-routing-settings > header,
-    .ollama-routing-settings > footer,
-    .catalog-actions {
+    .section-heading,
+    .runtime-footer,
+    .catalog-actions,
+    .agent-card-summary,
+    .agent-card-footer {
         align-items: stretch;
         flex-direction: column;
     }
 
     .settings-grid,
-    .agent-model-grid {
+    .agent-fields-grid {
         grid-template-columns: 1fr;
     }
 
@@ -229,7 +462,37 @@
         align-self: flex-start;
     }
 
-    .ollama-routing-settings button {
+    .agent-id {
+        max-width: 100%;
+    }
+
+    .agent-card-summary {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .agent-summary-meta {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .agent-actions {
+        width: 100%;
+    }
+
+    .agent-actions button,
+    .runtime-footer button,
+    .catalog-actions button {
+        flex: 1;
+    }
+}
+
+@media (max-width: 520px) {
+    .agent-actions {
+        flex-direction: column-reverse;
+    }
+
+    .agent-actions button {
         width: 100%;
     }
 }

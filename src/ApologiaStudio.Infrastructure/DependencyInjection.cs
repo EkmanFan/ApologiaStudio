@@ -1,3 +1,4 @@
+using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.AiRuntime;
 using ApologiaStudio.Application.Abstractions.Conversations;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
@@ -74,6 +75,10 @@ public static class DependencyInjection
         services.AddScoped<
             IAiRuntimeSettingsStore,
             EfAiRuntimeSettingsStore>();
+
+        services.AddScoped<
+            IAgentSettingsStore,
+            EfAgentSettingsStore>();
 
         return services;
     }

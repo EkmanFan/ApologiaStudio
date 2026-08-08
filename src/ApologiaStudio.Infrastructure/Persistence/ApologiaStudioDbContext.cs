@@ -32,6 +32,9 @@ public sealed class ApologiaStudioDbContext(
     internal DbSet<AiAgentModelAssignmentEntity> AiAgentModelAssignments =>
         Set<AiAgentModelAssignmentEntity>();
 
+    internal DbSet<AiAgentSettingsEntity> AiAgentSettings =>
+        Set<AiAgentSettingsEntity>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {

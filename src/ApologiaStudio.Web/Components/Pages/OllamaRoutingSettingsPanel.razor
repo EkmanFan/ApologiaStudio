@@ -2,9 +2,11 @@
 @using Microsoft.Extensions.DependencyInjection
 @using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.AgentRuntime.Routing.Semantic
+@using ApologiaStudio.Application.Agents.Settings
 @using ApologiaStudio.Application.AiRuntime.Settings
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject IOllamaModelCatalogClient ModelCatalogClient
+@inject BuiltInAgentSettingsCatalog AgentDefaults
 
 <section class="ollama-routing-settings"
          aria-labelledby="ollama-routing-settings-title">
@@ -15,13 +17,11 @@
                 Modèles et exécution locale
             </h2>
             <p>
-                Ces paramètres sont enregistrés dans PostgreSQL et sont
-                relus pour chaque routage et chaque réponse. Un modèle
-                installé mais non chargé sera chargé par Ollama lors de
-                sa première utilisation.
+                Les paramètres runtime et les profils d’agents sont
+                enregistrés dans PostgreSQL. Les changements de modèle et de
+                prompt sont relus au prochain tour d’agent, sans redémarrage.
             </p>
         </div>
-
         <span class="database-badge">PostgreSQL</span>
     </header>
 
@@ -33,259 +33,365 @@
     }
     else
     {
-        <div class="settings-grid">
-            <label class="wide-field">
-                <span>Adresse du serveur Ollama</span>
-                <input type="url"
-                       autocomplete="off"
-                       spellcheck="false"
-                       disabled="@(_isSaving || _isLoadingModels)"
-                       value="@_baseAddress"
-                       @onchange="HandleBaseAddressChangedAsync" />
-                <small>
-                    Une adresse de bouclage est imposée
-                    (127.0.0.1, localhost ou ::1).
-                </small>
-            </label>
-
-            <div class="model-field">
-                <label for="ollama-routing-model">
-                    Modèle de routage sémantique
-                </label>
-
-                <OllamaModelSelect Id="ollama-routing-model"
-                             Models="@_models"
-                             Value="@_routingModel"
-                             ValueChanged="@SetRoutingModel"
-                             IsDisabled="@(_isSaving || _isLoadingModels)" />
-
-                <small>
-                    Utilisé seulement lorsque le routeur déterministe ne
-                    peut pas choisir l’agent avec assez de confiance.
-                </small>
-            </div>
-
-            <div class="model-field">
-                <label for="ollama-default-agent-model">
-                    Modèle par défaut des agents
-                </label>
-
-                <OllamaModelSelect Id="ollama-default-agent-model"
-                             Models="@_models"
-                             Value="@_defaultAgentModel"
-                             ValueChanged="@SetDefaultAgentModel"
-                             IsDisabled="@(_isSaving || _isLoadingModels)" />
-
-                <small>
-                    Modèle de génération utilisé par tout agent sans
-                    affectation spécifique.
-                </small>
-            </div>
-        </div>
-
-        <section class="agent-models"
-                 aria-labelledby="agent-models-title">
-            <div>
-                <h3 id="agent-models-title">Modèles par agent</h3>
+        <section class="runtime-settings"
+                 aria-labelledby="runtime-settings-title">
+            <div class="section-heading">
+                <div>
+                    <p class="settings-kicker">Runtime</p>
+                    <h3 id="runtime-settings-title">Ollama</h3>
+                </div>
                 <p>
-                    Une valeur spécifique remplace le modèle par défaut.
-                    Les agents peuvent utiliser le même modèle ou des
-                    modèles différents.
+                    Configuration commune à tous les agents et au routeur.
                 </p>
             </div>
 
-            <div class="agent-model-grid">
-                <div class="model-field">
-                    <label for="historian-agent-model">
-                        @BuiltInAgents.Historian.DisplayName
-                    </label>
-
-                    <select id="historian-agent-model"
-                            disabled="@(_isSaving || _isLoadingModels)"
-                            @bind="_historianModel">
-                        <option value="">
-                            Modèle par défaut (@_defaultAgentModel)
-                        </option>
-                        @if (!string.IsNullOrWhiteSpace(_historianModel) &&
-                             !IsModelAvailable(_historianModel))
-                        {
-                            <option value="@_historianModel">
-                                @_historianModel — indisponible à cette adresse
-                            </option>
-                        }
-                        @foreach (var model in _models)
-                        {
-                            <option value="@model.Name">
-                                @model.DisplayName
-                            </option>
-                        }
-                    </select>
-                </div>
-
-                <div class="model-field">
-                    <label for="apologist-agent-model">
-                        @BuiltInAgents.ProtestantApologist.DisplayName
-                    </label>
-
-                    <select id="apologist-agent-model"
-                            disabled="@(_isSaving || _isLoadingModels)"
-                            @bind="_apologistModel">
-                        <option value="">
-                            Modèle par défaut (@_defaultAgentModel)
-                        </option>
-                        @if (!string.IsNullOrWhiteSpace(_apologistModel) &&
-                             !IsModelAvailable(_apologistModel))
-                        {
-                            <option value="@_apologistModel">
-                                @_apologistModel — indisponible à cette adresse
-                            </option>
-                        }
-                        @foreach (var model in _models)
-                        {
-                            <option value="@model.Name">
-                                @model.DisplayName
-                            </option>
-                        }
-                    </select>
-                </div>
-            </div>
-        </section>
-
-        <section class="execution-settings"
-                 aria-labelledby="execution-settings-title">
-            <h3 id="execution-settings-title">
-                Limites d’exécution
-            </h3>
-
             <div class="settings-grid">
-                <label>
-                    <span>Délai maximal de routage</span>
-                    <div class="number-field">
-                        <input type="number"
-                               min="1"
-                               max="300"
-                               step="1"
-                               disabled="@_isSaving"
-                               @bind="_routingTimeoutSeconds" />
-                        <span>secondes</span>
-                    </div>
-                </label>
-
-                <label>
-                    <span>Délai maximal de génération</span>
-                    <div class="number-field">
-                        <input type="number"
-                               min="1"
-                               max="600"
-                               step="1"
-                               disabled="@_isSaving"
-                               @bind="_generationTimeoutSeconds" />
-                        <span>secondes</span>
-                    </div>
-                </label>
-
-                <label>
-                    <span>Conservation du modèle en mémoire</span>
-                    <input type="text"
-                           maxlength="32"
+                <label class="wide-field">
+                    <span>Adresse du serveur Ollama</span>
+                    <input type="url"
                            autocomplete="off"
                            spellcheck="false"
-                           disabled="@_isSaving"
-                           @bind="_keepAlive" />
-                    <small>Exemples : 10m, 1h, 0 ou -1.</small>
+                           disabled="@(_isSavingRuntime || _isLoadingModels)"
+                           value="@_baseAddress"
+                           @onchange="HandleBaseAddressChangedAsync" />
+                    <small>
+                        Une adresse de bouclage est imposée
+                        (127.0.0.1, localhost ou ::1).
+                    </small>
                 </label>
 
-                <label>
-                    <span>Messages d’historique maximum</span>
-                    <input type="number"
-                           min="1"
-                           max="100"
-                           step="1"
-                           disabled="@_isSaving"
-                           @bind="_maximumHistoryMessages" />
-                </label>
+                <div class="model-field">
+                    <label for="ollama-routing-model">
+                        Modèle de routage sémantique
+                    </label>
+                    <OllamaModelSelect Id="ollama-routing-model"
+                                       Models="@_models"
+                                       Value="@_routingModel"
+                                       ValueChanged="@SetRoutingModel"
+                                       IsDisabled="@(_isSavingRuntime || _isLoadingModels)" />
+                    <small>
+                        Utilisé seulement lorsque le routeur déterministe ne
+                        peut pas choisir l’agent avec assez de confiance.
+                    </small>
+                </div>
 
-                <label>
-                    <span>Caractères d’historique maximum</span>
-                    <input type="number"
-                           min="1000"
-                           max="100000"
-                           step="1000"
-                           disabled="@_isSaving"
-                           @bind="_maximumHistoryCharacters" />
-                </label>
-
-                <label>
-                    <span>Tokens de sortie maximum</span>
-                    <input type="number"
-                           min="64"
-                           max="8192"
-                           step="64"
-                           disabled="@_isSaving"
-                           @bind="_maximumOutputTokens" />
-                </label>
+                <div class="model-field">
+                    <label for="ollama-default-agent-model">
+                        Modèle par défaut des agents
+                    </label>
+                    <OllamaModelSelect Id="ollama-default-agent-model"
+                                       Models="@_models"
+                                       Value="@_defaultAgentModel"
+                                       ValueChanged="@SetDefaultAgentModel"
+                                       IsDisabled="@(_isSavingRuntime || _isLoadingModels)" />
+                    <small>
+                        Utilisé lorsqu’un agent n’a pas de modèle spécifique.
+                    </small>
+                </div>
             </div>
+
+            <section class="execution-settings"
+                     aria-labelledby="execution-settings-title">
+                <h4 id="execution-settings-title">
+                    Limites d’exécution
+                </h4>
+                <div class="settings-grid">
+                    <label>
+                        <span>Délai maximal de routage</span>
+                        <div class="number-field">
+                            <input type="number"
+                                   min="1"
+                                   max="300"
+                                   step="1"
+                                   disabled="@_isSavingRuntime"
+                                   @bind="_routingTimeoutSeconds" />
+                            <span>secondes</span>
+                        </div>
+                    </label>
+                    <label>
+                        <span>Délai maximal de génération</span>
+                        <div class="number-field">
+                            <input type="number"
+                                   min="1"
+                                   max="600"
+                                   step="1"
+                                   disabled="@_isSavingRuntime"
+                                   @bind="_generationTimeoutSeconds" />
+                            <span>secondes</span>
+                        </div>
+                    </label>
+                    <label>
+                        <span>Conservation du modèle en mémoire</span>
+                        <input type="text"
+                               maxlength="32"
+                               autocomplete="off"
+                               spellcheck="false"
+                               disabled="@_isSavingRuntime"
+                               @bind="_keepAlive" />
+                        <small>Exemples : 10m, 1h, 0 ou -1.</small>
+                    </label>
+                    <label>
+                        <span>Messages d’historique maximum</span>
+                        <input type="number"
+                               min="1"
+                               max="100"
+                               step="1"
+                               disabled="@_isSavingRuntime"
+                               @bind="_maximumHistoryMessages" />
+                    </label>
+                    <label>
+                        <span>Caractères d’historique maximum</span>
+                        <input type="number"
+                               min="1000"
+                               max="100000"
+                               step="1000"
+                               disabled="@_isSavingRuntime"
+                               @bind="_maximumHistoryCharacters" />
+                    </label>
+                    <label>
+                        <span>Tokens de sortie maximum</span>
+                        <input type="number"
+                               min="64"
+                               max="8192"
+                               step="64"
+                               disabled="@_isSavingRuntime"
+                               @bind="_maximumOutputTokens" />
+                    </label>
+                </div>
+            </section>
+
+            <div class="catalog-actions">
+                <p class="catalog-note">
+                    La liste provient de <code>GET /api/tags</code> sur
+                    l’adresse indiquée et contient les modèles installés.
+                </p>
+                <button class="secondary-action"
+                        type="button"
+                        disabled="@(_isSavingRuntime || _isLoadingModels)"
+                        @onclick="RefreshModelsAsync">
+                    @(_isLoadingModels ? "Chargement…" : "Actualiser les modèles")
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_modelCatalogMessage))
+            {
+                <p class="catalog-message @(_modelCatalogIsError ? "error" : null)"
+                   role="@(_modelCatalogIsError ? "alert" : "status")">
+                    @_modelCatalogMessage
+                </p>
+            }
+
+            <footer class="runtime-footer">
+                <p class="settings-note">
+                    Les changements runtime sont appliqués à la prochaine
+                    requête.
+                </p>
+                <button type="button"
+                        disabled="@(_isSavingRuntime ||
+                                    _isLoadingModels ||
+                                    !AreRuntimeModelsAvailable)"
+                        @onclick="SaveRuntimeAsync">
+                    @(_isSavingRuntime ? "Enregistrement…" : "Enregistrer le runtime")
+                </button>
+            </footer>
+
+            @if (!string.IsNullOrWhiteSpace(_runtimeStatusMessage))
+            {
+                <p class="settings-status @(_runtimeStatusIsError ? "error" : "success")"
+                   role="@(_runtimeStatusIsError ? "alert" : "status")">
+                    @_runtimeStatusMessage
+                </p>
+            }
         </section>
 
-        <div class="catalog-actions">
-            <p class="catalog-note">
-                La liste provient de <code>GET /api/tags</code> sur
-                l’adresse indiquée. Elle contient les modèles installés,
-                pas seulement ceux actuellement présents en mémoire.
-            </p>
+        <section class="agents-settings"
+                 aria-labelledby="agents-settings-title">
+            <div class="section-heading">
+                <div>
+                    <p class="settings-kicker">Agents</p>
+                    <h3 id="agents-settings-title">Profils des agents</h3>
+                </div>
+                <p>
+                    
+                </p>
+            </div>
 
-            <button class="secondary-action"
-                    type="button"
-                    disabled="@(_isSaving || _isLoadingModels)"
-                    @onclick="RefreshModelsAsync">
-                @(_isLoadingModels ? "Chargement…" : "Actualiser les modèles")
-            </button>
-        </div>
+            <div class="agent-stack">
+                @foreach (var editor in _agentEditors)
+                {
+                    var isSavingAgent =
+                        _savingAgentIds.Contains(editor.AgentId.Value);
+                    var modelSelectId = $"agent-model-{editor.Slug}";
+                    var nameInputId = $"agent-name-{editor.Slug}";
+                    var avatarInputId = $"agent-avatar-{editor.Slug}";
+                    var colorInputId = $"agent-color-{editor.Slug}";
+                    var colorTextInputId = $"agent-color-text-{editor.Slug}";
+                    var promptInputId = $"agent-prompt-{editor.Slug}";
 
-        @if (!string.IsNullOrWhiteSpace(_modelCatalogMessage))
-        {
-            <p class="catalog-message @(_modelCatalogIsError ? "error" : null)"
-               role="@(_modelCatalogIsError ? "alert" : "status")">
-                @_modelCatalogMessage
-            </p>
-        }
+                    <details class="agent-card">
+                        <summary class="agent-card-summary">
+                            <div class="agent-identity-preview"
+                                 style="@GetAgentPreviewStyle(editor)">
+                                <span class="agent-avatar-preview"
+                                      aria-hidden="true">
+                                    @editor.Avatar
+                                </span>
+                                <div>
+                                    <strong>@editor.DisplayName</strong>
+                                    <small>@editor.Slug</small>
+                                </div>
+                            </div>
+                            <span class="agent-summary-meta">
+                                <span class="agent-id"
+                                      title="Identifiant technique immuable">
+                                    @* @editor.AgentId.Value.ToString("D") *@
+                                </span>
+                                <span class="collapse-chevron"
+                                      aria-hidden="true"></span>
+                            </span>
+                        </summary>
 
-        <footer>
-            <p class="settings-note">
-                Les changements sont appliqués au prochain routage ou au
-                prochain tour d’agent, sans redémarrer l’application.
-            </p>
+                        <div class="agent-card-body">
+                            <div class="agent-fields-grid">
+                                <label for="@nameInputId">
+                                    <span>Nom</span>
+                                    <input id="@nameInputId"
+                                           type="text"
+                                           maxlength="@AgentSettingsValidator.MaximumDisplayNameLength"
+                                           disabled="@isSavingAgent"
+                                           @bind="editor.DisplayName" />
+                                </label>
 
-            <button type="button"
-                    disabled="@(_isSaving ||
-                                _isLoadingModels ||
-                                !AreSelectedModelsAvailable)"
-                    @onclick="SaveAsync">
-                @(_isSaving ? "Enregistrement…" : "Enregistrer")
-            </button>
-        </footer>
+                                <label for="@avatarInputId">
+                                    <span>Avatar</span>
+                                    <input id="@avatarInputId"
+                                           type="text"
+                                           maxlength="@AgentSettingsValidator.MaximumAvatarLength"
+                                           disabled="@isSavingAgent"
+                                           @bind="editor.Avatar" />
+                                    <small>Emoji ou texte court pour le MVP.</small>
+                                </label>
 
-        @if (!string.IsNullOrWhiteSpace(_statusMessage))
-        {
-            <p class="settings-status @(_isError ? "error" : "success")"
-               role="@(_isError ? "alert" : "status")">
-                @_statusMessage
-            </p>
-        }
+                                <div class="model-field">
+                                    <label for="@modelSelectId">Modèle IA</label>
+                                    <select id="@modelSelectId"
+                                            disabled="@(isSavingAgent || _isLoadingModels)"
+                                            @bind="editor.Model">
+                                        <option value="">
+                                            Modèle par défaut (@_defaultAgentModel)
+                                        </option>
+                                        @if (!string.IsNullOrWhiteSpace(editor.Model) &&
+                                             !IsModelAvailable(editor.Model))
+                                        {
+                                            <option value="@editor.Model">
+                                                @editor.Model — indisponible à cette adresse
+                                            </option>
+                                        }
+                                        @foreach (var model in _models)
+                                        {
+                                            <option value="@model.Name">
+                                                @model.DisplayName
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="color-field">
+                                    <label for="@colorTextInputId">
+                                        Couleur de bulle
+                                    </label>
+                                    <div class="color-input-row">
+                                        <input id="@colorInputId"
+                                               class="color-picker"
+                                               type="color"
+                                               disabled="@isSavingAgent"
+                                               value="@NormalizeColorForPicker(editor.BubbleColor)"
+                                               @onchange="eventArgs => SetAgentColor(editor, eventArgs)" />
+                                        <input id="@colorTextInputId"
+                                               type="text"
+                                               maxlength="7"
+                                               autocomplete="off"
+                                               spellcheck="false"
+                                               disabled="@isSavingAgent"
+                                               @bind="editor.BubbleColor" />
+                                    </div>
+                                    <small>Format #RRGGBB.</small>
+                                </div>
+                            </div>
+
+                            <details class="prompt-section">
+                                <summary class="prompt-section-summary">
+                                    <span>Prompt système</span>
+                                    <span class="prompt-summary-meta">
+                                        <small>@editor.SystemPrompt.Length caractère(s)</small>
+                                        <span class="collapse-chevron"
+                                              aria-hidden="true"></span>
+                                    </span>
+                                </summary>
+
+                                <div class="prompt-field">
+                                    <textarea id="@promptInputId"
+                                              rows="14"
+                                              maxlength="@AgentSettingsValidator.MaximumSystemPromptLength"
+                                              spellcheck="false"
+                                              aria-label="Prompt système"
+                                              disabled="@isSavingAgent"
+                                              @bind="editor.SystemPrompt"></textarea>
+                                </div>
+                            </details>
+
+                            <footer class="agent-card-footer">
+                                <div class="agent-status">
+                                    @if (!string.IsNullOrWhiteSpace(editor.StatusMessage))
+                                    {
+                                        <span class="@(editor.StatusIsError ? "error" : "success")"
+                                              role="@(editor.StatusIsError ? "alert" : "status")">
+                                            @editor.StatusMessage
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>
+                                            Les changements sont utilisés au prochain tour d’agent.
+                                        </span>
+                                    }
+                                </div>
+                                <div class="agent-actions">
+                                    <button class="secondary-action"
+                                            type="button"
+                                            disabled="@isSavingAgent"
+                                            @onclick="() => ResetAgentToDefaults(editor)">
+                                        Réinitialiser
+                                    </button>
+                                    <button type="button"
+                                            disabled="@isSavingAgent"
+                                            @onclick="() => SaveAgentAsync(editor)">
+                                        @(isSavingAgent ? "Enregistrement…" : "Enregistrer")
+                                    </button>
+                                </div>
+                            </footer>
+                        </div>
+                    </details>
+                }
+            </div>
+        </section>
     }
 </section>
 
 @code {
     private IReadOnlyList<OllamaLocalModel> _models =
         Array.Empty<OllamaLocalModel>();
+    private IReadOnlyList<AgentEditor> _agentEditors =
+        Array.Empty<AgentEditor>();
+    private IReadOnlyDictionary<Guid, string> _legacyAgentModels =
+        new Dictionary<Guid, string>();
+    private readonly HashSet<Guid> _savingAgentIds = [];
 
     private string _baseAddress = string.Empty;
     private string _routingModel = string.Empty;
     private string _defaultAgentModel = string.Empty;
-    private string _historianModel = string.Empty;
-    private string _apologistModel = string.Empty;
     private string _keepAlive = string.Empty;
-    private string? _statusMessage;
+    private string? _runtimeStatusMessage;
     private string? _modelCatalogMessage;
     private int _routingTimeoutSeconds;
     private int _generationTimeoutSeconds;
@@ -295,15 +401,13 @@
     private int _modelLoadVersion;
     private bool _isLoadingSettings = true;
     private bool _isLoadingModels;
-    private bool _isSaving;
-    private bool _isError;
+    private bool _isSavingRuntime;
+    private bool _runtimeStatusIsError;
     private bool _modelCatalogIsError;
 
-    private bool AreSelectedModelsAvailable =>
+    private bool AreRuntimeModelsAvailable =>
         IsModelAvailable(_routingModel) &&
-        IsModelAvailable(_defaultAgentModel) &&
-        IsOptionalModelAvailable(_historianModel) &&
-        IsOptionalModelAvailable(_apologistModel);
+        IsModelAvailable(_defaultAgentModel);
 
     protected override async Task OnInitializedAsync()
     {
@@ -312,21 +416,28 @@
             await using var scope =
                 ServiceScopeFactory.CreateAsyncScope();
 
-            var handler =
+            var runtimeHandler =
                 scope.ServiceProvider.GetRequiredService<
                     GetAiRuntimeSettingsHandler>();
+            var agentHandler =
+                scope.ServiceProvider.GetRequiredService<
+                    GetAgentSettingsHandler>();
 
-            var settings =
-                await handler.HandleAsync(
+            var runtimeSettings =
+                await runtimeHandler.HandleAsync(
+                    CancellationToken.None);
+            var agentSettings =
+                await agentHandler.HandleAsync(
                     CancellationToken.None);
 
-            Load(settings);
+            LoadRuntime(runtimeSettings);
+            LoadAgents(agentSettings);
             await LoadModelsAsync(showSuccess: false);
         }
         catch (Exception exception)
         {
-            _isError = true;
-            _statusMessage =
+            _runtimeStatusIsError = true;
+            _runtimeStatusMessage =
                 "Les paramètres d’IA n’ont pas pu être chargés : " +
                 exception.Message;
         }
@@ -353,7 +464,7 @@
             eventArgs.Value?.ToString()?.Trim()
             ?? string.Empty;
 
-        _statusMessage = null;
+        _runtimeStatusMessage = null;
         await LoadModelsAsync(showSuccess: false);
     }
 
@@ -373,14 +484,11 @@
         try
         {
             var baseAddress =
-                AiRuntimeSettingsValidator
-                    .NormalizeBaseAddress(
-                        _baseAddress);
-
+                AiRuntimeSettingsValidator.NormalizeBaseAddress(
+                    _baseAddress);
             var models =
-                await ModelCatalogClient
-                    .ListLocalModelsAsync(
-                        baseAddress);
+                await ModelCatalogClient.ListLocalModelsAsync(
+                    baseAddress);
 
             if (loadVersion != _modelLoadVersion)
             {
@@ -388,7 +496,6 @@
             }
 
             _models = models;
-
             if (_models.Count == 0)
             {
                 _modelCatalogIsError = true;
@@ -397,9 +504,7 @@
                 return;
             }
 
-            var unavailable =
-                GetUnavailableSelections();
-
+            var unavailable = GetUnavailableSelections();
             if (unavailable.Count > 0)
             {
                 _modelCatalogIsError = true;
@@ -420,9 +525,7 @@
                   InvalidOperationException or
                   TaskCanceledException)
         {
-            _models =
-                Array.Empty<OllamaLocalModel>();
-
+            _models = Array.Empty<OllamaLocalModel>();
             _modelCatalogIsError = true;
             _modelCatalogMessage =
                 "Impossible de charger les modèles locaux : " +
@@ -437,48 +540,36 @@
         }
     }
 
-    private async Task SaveAsync()
+    private async Task SaveRuntimeAsync()
     {
-        if (_isSaving)
+        if (_isSavingRuntime)
         {
             return;
         }
 
-        _isSaving = true;
-        _statusMessage = null;
-        _isError = false;
+        _isSavingRuntime = true;
+        _runtimeStatusMessage = null;
+        _runtimeStatusIsError = false;
 
         try
         {
-            if (!AreSelectedModelsAvailable)
+            if (!AreRuntimeModelsAvailable)
             {
                 throw new InvalidOperationException(
-                    "Tous les modèles sélectionnés doivent être installés " +
-                    "sur le serveur Ollama indiqué.");
+                    "Les modèles du runtime doivent être installés sur " +
+                    "le serveur Ollama indiqué.");
             }
 
-            var assignments =
-                new List<AgentModelAssignmentInput>();
-
-            if (!string.IsNullOrWhiteSpace(_historianModel))
-            {
-                assignments.Add(
-                    new AgentModelAssignmentInput(
-                        BuiltInAgents.Historian.Id.Value,
-                        _historianModel));
-            }
-
-            if (!string.IsNullOrWhiteSpace(_apologistModel))
-            {
-                assignments.Add(
-                    new AgentModelAssignmentInput(
-                        BuiltInAgents.ProtestantApologist.Id.Value,
-                        _apologistModel));
-            }
+            var assignments = _legacyAgentModels
+                .Select(
+                    assignment =>
+                        new AgentModelAssignmentInput(
+                            assignment.Key,
+                            assignment.Value))
+                .ToArray();
 
             await using var scope =
                 ServiceScopeFactory.CreateAsyncScope();
-
             var handler =
                 scope.ServiceProvider.GetRequiredService<
                     UpdateAiRuntimeSettingsHandler>();
@@ -498,11 +589,9 @@
                         assignments),
                     CancellationToken.None);
 
-            Load(settings);
-
-            _statusMessage =
-                "Les paramètres d’IA ont été enregistrés dans PostgreSQL. " +
-                "Ils seront utilisés dès la prochaine requête.";
+            LoadRuntime(settings);
+            _runtimeStatusMessage =
+                "Les paramètres du runtime ont été enregistrés dans PostgreSQL.";
         }
         catch (Exception exception)
             when (exception is ArgumentException or
@@ -510,16 +599,87 @@
                   IOException or
                   UnauthorizedAccessException)
         {
-            _isError = true;
-            _statusMessage = exception.Message;
+            _runtimeStatusIsError = true;
+            _runtimeStatusMessage = exception.Message;
         }
         finally
         {
-            _isSaving = false;
+            _isSavingRuntime = false;
         }
     }
 
-    private void Load(AiRuntimeSettingsSnapshot settings)
+    private async Task SaveAgentAsync(AgentEditor editor)
+    {
+        if (!_savingAgentIds.Add(editor.AgentId.Value))
+        {
+            return;
+        }
+
+        editor.StatusMessage = null;
+        editor.StatusIsError = false;
+
+        try
+        {
+            if (_models.Count > 0 &&
+                !IsOptionalModelAvailable(editor.Model))
+            {
+                throw new InvalidOperationException(
+                    "Le modèle sélectionné pour cet agent n’est pas installé " +
+                    "sur le serveur Ollama indiqué.");
+            }
+
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    UpdateAgentSettingsHandler>();
+
+            var saved =
+                await handler.HandleAsync(
+                    new UpdateAgentSettingsCommand(
+                        editor.AgentId,
+                        editor.DisplayName,
+                        editor.Avatar,
+                        editor.BubbleColor,
+                        string.IsNullOrWhiteSpace(editor.Model)
+                            ? null
+                            : editor.Model,
+                        editor.SystemPrompt),
+                    CancellationToken.None);
+
+            editor.Load(saved);
+            editor.StatusMessage =
+                "Profil enregistré. Il sera utilisé dès le prochain tour.";
+        }
+        catch (Exception exception)
+            when (exception is ArgumentException or
+                  InvalidOperationException or
+                  IOException or
+                  UnauthorizedAccessException)
+        {
+            editor.StatusIsError = true;
+            editor.StatusMessage = exception.Message;
+        }
+        finally
+        {
+            _savingAgentIds.Remove(editor.AgentId.Value);
+        }
+    }
+
+    private void ResetAgentToDefaults(AgentEditor editor)
+    {
+        var defaults = AgentDefaults.Get(editor.AgentId);
+        editor.DisplayName = defaults.Agent.DisplayName;
+        editor.Avatar = defaults.Avatar;
+        editor.BubbleColor = defaults.BubbleColor;
+        editor.Model = string.Empty;
+        editor.SystemPrompt = defaults.Prompt.SystemPrompt;
+        editor.StatusIsError = false;
+        editor.StatusMessage =
+            "Valeurs par défaut restaurées localement. Enregistrez pour les appliquer.";
+    }
+
+    private void LoadRuntime(AiRuntimeSettingsSnapshot settings)
     {
         _baseAddress = settings.BaseAddress;
         _routingModel = settings.RoutingModel;
@@ -530,20 +690,39 @@
         _maximumHistoryMessages = settings.MaximumHistoryMessages;
         _maximumHistoryCharacters = settings.MaximumHistoryCharacters;
         _maximumOutputTokens = settings.MaximumOutputTokens;
+        _legacyAgentModels =
+            new Dictionary<Guid, string>(settings.AgentModels);
+    }
 
-        _historianModel =
-            settings.AgentModels.TryGetValue(
-                BuiltInAgents.Historian.Id.Value,
-                out var historianModel)
-                ? historianModel
-                : string.Empty;
+    private void LoadAgents(
+        IReadOnlyList<AgentSettingsSnapshot> persistedSettings)
+    {
+        var byId = persistedSettings.ToDictionary(
+            settings => settings.AgentId);
 
-        _apologistModel =
-            settings.AgentModels.TryGetValue(
-                BuiltInAgents.ProtestantApologist.Id.Value,
-                out var apologistModel)
-                ? apologistModel
-                : string.Empty;
+        _agentEditors = AgentDefaults.All
+            .Select(
+                defaults =>
+                {
+                    if (byId.TryGetValue(
+                            defaults.Agent.Id,
+                            out var persisted))
+                    {
+                        return AgentEditor.From(
+                            defaults.Agent.Slug,
+                            persisted);
+                    }
+
+                    return new AgentEditor(
+                        defaults.Agent.Id,
+                        defaults.Agent.Slug,
+                        defaults.Agent.DisplayName,
+                        defaults.Avatar,
+                        defaults.BubbleColor,
+                        string.Empty,
+                        defaults.Prompt.SystemPrompt);
+                })
+            .ToArray();
     }
 
     private bool IsModelAvailable(string model)
@@ -556,7 +735,7 @@
                     StringComparison.OrdinalIgnoreCase));
     }
 
-    private bool IsOptionalModelAvailable(string model)
+    private bool IsOptionalModelAvailable(string? model)
     {
         return string.IsNullOrWhiteSpace(model) ||
                IsModelAvailable(model);
@@ -567,13 +746,92 @@
         return new[]
             {
                 _routingModel,
-                _defaultAgentModel,
-                _historianModel,
-                _apologistModel
+                _defaultAgentModel
             }
+            .Concat(
+                _agentEditors
+                    .Select(editor => editor.Model))
             .Where(model => !string.IsNullOrWhiteSpace(model))
+            .Cast<string>()
             .Where(model => !IsModelAvailable(model))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static void SetAgentColor(
+        AgentEditor editor,
+        ChangeEventArgs eventArgs)
+    {
+        var value = eventArgs.Value?.ToString();
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            editor.BubbleColor = value.ToUpperInvariant();
+        }
+    }
+
+    private static string NormalizeColorForPicker(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) ||
+            value.Length != 7 ||
+            value[0] != '#' ||
+            !int.TryParse(
+                value.AsSpan(1),
+                System.Globalization.NumberStyles.HexNumber,
+                null,
+                out _))
+        {
+            return "#F3F2EE";
+        }
+
+        return value;
+    }
+
+    private static string GetAgentPreviewStyle(AgentEditor editor)
+    {
+        var color = NormalizeColorForPicker(editor.BubbleColor);
+        return $"--agent-preview-color:{color};";
+    }
+
+    private sealed class AgentEditor(
+        ApologiaStudio.Domain.Agents.AgentId agentId,
+        string slug,
+        string displayName,
+        string avatar,
+        string bubbleColor,
+        string model,
+        string systemPrompt)
+    {
+        public ApologiaStudio.Domain.Agents.AgentId AgentId { get; } = agentId;
+        public string Slug { get; } = slug;
+        public string DisplayName { get; set; } = displayName;
+        public string Avatar { get; set; } = avatar;
+        public string BubbleColor { get; set; } = bubbleColor;
+        public string Model { get; set; } = model;
+        public string SystemPrompt { get; set; } = systemPrompt;
+        public string? StatusMessage { get; set; }
+        public bool StatusIsError { get; set; }
+
+        public static AgentEditor From(
+            string slug,
+            AgentSettingsSnapshot settings)
+        {
+            return new AgentEditor(
+                settings.AgentId,
+                slug,
+                settings.DisplayName,
+                settings.Avatar,
+                settings.BubbleColor,
+                settings.Model ?? string.Empty,
+                settings.SystemPrompt);
+        }
+
+        public void Load(AgentSettingsSnapshot settings)
+        {
+            DisplayName = settings.DisplayName;
+            Avatar = settings.Avatar;
+            BubbleColor = settings.BubbleColor;
+            Model = settings.Model ?? string.Empty;
+            SystemPrompt = settings.SystemPrompt;
+        }
     }
 }

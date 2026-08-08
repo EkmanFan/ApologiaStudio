@@ -21,7 +21,8 @@ public sealed class OllamaAgentRuntime(
     AgentPromptCatalog promptCatalog,
     IAiRuntimeSettingsStore settingsStore,
     IOllamaHttpClientFactory httpClientFactory,
-    IOllamaRuntimeTelemetry telemetry)
+    IOllamaRuntimeTelemetry telemetry,
+    IAgentSettingsStore? agentSettingsStore = null)
     : IRoutedAgentRuntime
 {
     private const int MaximumErrorBodyLength = 2_000;
@@ -63,9 +64,19 @@ public sealed class OllamaAgentRuntime(
             ?? throw new InvalidOperationException(
                 "AI runtime settings have not been initialized.");
 
+        var agentSettings = agentSettingsStore is null
+            ? null
+            : await agentSettingsStore.GetAsync(
+                routingDecision.AgentId,
+                cancellationToken);
+
         var model =
-            settings.ResolveAgentModel(
-                routingDecision.AgentId);
+            agentSettings is null
+                ? settings.ResolveAgentModel(
+                    routingDecision.AgentId)
+                : string.IsNullOrWhiteSpace(agentSettings.Model)
+                    ? settings.DefaultAgentModel
+                    : agentSettings.Model;
 
         ValidateConfiguration(
             settings,
@@ -73,12 +84,16 @@ public sealed class OllamaAgentRuntime(
 
         yield return new AgentSelectedEvent(
             routingDecision.AgentId,
-            routingDecision.AgentName,
+            agentSettings?.DisplayName ?? routingDecision.AgentName,
             routingDecision.Reason);
 
         var promptDefinition =
-            promptCatalog.Get(
-                routingDecision.AgentId);
+            agentSettings is null
+                ? promptCatalog.Get(
+                    routingDecision.AgentId)
+                : new AgentPromptDefinition(
+                    "database",
+                    agentSettings.SystemPrompt);
 
         var messages =
             BuildMessages(

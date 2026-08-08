@@ -7,6 +7,7 @@ using ApologiaStudio.AgentRuntime.Execution;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
+using ApologiaStudio.Application.Agents.Settings;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.BibleCorpora.Queries;
@@ -96,6 +97,8 @@ builder.Services.AddScoped<
 
 builder.Services.AddSingleton<
     AgentPromptCatalog>();
+builder.Services.AddSingleton<
+    BuiltInAgentSettingsCatalog>();
 
 builder.Services.AddSingleton<
     IOllamaRuntimeTelemetry,
@@ -181,6 +184,13 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     UpdateAiRuntimeSettingsHandler>();
 
+builder.Services.AddScoped<
+    GetAgentSettingsHandler>();
+builder.Services.AddScoped<
+    InitializeAgentSettingsHandler>();
+builder.Services.AddScoped<
+    UpdateAgentSettingsHandler>();
+
 // APOLOGIA-NORMALIZE-SIMULATED-RUNTIME-LIFETIME
 // Remove every earlier descriptor so a later or duplicate singleton
 // cannot capture scoped routing and persistence services.
@@ -192,6 +202,7 @@ var app = builder.Build();
 await InitializeAiRuntimeSettingsAsync(
     app,
     aiRuntimeDefaults);
+await InitializeAgentSettingsAsync(app);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -354,6 +365,54 @@ static async Task InitializeAiRuntimeSettingsAsync(
         CancellationToken.None);
 
     TryDeleteLegacySettings(legacyPath);
+}
+
+static async Task InitializeAgentSettingsAsync(WebApplication app)
+{
+    await using var scope =
+        app.Services.CreateAsyncScope();
+
+    var runtimeSettingsStore =
+        scope.ServiceProvider.GetRequiredService<
+            IAiRuntimeSettingsStore>();
+    var runtimeSettings =
+        await runtimeSettingsStore.GetAsync(
+            CancellationToken.None);
+
+    var catalog =
+        app.Services.GetRequiredService<
+            BuiltInAgentSettingsCatalog>();
+    var updatedAt = TimeProvider.System.GetUtcNow();
+
+    var defaults = catalog.All
+        .Select(
+            definition =>
+            {
+                string? model = null;
+                if (runtimeSettings?.AgentModels.TryGetValue(
+                        definition.Agent.Id.Value,
+                        out var legacyModel) == true)
+                {
+                    model = legacyModel;
+                }
+
+                return new AgentSettingsSnapshot(
+                    definition.Agent.Id,
+                    definition.Agent.DisplayName,
+                    definition.Avatar,
+                    definition.BubbleColor,
+                    model,
+                    definition.Prompt.SystemPrompt,
+                    updatedAt);
+            })
+        .ToArray();
+
+    var initializer =
+        scope.ServiceProvider.GetRequiredService<
+            InitializeAgentSettingsHandler>();
+    await initializer.HandleAsync(
+        defaults,
+        CancellationToken.None);
 }
 
 static void TryDeleteLegacySettings(string? legacyPath)
