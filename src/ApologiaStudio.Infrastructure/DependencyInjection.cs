@@ -1,3 +1,4 @@
+using ApologiaStudio.Application.Abstractions.AiRuntime;
 using ApologiaStudio.Application.Abstractions.Conversations;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Persistence;
@@ -69,6 +70,10 @@ public static class DependencyInjection
         services.AddScoped<
             IBibleCorpusImporter,
             PostgreSqlBibleCorpusImporter>();
+
+        services.AddScoped<
+            IAiRuntimeSettingsStore,
+            EfAiRuntimeSettingsStore>();
 
         return services;
     }

@@ -1,6 +1,10 @@
 @rendermode InteractiveServer
+@using Microsoft.Extensions.DependencyInjection
+@using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.AgentRuntime.Routing.Semantic
-@inject IOllamaRoutingSettingsStore RoutingSettingsStore
+@using ApologiaStudio.Application.AiRuntime.Settings
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject IOllamaModelCatalogClient ModelCatalogClient
 
 <section class="ollama-routing-settings"
          aria-labelledby="ollama-routing-settings-title">
@@ -8,134 +12,496 @@
         <div>
             <p class="settings-kicker">Ollama</p>
             <h2 id="ollama-routing-settings-title">
-                Routage sémantique local
+                Modèles et exécution locale
             </h2>
             <p>
-                Ces paramètres sont globaux pour cette instance
-                d’Apologia Studio. Ils s’appliquent dès la prochaine
-                décision de routage, sans redémarrage.
+                Ces paramètres sont enregistrés dans PostgreSQL et sont
+                relus pour chaque routage et chaque réponse. Un modèle
+                installé mais non chargé sera chargé par Ollama lors de
+                sa première utilisation.
             </p>
         </div>
 
-        <span class="local-only-badge">Local uniquement</span>
+        <span class="database-badge">PostgreSQL</span>
     </header>
 
-    <div class="settings-grid">
-        <label>
-            <span>Adresse du serveur Ollama</span>
-            <input type="url"
-                   autocomplete="off"
-                   spellcheck="false"
-                   disabled="@_isSaving"
-                   @bind="_baseAddress" />
-            <small>
-                Une adresse de bouclage est imposée
-                (127.0.0.1, localhost ou ::1).
-            </small>
-        </label>
-
-        <label>
-            <span>Modèle de routage</span>
-            <input type="text"
-                   maxlength="200"
-                   autocomplete="off"
-                   spellcheck="false"
-                   disabled="@_isSaving"
-                   @bind="_model" />
-            <small>Exemple : qwen3:8b.</small>
-        </label>
-
-        <label>
-            <span>Délai maximal de routage</span>
-            <div class="number-field">
-                <input type="number"
-                       min="1"
-                       max="300"
-                       step="1"
-                       disabled="@_isSaving"
-                       @bind="_requestTimeoutSeconds" />
-                <span>secondes</span>
-            </div>
-        </label>
-
-        <label>
-            <span>Conservation du modèle en mémoire</span>
-            <input type="text"
-                   maxlength="32"
-                   autocomplete="off"
-                   spellcheck="false"
-                   disabled="@_isSaving"
-                   @bind="_keepAlive" />
-            <small>Exemples : 10m, 1h, 0 ou -1.</small>
-        </label>
-    </div>
-
-    <footer>
-        <p class="settings-note">
-            Ce réglage contrôle le classificateur de routage. Le modèle
-            de génération des réponses reste configuré séparément.
-        </p>
-
-        <button type="button"
-                disabled="@_isSaving"
-                @onclick="SaveAsync">
-            @(_isSaving ? "Enregistrement…" : "Enregistrer")
-        </button>
-    </footer>
-
-    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    @if (_isLoadingSettings)
     {
-        <p class="settings-status @(_isError ? "error" : "success")"
-           role="@(_isError ? "alert" : "status")">
-            @_statusMessage
+        <p class="settings-status">
+            Chargement des paramètres d’IA…
         </p>
+    }
+    else
+    {
+        <div class="settings-grid">
+            <label class="wide-field">
+                <span>Adresse du serveur Ollama</span>
+                <input type="url"
+                       autocomplete="off"
+                       spellcheck="false"
+                       disabled="@(_isSaving || _isLoadingModels)"
+                       value="@_baseAddress"
+                       @onchange="HandleBaseAddressChangedAsync" />
+                <small>
+                    Une adresse de bouclage est imposée
+                    (127.0.0.1, localhost ou ::1).
+                </small>
+            </label>
+
+            <div class="model-field">
+                <label for="ollama-routing-model">
+                    Modèle de routage sémantique
+                </label>
+
+                <OllamaModelSelect Id="ollama-routing-model"
+                             Models="@_models"
+                             Value="@_routingModel"
+                             ValueChanged="@SetRoutingModel"
+                             IsDisabled="@(_isSaving || _isLoadingModels)" />
+
+                <small>
+                    Utilisé seulement lorsque le routeur déterministe ne
+                    peut pas choisir l’agent avec assez de confiance.
+                </small>
+            </div>
+
+            <div class="model-field">
+                <label for="ollama-default-agent-model">
+                    Modèle par défaut des agents
+                </label>
+
+                <OllamaModelSelect Id="ollama-default-agent-model"
+                             Models="@_models"
+                             Value="@_defaultAgentModel"
+                             ValueChanged="@SetDefaultAgentModel"
+                             IsDisabled="@(_isSaving || _isLoadingModels)" />
+
+                <small>
+                    Modèle de génération utilisé par tout agent sans
+                    affectation spécifique.
+                </small>
+            </div>
+        </div>
+
+        <section class="agent-models"
+                 aria-labelledby="agent-models-title">
+            <div>
+                <h3 id="agent-models-title">Modèles par agent</h3>
+                <p>
+                    Une valeur spécifique remplace le modèle par défaut.
+                    Les agents peuvent utiliser le même modèle ou des
+                    modèles différents.
+                </p>
+            </div>
+
+            <div class="agent-model-grid">
+                <div class="model-field">
+                    <label for="historian-agent-model">
+                        @BuiltInAgents.Historian.DisplayName
+                    </label>
+
+                    <select id="historian-agent-model"
+                            disabled="@(_isSaving || _isLoadingModels)"
+                            @bind="_historianModel">
+                        <option value="">
+                            Modèle par défaut (@_defaultAgentModel)
+                        </option>
+                        @if (!string.IsNullOrWhiteSpace(_historianModel) &&
+                             !IsModelAvailable(_historianModel))
+                        {
+                            <option value="@_historianModel">
+                                @_historianModel — indisponible à cette adresse
+                            </option>
+                        }
+                        @foreach (var model in _models)
+                        {
+                            <option value="@model.Name">
+                                @model.DisplayName
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="model-field">
+                    <label for="apologist-agent-model">
+                        @BuiltInAgents.ProtestantApologist.DisplayName
+                    </label>
+
+                    <select id="apologist-agent-model"
+                            disabled="@(_isSaving || _isLoadingModels)"
+                            @bind="_apologistModel">
+                        <option value="">
+                            Modèle par défaut (@_defaultAgentModel)
+                        </option>
+                        @if (!string.IsNullOrWhiteSpace(_apologistModel) &&
+                             !IsModelAvailable(_apologistModel))
+                        {
+                            <option value="@_apologistModel">
+                                @_apologistModel — indisponible à cette adresse
+                            </option>
+                        }
+                        @foreach (var model in _models)
+                        {
+                            <option value="@model.Name">
+                                @model.DisplayName
+                            </option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="execution-settings"
+                 aria-labelledby="execution-settings-title">
+            <h3 id="execution-settings-title">
+                Limites d’exécution
+            </h3>
+
+            <div class="settings-grid">
+                <label>
+                    <span>Délai maximal de routage</span>
+                    <div class="number-field">
+                        <input type="number"
+                               min="1"
+                               max="300"
+                               step="1"
+                               disabled="@_isSaving"
+                               @bind="_routingTimeoutSeconds" />
+                        <span>secondes</span>
+                    </div>
+                </label>
+
+                <label>
+                    <span>Délai maximal de génération</span>
+                    <div class="number-field">
+                        <input type="number"
+                               min="1"
+                               max="600"
+                               step="1"
+                               disabled="@_isSaving"
+                               @bind="_generationTimeoutSeconds" />
+                        <span>secondes</span>
+                    </div>
+                </label>
+
+                <label>
+                    <span>Conservation du modèle en mémoire</span>
+                    <input type="text"
+                           maxlength="32"
+                           autocomplete="off"
+                           spellcheck="false"
+                           disabled="@_isSaving"
+                           @bind="_keepAlive" />
+                    <small>Exemples : 10m, 1h, 0 ou -1.</small>
+                </label>
+
+                <label>
+                    <span>Messages d’historique maximum</span>
+                    <input type="number"
+                           min="1"
+                           max="100"
+                           step="1"
+                           disabled="@_isSaving"
+                           @bind="_maximumHistoryMessages" />
+                </label>
+
+                <label>
+                    <span>Caractères d’historique maximum</span>
+                    <input type="number"
+                           min="1000"
+                           max="100000"
+                           step="1000"
+                           disabled="@_isSaving"
+                           @bind="_maximumHistoryCharacters" />
+                </label>
+
+                <label>
+                    <span>Tokens de sortie maximum</span>
+                    <input type="number"
+                           min="64"
+                           max="8192"
+                           step="64"
+                           disabled="@_isSaving"
+                           @bind="_maximumOutputTokens" />
+                </label>
+            </div>
+        </section>
+
+        <div class="catalog-actions">
+            <p class="catalog-note">
+                La liste provient de <code>GET /api/tags</code> sur
+                l’adresse indiquée. Elle contient les modèles installés,
+                pas seulement ceux actuellement présents en mémoire.
+            </p>
+
+            <button class="secondary-action"
+                    type="button"
+                    disabled="@(_isSaving || _isLoadingModels)"
+                    @onclick="RefreshModelsAsync">
+                @(_isLoadingModels ? "Chargement…" : "Actualiser les modèles")
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_modelCatalogMessage))
+        {
+            <p class="catalog-message @(_modelCatalogIsError ? "error" : null)"
+               role="@(_modelCatalogIsError ? "alert" : "status")">
+                @_modelCatalogMessage
+            </p>
+        }
+
+        <footer>
+            <p class="settings-note">
+                Les changements sont appliqués au prochain routage ou au
+                prochain tour d’agent, sans redémarrer l’application.
+            </p>
+
+            <button type="button"
+                    disabled="@(_isSaving ||
+                                _isLoadingModels ||
+                                !AreSelectedModelsAvailable)"
+                    @onclick="SaveAsync">
+                @(_isSaving ? "Enregistrement…" : "Enregistrer")
+            </button>
+        </footer>
+
+        @if (!string.IsNullOrWhiteSpace(_statusMessage))
+        {
+            <p class="settings-status @(_isError ? "error" : "success")"
+               role="@(_isError ? "alert" : "status")">
+                @_statusMessage
+            </p>
+        }
     }
 </section>
 
 @code {
+    private IReadOnlyList<OllamaLocalModel> _models =
+        Array.Empty<OllamaLocalModel>();
+
     private string _baseAddress = string.Empty;
-    private string _model = string.Empty;
-    private int _requestTimeoutSeconds;
+    private string _routingModel = string.Empty;
+    private string _defaultAgentModel = string.Empty;
+    private string _historianModel = string.Empty;
+    private string _apologistModel = string.Empty;
     private string _keepAlive = string.Empty;
     private string? _statusMessage;
+    private string? _modelCatalogMessage;
+    private int _routingTimeoutSeconds;
+    private int _generationTimeoutSeconds;
+    private int _maximumHistoryMessages;
+    private int _maximumHistoryCharacters;
+    private int _maximumOutputTokens;
+    private int _modelLoadVersion;
+    private bool _isLoadingSettings = true;
+    private bool _isLoadingModels;
     private bool _isSaving;
     private bool _isError;
+    private bool _modelCatalogIsError;
 
-    protected override void OnInitialized()
+    private bool AreSelectedModelsAvailable =>
+        IsModelAvailable(_routingModel) &&
+        IsModelAvailable(_defaultAgentModel) &&
+        IsOptionalModelAvailable(_historianModel) &&
+        IsOptionalModelAvailable(_apologistModel);
+
+    protected override async Task OnInitializedAsync()
     {
-        Load(RoutingSettingsStore.Current);
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    GetAiRuntimeSettingsHandler>();
+
+            var settings =
+                await handler.HandleAsync(
+                    CancellationToken.None);
+
+            Load(settings);
+            await LoadModelsAsync(showSuccess: false);
+        }
+        catch (Exception exception)
+        {
+            _isError = true;
+            _statusMessage =
+                "Les paramètres d’IA n’ont pas pu être chargés : " +
+                exception.Message;
+        }
+        finally
+        {
+            _isLoadingSettings = false;
+        }
+    }
+
+    private void SetRoutingModel(string value)
+    {
+        _routingModel = value;
+    }
+
+    private void SetDefaultAgentModel(string value)
+    {
+        _defaultAgentModel = value;
+    }
+
+    private async Task HandleBaseAddressChangedAsync(
+        ChangeEventArgs eventArgs)
+    {
+        _baseAddress =
+            eventArgs.Value?.ToString()?.Trim()
+            ?? string.Empty;
+
+        _statusMessage = null;
+        await LoadModelsAsync(showSuccess: false);
+    }
+
+    private Task RefreshModelsAsync()
+    {
+        return LoadModelsAsync(showSuccess: true);
+    }
+
+    private async Task LoadModelsAsync(bool showSuccess)
+    {
+        var loadVersion = ++_modelLoadVersion;
+
+        _isLoadingModels = true;
+        _modelCatalogMessage = null;
+        _modelCatalogIsError = false;
+
+        try
+        {
+            var baseAddress =
+                AiRuntimeSettingsValidator
+                    .NormalizeBaseAddress(
+                        _baseAddress);
+
+            var models =
+                await ModelCatalogClient
+                    .ListLocalModelsAsync(
+                        baseAddress);
+
+            if (loadVersion != _modelLoadVersion)
+            {
+                return;
+            }
+
+            _models = models;
+
+            if (_models.Count == 0)
+            {
+                _modelCatalogIsError = true;
+                _modelCatalogMessage =
+                    "Aucun modèle local n’est installé sur ce serveur Ollama.";
+                return;
+            }
+
+            var unavailable =
+                GetUnavailableSelections();
+
+            if (unavailable.Count > 0)
+            {
+                _modelCatalogIsError = true;
+                _modelCatalogMessage =
+                    "Modèle(s) configuré(s) indisponible(s) : " +
+                    string.Join(", ", unavailable) +
+                    ". Sélectionnez un modèle installé localement.";
+            }
+            else if (showSuccess)
+            {
+                _modelCatalogMessage =
+                    $"{_models.Count} modèle(s) local(aux) chargé(s).";
+            }
+        }
+        catch (Exception exception)
+            when (exception is ArgumentException or
+                  HttpRequestException or
+                  InvalidOperationException or
+                  TaskCanceledException)
+        {
+            _models =
+                Array.Empty<OllamaLocalModel>();
+
+            _modelCatalogIsError = true;
+            _modelCatalogMessage =
+                "Impossible de charger les modèles locaux : " +
+                exception.Message;
+        }
+        finally
+        {
+            if (loadVersion == _modelLoadVersion)
+            {
+                _isLoadingModels = false;
+            }
+        }
     }
 
     private async Task SaveAsync()
     {
+        if (_isSaving)
+        {
+            return;
+        }
+
         _isSaving = true;
         _statusMessage = null;
         _isError = false;
 
         try
         {
+            if (!AreSelectedModelsAvailable)
+            {
+                throw new InvalidOperationException(
+                    "Tous les modèles sélectionnés doivent être installés " +
+                    "sur le serveur Ollama indiqué.");
+            }
+
+            var assignments =
+                new List<AgentModelAssignmentInput>();
+
+            if (!string.IsNullOrWhiteSpace(_historianModel))
+            {
+                assignments.Add(
+                    new AgentModelAssignmentInput(
+                        BuiltInAgents.Historian.Id.Value,
+                        _historianModel));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_apologistModel))
+            {
+                assignments.Add(
+                    new AgentModelAssignmentInput(
+                        BuiltInAgents.ProtestantApologist.Id.Value,
+                        _apologistModel));
+            }
+
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    UpdateAiRuntimeSettingsHandler>();
+
             var settings =
-                new OllamaRoutingSettings(
-                    _baseAddress,
-                    _model,
-                    _requestTimeoutSeconds,
-                    _keepAlive);
+                await handler.HandleAsync(
+                    new UpdateAiRuntimeSettingsCommand(
+                        _baseAddress,
+                        _routingModel,
+                        _defaultAgentModel,
+                        _routingTimeoutSeconds,
+                        _generationTimeoutSeconds,
+                        _keepAlive,
+                        _maximumHistoryMessages,
+                        _maximumHistoryCharacters,
+                        _maximumOutputTokens,
+                        assignments),
+                    CancellationToken.None);
 
-            var normalized =
-                OllamaRoutingSettingsValidator.ToOptions(settings);
-
-            await RoutingSettingsStore.SaveAsync(
-                new OllamaRoutingSettings(
-                    normalized.BaseAddress.ToString(),
-                    normalized.Model,
-                    checked(
-                        (int)normalized.RequestTimeout.TotalSeconds),
-                    normalized.KeepAlive));
-
-            Load(RoutingSettingsStore.Current);
+            Load(settings);
 
             _statusMessage =
-                "Les paramètres de routage ont été enregistrés. " +
+                "Les paramètres d’IA ont été enregistrés dans PostgreSQL. " +
                 "Ils seront utilisés dès la prochaine requête.";
         }
         catch (Exception exception)
@@ -153,12 +519,61 @@
         }
     }
 
-    private void Load(OllamaRoutingSettings settings)
+    private void Load(AiRuntimeSettingsSnapshot settings)
     {
         _baseAddress = settings.BaseAddress;
-        _model = settings.Model;
-        _requestTimeoutSeconds =
-            settings.RequestTimeoutSeconds;
+        _routingModel = settings.RoutingModel;
+        _defaultAgentModel = settings.DefaultAgentModel;
+        _routingTimeoutSeconds = settings.RoutingTimeoutSeconds;
+        _generationTimeoutSeconds = settings.GenerationTimeoutSeconds;
         _keepAlive = settings.KeepAlive;
+        _maximumHistoryMessages = settings.MaximumHistoryMessages;
+        _maximumHistoryCharacters = settings.MaximumHistoryCharacters;
+        _maximumOutputTokens = settings.MaximumOutputTokens;
+
+        _historianModel =
+            settings.AgentModels.TryGetValue(
+                BuiltInAgents.Historian.Id.Value,
+                out var historianModel)
+                ? historianModel
+                : string.Empty;
+
+        _apologistModel =
+            settings.AgentModels.TryGetValue(
+                BuiltInAgents.ProtestantApologist.Id.Value,
+                out var apologistModel)
+                ? apologistModel
+                : string.Empty;
+    }
+
+    private bool IsModelAvailable(string model)
+    {
+        return _models.Any(
+            candidate =>
+                string.Equals(
+                    candidate.Name,
+                    model,
+                    StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool IsOptionalModelAvailable(string model)
+    {
+        return string.IsNullOrWhiteSpace(model) ||
+               IsModelAvailable(model);
+    }
+
+    private IReadOnlyList<string> GetUnavailableSelections()
+    {
+        return new[]
+            {
+                _routingModel,
+                _defaultAgentModel,
+                _historianModel,
+                _apologistModel
+            }
+            .Where(model => !string.IsNullOrWhiteSpace(model))
+            .Where(model => !IsModelAvailable(model))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 }

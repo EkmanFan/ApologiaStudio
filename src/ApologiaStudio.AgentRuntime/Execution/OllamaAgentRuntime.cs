@@ -7,7 +7,9 @@ using System.Text.Json.Serialization;
 using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.Application.Abstractions.Agents;
+using ApologiaStudio.Application.Abstractions.AiRuntime;
 using ApologiaStudio.Application.Agents;
+using ApologiaStudio.Application.AiRuntime.Settings;
 using ApologiaStudio.Domain.Agents;
 using ApologiaStudio.Domain.Conversations;
 using ApologiaStudio.Domain.Users;
@@ -17,10 +19,10 @@ namespace ApologiaStudio.AgentRuntime.Execution;
 public sealed class OllamaAgentRuntime(
     IAgentRouter agentRouter,
     AgentPromptCatalog promptCatalog,
-    HttpClient httpClient,
-    OllamaGenerationOptions options)
-    : IRoutedAgentRuntime,
-      IDisposable
+    IAiRuntimeSettingsStore settingsStore,
+    IOllamaHttpClientFactory httpClientFactory,
+    IOllamaRuntimeTelemetry telemetry)
+    : IRoutedAgentRuntime
 {
     private const int MaximumErrorBodyLength = 2_000;
 
@@ -56,7 +58,18 @@ public sealed class OllamaAgentRuntime(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(routingDecision);
 
-        ValidateConfiguration();
+        var settings =
+            await settingsStore.GetAsync(cancellationToken)
+            ?? throw new InvalidOperationException(
+                "AI runtime settings have not been initialized.");
+
+        var model =
+            settings.ResolveAgentModel(
+                routingDecision.AgentId);
+
+        ValidateConfiguration(
+            settings,
+            model);
 
         yield return new AgentSelectedEvent(
             routingDecision.AgentId,
@@ -71,22 +84,41 @@ public sealed class OllamaAgentRuntime(
             BuildMessages(
                 request,
                 promptDefinition,
-                routingDecision.AgentId);
+                routingDecision.AgentId,
+                settings);
+
+        telemetry.GenerationStarted(
+            new OllamaGenerationStartedObservation(
+                request.ConversationId,
+                routingDecision.AgentId,
+                model,
+                messages.Count - 1,
+                settings.MaximumOutputTokens));
 
         var requestBody = new
         {
-            model = options.Model,
+            model,
             messages,
             stream = true,
             think = false,
-            keep_alive = options.KeepAlive,
+            keep_alive = settings.KeepAlive,
             options = new
             {
                 temperature = 0.2,
                 num_predict =
-                    options.MaximumOutputTokens
+                    settings.MaximumOutputTokens
             }
         };
+
+        var baseAddress =
+            AiRuntimeSettingsValidator.NormalizeBaseAddress(
+                settings.BaseAddress);
+
+        using var httpClient =
+            httpClientFactory.Create(
+                baseAddress,
+                TimeSpan.FromSeconds(
+                    settings.GenerationTimeoutSeconds));
 
         using var httpRequest =
             new HttpRequestMessage(
@@ -127,6 +159,8 @@ public sealed class OllamaAgentRuntime(
             new StringBuilder();
 
         var streamCompleted = false;
+        OllamaChatChunk? completionChunk = null;
+        var repetitionGuard = new OllamaRepetitionGuard();
 
         while (true)
         {
@@ -166,12 +200,32 @@ public sealed class OllamaAgentRuntime(
             {
                 completeResponse.Append(delta);
 
+                if (repetitionGuard.TryDetect(
+                        completeResponse,
+                        out var repetition))
+                {
+                    telemetry.GenerationRejected(
+                        new OllamaGenerationRejectedObservation(
+                            request.ConversationId,
+                            routingDecision.AgentId,
+                            model,
+                            completeResponse.Length,
+                            repetition.PatternLength,
+                            repetition.RepeatCount));
+
+                    throw new OllamaRepetitionDetectedException(
+                        completeResponse.Length,
+                        repetition.PatternLength,
+                        repetition.RepeatCount);
+                }
+
                 yield return new TextDeltaEvent(
                     delta);
             }
 
             if (chunk.Done)
             {
+                completionChunk = chunk;
                 streamCompleted = true;
                 break;
             }
@@ -186,27 +240,45 @@ public sealed class OllamaAgentRuntime(
         var completedText =
             completeResponse.ToString();
 
+        if (completionChunk is null)
+        {
+            throw new InvalidOperationException(
+                "Ollama did not return a final completion chunk.");
+        }
+
         if (string.IsNullOrWhiteSpace(completedText))
         {
             throw new InvalidOperationException(
                 "Ollama completed the request without returning content.");
         }
 
+        telemetry.GenerationCompleted(
+            new OllamaGenerationCompletedObservation(
+                request.ConversationId,
+                routingDecision.AgentId,
+                model,
+                string.IsNullOrWhiteSpace(
+                    completionChunk.DoneReason)
+                    ? "unknown"
+                    : completionChunk.DoneReason,
+                completionChunk.PromptEvaluationCount,
+                completionChunk.EvaluationCount,
+                completionChunk.TotalDuration,
+                completionChunk.LoadDuration,
+                completionChunk.PromptEvaluationDuration,
+                completionChunk.EvaluationDuration));
+
         yield return new AgentTurnCompletedEvent(
             routingDecision.AgentId,
             completedText);
-    }
-
-    public void Dispose()
-    {
-        httpClient.Dispose();
     }
 
     private IReadOnlyList<OllamaRequestMessage>
         BuildMessages(
             AgentTurnRequest request,
             AgentPromptDefinition promptDefinition,
-            AgentId agentId)
+            AgentId agentId,
+            AiRuntimeSettingsSnapshot settings)
     {
         var currentMessageIndex =
             FindCurrentUserMessageIndex(request);
@@ -219,7 +291,7 @@ public sealed class OllamaAgentRuntime(
         for (var index = currentMessageIndex;
              index >= 0 &&
              selectedHistory.Count <
-                 options.MaximumHistoryMessages;
+                 settings.MaximumHistoryMessages;
              index--)
         {
             var message =
@@ -230,8 +302,25 @@ public sealed class OllamaAgentRuntime(
                 continue;
             }
 
+            if (message.Role == MessageRole.Agent &&
+                OllamaRepetitionDetector.TryDetect(
+                    message.Content,
+                    out var repetition))
+            {
+                telemetry.HistoryMessageSkipped(
+                    new OllamaHistoryMessageSkippedObservation(
+                        request.ConversationId,
+                        message.MessageId,
+                        message.AgentId,
+                        message.Content.Length,
+                        repetition.PatternLength,
+                        repetition.RepeatCount));
+
+                continue;
+            }
+
             var remainingCharacters =
-                options.MaximumHistoryCharacters -
+                settings.MaximumHistoryCharacters -
                 characterCount;
 
             if (remainingCharacters <= 0)
@@ -334,34 +423,38 @@ public sealed class OllamaAgentRuntime(
             "The current user message was not found in the conversation history.");
     }
 
-    private void ValidateConfiguration()
+    private static void ValidateConfiguration(
+        AiRuntimeSettingsSnapshot settings,
+        string model)
     {
-        if (!options.BaseAddress.IsAbsoluteUri ||
-            !options.BaseAddress.IsLoopback)
-        {
-            throw new InvalidOperationException(
-                "Ollama must use an absolute loopback address.");
-        }
+        AiRuntimeSettingsValidator.NormalizeBaseAddress(
+            settings.BaseAddress);
 
-        if (string.IsNullOrWhiteSpace(options.Model))
+        if (string.IsNullOrWhiteSpace(model))
         {
             throw new InvalidOperationException(
                 "The Ollama response model is not configured.");
         }
 
-        if (options.MaximumHistoryMessages <= 0)
+        if (settings.GenerationTimeoutSeconds is < 1 or > 600)
+        {
+            throw new InvalidOperationException(
+                "GenerationTimeoutSeconds must be between 1 and 600.");
+        }
+
+        if (settings.MaximumHistoryMessages <= 0)
         {
             throw new InvalidOperationException(
                 "MaximumHistoryMessages must be positive.");
         }
 
-        if (options.MaximumHistoryCharacters <= 0)
+        if (settings.MaximumHistoryCharacters <= 0)
         {
             throw new InvalidOperationException(
                 "MaximumHistoryCharacters must be positive.");
         }
 
-        if (options.MaximumOutputTokens <= 0)
+        if (settings.MaximumOutputTokens <= 0)
         {
             throw new InvalidOperationException(
                 "MaximumOutputTokens must be positive.");
@@ -398,6 +491,27 @@ public sealed class OllamaAgentRuntime(
 
         [JsonPropertyName("error")]
         public string? Error { get; init; }
+
+        [JsonPropertyName("done_reason")]
+        public string? DoneReason { get; init; }
+
+        [JsonPropertyName("total_duration")]
+        public long? TotalDuration { get; init; }
+
+        [JsonPropertyName("load_duration")]
+        public long? LoadDuration { get; init; }
+
+        [JsonPropertyName("prompt_eval_count")]
+        public int? PromptEvaluationCount { get; init; }
+
+        [JsonPropertyName("prompt_eval_duration")]
+        public long? PromptEvaluationDuration { get; init; }
+
+        [JsonPropertyName("eval_count")]
+        public int? EvaluationCount { get; init; }
+
+        [JsonPropertyName("eval_duration")]
+        public long? EvaluationDuration { get; init; }
     }
 
     private sealed class OllamaChatMessage

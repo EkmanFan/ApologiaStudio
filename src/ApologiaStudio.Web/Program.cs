@@ -1,3 +1,7 @@
+using System.Text.Json;
+using ApologiaStudio.Application.Abstractions.AiRuntime;
+using ApologiaStudio.Application.AiRuntime.Settings;
+using ApologiaStudio.Web.AiRuntime;
 using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.AgentRuntime.Execution;
 using ApologiaStudio.AgentRuntime.Routing;
@@ -27,6 +31,7 @@ using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.Components;
 using ApologiaStudio.Web.Endpoints;
 using ApologiaStudio.Web.Identity;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,99 +55,30 @@ builder.Services.AddSingleton<
 builder.Services.AddSingleton<
     DeterministicAgentRouter>();
 
-// APOLOGIA-DYNAMIC-OLLAMA-ROUTING-SETTINGS
-// appsettings provides startup defaults. The Settings page persists
-// application-wide overrides read for every semantic-routing call.
-var ollamaBaseUrlText =
-    builder.Configuration["Ollama:BaseUrl"]
-    ?? throw new InvalidOperationException(
-        "Ollama:BaseUrl is required.");
+// APOLOGIA-DATABASE-BACKED-AI-RUNTIME-SETTINGS
+var aiRuntimeDefaults =
+    CreateAiRuntimeDefaults(
+        builder.Configuration);
 
-if (!Uri.TryCreate(
-        ollamaBaseUrlText,
-        UriKind.Absolute,
-        out var ollamaBaseUri))
-{
-    throw new InvalidOperationException(
-        "Ollama:BaseUrl must be an absolute URI.");
-}
+builder.Services.AddSingleton(
+    aiRuntimeDefaults);
 
-if (!ollamaBaseUri.IsLoopback)
-{
-    throw new InvalidOperationException(
-        "Ollama must use a loopback address because its local API " +
-        "does not provide application authentication.");
-}
+builder.Services.AddHttpClient<
+    IOllamaModelCatalogClient,
+    OllamaModelCatalogClient>(
+    client =>
+        client.Timeout =
+            TimeSpan.FromSeconds(10));
 
-var ollamaModel =
-    builder.Configuration["Ollama:RoutingModel"]
-    ?? throw new InvalidOperationException(
-        "Ollama:RoutingModel is required.");
-
-var timeoutSeconds =
-    builder.Configuration.GetValue<int?>(
-        "Ollama:TimeoutSeconds")
-    ?? throw new InvalidOperationException(
-        "Ollama:TimeoutSeconds is required.");
-
-var ollamaKeepAlive =
-    builder.Configuration["Ollama:KeepAlive"]
-    ?? throw new InvalidOperationException(
-        "Ollama:KeepAlive is required.");
-
-var routingSettingsRelativePath =
-    builder.Configuration["Ollama:RoutingSettingsPath"]
-    ?? throw new InvalidOperationException(
-        "Ollama:RoutingSettingsPath is required.");
-
-var normalizedBaseAddress =
-    new Uri(
-        ollamaBaseUri
-            .ToString()
-            .TrimEnd('/') + "/");
-
-var initialOllamaRoutingSettings =
-    new OllamaRoutingSettings(
-        normalizedBaseAddress.ToString(),
-        ollamaModel,
-        timeoutSeconds,
-        ollamaKeepAlive);
-
-OllamaRoutingSettingsValidator.ToOptions(
-    initialOllamaRoutingSettings);
-
-var routingSettingsPath =
-    Path.IsPathRooted(routingSettingsRelativePath)
-        ? routingSettingsRelativePath
-        : Path.Combine(
-            builder.Environment.ContentRootPath,
-            routingSettingsRelativePath);
+builder.Services.AddHttpClient(
+    "ApologiaStudio.Ollama.Dynamic");
 
 builder.Services.AddSingleton<
-    IOllamaRoutingSettingsStore>(
-    new FileOllamaRoutingSettingsStore(
-        routingSettingsPath,
-        initialOllamaRoutingSettings));
-
-builder.Services.AddSingleton<
-    ISemanticRoutingClassifier>(
-    serviceProvider =>
-        new DynamicOllamaSemanticRoutingClassifier(
-            serviceProvider.GetRequiredService<
-                IOllamaRoutingSettingsStore>(),
-            options =>
-                new HttpClient
-                {
-                    BaseAddress = options.BaseAddress,
-                    Timeout = options.RequestTimeout
-                }));
+    IOllamaHttpClientFactory,
+    OllamaHttpClientFactory>();
 
 builder.Services.AddSingleton(
     new HybridRoutingOptions());
-
-builder.Services.AddSingleton<
-    IAgentRouter,
-    HybridAgentRouter>();
 
 builder.Services.AddSingleton<
     SimulatedAgentResponseProvider>();
@@ -150,101 +86,23 @@ builder.Services.AddSingleton<
 builder.Services.AddSingleton<
     SimulatedAgentRuntime>();
 
-var ollamaResponseModel =
-    builder.Configuration["Ollama:ResponseModel"]
-    ?? ollamaModel;
+builder.Services.AddScoped<
+    ISemanticRoutingClassifier,
+    DynamicOllamaSemanticRoutingClassifier>();
 
-var generationTimeoutSeconds =
-    builder.Configuration.GetValue<int?>(
-        "Ollama:GenerationTimeoutSeconds")
-    ?? 180;
-
-var maximumHistoryMessages =
-    builder.Configuration.GetValue<int?>(
-        "Ollama:MaximumHistoryMessages")
-    ?? 24;
-
-var maximumHistoryCharacters =
-    builder.Configuration.GetValue<int?>(
-        "Ollama:MaximumHistoryCharacters")
-    ?? 24_000;
-
-var maximumOutputTokens =
-    builder.Configuration.GetValue<int?>(
-        "Ollama:MaximumOutputTokens")
-    ?? 1_200;
-
-if (generationTimeoutSeconds is < 1 or > 600)
-{
-    throw new InvalidOperationException(
-        "Ollama:GenerationTimeoutSeconds must be between 1 and 600.");
-}
-
-if (maximumHistoryMessages is < 1 or > 100)
-{
-    throw new InvalidOperationException(
-        "Ollama:MaximumHistoryMessages must be between 1 and 100.");
-}
-
-if (maximumHistoryCharacters is < 1_000 or > 100_000)
-{
-    throw new InvalidOperationException(
-        "Ollama:MaximumHistoryCharacters must be between 1000 and 100000.");
-}
-
-if (maximumOutputTokens is < 64 or > 8_192)
-{
-    throw new InvalidOperationException(
-        "Ollama:MaximumOutputTokens must be between 64 and 8192.");
-}
-
-var ollamaGenerationOptions =
-    new OllamaGenerationOptions
-    {
-        BaseAddress =
-            normalizedBaseAddress,
-        Model =
-            ollamaResponseModel,
-        RequestTimeout =
-            TimeSpan.FromSeconds(
-                generationTimeoutSeconds),
-        KeepAlive =
-            ollamaKeepAlive,
-        MaximumHistoryMessages =
-            maximumHistoryMessages,
-        MaximumHistoryCharacters =
-            maximumHistoryCharacters,
-        MaximumOutputTokens =
-            maximumOutputTokens
-    };
-
-builder.Services.AddSingleton(
-    ollamaGenerationOptions);
+builder.Services.AddScoped<
+    IAgentRouter,
+    HybridAgentRouter>();
 
 builder.Services.AddSingleton<
     AgentPromptCatalog>();
 
 builder.Services.AddSingleton<
-    OllamaAgentRuntime>(
-    serviceProvider =>
-    {
-        var client =
-            new HttpClient
-            {
-                BaseAddress =
-                    ollamaGenerationOptions.BaseAddress,
-                Timeout =
-                    ollamaGenerationOptions.RequestTimeout
-            };
+    IOllamaRuntimeTelemetry,
+    LoggingOllamaRuntimeTelemetry>();
 
-        return new OllamaAgentRuntime(
-            serviceProvider.GetRequiredService<
-                IAgentRouter>(),
-            serviceProvider.GetRequiredService<
-                AgentPromptCatalog>(),
-            client,
-            ollamaGenerationOptions);
-    });
+builder.Services.AddScoped<
+    OllamaAgentRuntime>();
 
 builder.Services.AddScoped<
     IAgentRuntime>(
@@ -314,7 +172,26 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     UpdateUserPreferencesHandler>();
 
+builder.Services.AddScoped<
+    GetAiRuntimeSettingsHandler>();
+
+builder.Services.AddScoped<
+    InitializeAiRuntimeSettingsHandler>();
+
+builder.Services.AddScoped<
+    UpdateAiRuntimeSettingsHandler>();
+
+// APOLOGIA-NORMALIZE-SIMULATED-RUNTIME-LIFETIME
+// Remove every earlier descriptor so a later or duplicate singleton
+// cannot capture scoped routing and persistence services.
+builder.Services.RemoveAll<SimulatedAgentRuntime>();
+builder.Services.AddScoped<SimulatedAgentRuntime>();
+
 var app = builder.Build();
+
+await InitializeAiRuntimeSettingsAsync(
+    app,
+    aiRuntimeDefaults);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -336,3 +213,167 @@ app.MapRazorComponents<App>()
 app.MapBibleCorpusEndpoints();
 
 app.Run();
+
+static AiRuntimeSettingsDefaults CreateAiRuntimeDefaults(
+    IConfiguration configuration)
+{
+    var baseAddress =
+        configuration["Ollama:BaseUrl"]
+        ?? throw new InvalidOperationException(
+            "Ollama:BaseUrl is required.");
+
+    var routingModel =
+        configuration["Ollama:RoutingModel"]
+        ?? throw new InvalidOperationException(
+            "Ollama:RoutingModel is required.");
+
+    var defaultAgentModel =
+        configuration["Ollama:ResponseModel"]
+        ?? routingModel;
+
+    return new AiRuntimeSettingsDefaults(
+        baseAddress,
+        routingModel,
+        defaultAgentModel,
+        configuration.GetValue<int?>(
+            "Ollama:TimeoutSeconds") ?? 60,
+        configuration.GetValue<int?>(
+            "Ollama:GenerationTimeoutSeconds") ?? 180,
+        configuration["Ollama:KeepAlive"] ?? "10m",
+        configuration.GetValue<int?>(
+            "Ollama:MaximumHistoryMessages") ?? 24,
+        configuration.GetValue<int?>(
+            "Ollama:MaximumHistoryCharacters") ?? 24_000,
+        configuration.GetValue<int?>(
+            "Ollama:MaximumOutputTokens") ?? 1_200);
+}
+
+static async Task InitializeAiRuntimeSettingsAsync(
+    WebApplication app,
+    AiRuntimeSettingsDefaults defaults)
+{
+    var legacyPathText =
+        app.Configuration["Ollama:RoutingSettingsPath"];
+
+    var legacyPath =
+        string.IsNullOrWhiteSpace(legacyPathText)
+            ? null
+            : Path.IsPathRooted(legacyPathText)
+                ? legacyPathText
+                : Path.Combine(
+                    app.Environment.ContentRootPath,
+                    legacyPathText);
+
+    await using var scope =
+        app.Services.CreateAsyncScope();
+
+    var settingsStore =
+        scope.ServiceProvider.GetRequiredService<
+            IAiRuntimeSettingsStore>();
+
+    if (await settingsStore.GetAsync(CancellationToken.None)
+        is not null)
+    {
+        TryDeleteLegacySettings(legacyPath);
+        return;
+    }
+
+    var baseAddress = defaults.BaseAddress;
+    var routingModel = defaults.RoutingModel;
+    var defaultAgentModel = defaults.DefaultAgentModel;
+    var routingTimeoutSeconds = defaults.RoutingTimeoutSeconds;
+    var keepAlive = defaults.KeepAlive;
+
+    if (legacyPath is not null && File.Exists(legacyPath))
+    {
+        await using var stream = File.OpenRead(legacyPath);
+        using var document =
+            await JsonDocument.ParseAsync(stream);
+
+        var root = document.RootElement;
+
+        if (root.TryGetProperty("baseAddress", out var addressProperty) &&
+            addressProperty.ValueKind == JsonValueKind.String)
+        {
+            baseAddress =
+                addressProperty.GetString() ?? baseAddress;
+        }
+
+        if (root.TryGetProperty("model", out var modelProperty) &&
+            modelProperty.ValueKind == JsonValueKind.String)
+        {
+            var migratedModel = modelProperty.GetString();
+
+            if (!string.IsNullOrWhiteSpace(migratedModel))
+            {
+                routingModel = migratedModel;
+                defaultAgentModel = migratedModel;
+            }
+        }
+
+        if (root.TryGetProperty(
+                "requestTimeoutSeconds",
+                out var timeoutProperty) &&
+            timeoutProperty.TryGetInt32(out var migratedTimeout))
+        {
+            routingTimeoutSeconds = migratedTimeout;
+        }
+
+        if (root.TryGetProperty("keepAlive", out var keepAliveProperty) &&
+            keepAliveProperty.ValueKind == JsonValueKind.String)
+        {
+            keepAlive =
+                keepAliveProperty.GetString() ?? keepAlive;
+        }
+    }
+
+    var initialCommand =
+        new UpdateAiRuntimeSettingsCommand(
+            baseAddress,
+            routingModel,
+            defaultAgentModel,
+            routingTimeoutSeconds,
+            defaults.GenerationTimeoutSeconds,
+            keepAlive,
+            defaults.MaximumHistoryMessages,
+            defaults.MaximumHistoryCharacters,
+            defaults.MaximumOutputTokens,
+            Array.Empty<AgentModelAssignmentInput>());
+
+    var initialSettings =
+        AiRuntimeSettingsValidator.Normalize(
+            initialCommand,
+            TimeProvider.System.GetUtcNow());
+
+    var initializer =
+        scope.ServiceProvider.GetRequiredService<
+            InitializeAiRuntimeSettingsHandler>();
+
+    await initializer.HandleAsync(
+        initialSettings,
+        CancellationToken.None);
+
+    TryDeleteLegacySettings(legacyPath);
+}
+
+static void TryDeleteLegacySettings(string? legacyPath)
+{
+    if (legacyPath is null || !File.Exists(legacyPath))
+    {
+        return;
+    }
+
+    try
+    {
+        File.Delete(legacyPath);
+    }
+    catch (IOException)
+    {
+        // The database is already the source of truth. A stale ignored
+        // migration file must not prevent application startup.
+    }
+    catch (UnauthorizedAccessException)
+    {
+        // See comment above.
+    }
+}

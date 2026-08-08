@@ -1,58 +1,39 @@
-using System.Net.Http;
+using ApologiaStudio.AgentRuntime.Execution;
+using ApologiaStudio.Application.Abstractions.AiRuntime;
 
 namespace ApologiaStudio.AgentRuntime.Routing.Semantic;
 
-public sealed class DynamicOllamaSemanticRoutingClassifier
+public sealed class DynamicOllamaSemanticRoutingClassifier(
+    IAiRuntimeSettingsStore settingsStore,
+    IOllamaHttpClientFactory httpClientFactory)
     : ISemanticRoutingClassifier
 {
-    private readonly IOllamaRoutingSettingsStore _settingsStore;
-    private readonly Func<OllamaRoutingOptions, HttpClient> _clientFactory;
-
-    public DynamicOllamaSemanticRoutingClassifier(
-        IOllamaRoutingSettingsStore settingsStore,
-        Func<OllamaRoutingOptions, HttpClient> clientFactory)
-    {
-        _settingsStore =
-            settingsStore
-            ?? throw new ArgumentNullException(nameof(settingsStore));
-
-        _clientFactory =
-            clientFactory
-            ?? throw new ArgumentNullException(nameof(clientFactory));
-    }
-
-    public ValueTask<SemanticRoutingResult> ClassifyAsync(
+    public async ValueTask<SemanticRoutingResult> ClassifyAsync(
         string userMessage,
         CancellationToken cancellationToken)
     {
+        var settings =
+            await settingsStore.GetAsync(cancellationToken)
+            ?? throw new InvalidOperationException(
+                "AI runtime settings have not been initialized.");
+
         var options =
-            OllamaRoutingSettingsValidator.ToOptions(
-                _settingsStore.Current);
+            OllamaRoutingSettingsValidator.ToOptions(settings);
 
-        var client = _clientFactory(options);
+        using var client =
+            httpClientFactory.Create(
+                options.BaseAddress,
+                options.RequestTimeout);
 
-        var classifier =
+        using var classifier =
             new OllamaSemanticRoutingClassifier(
                 client,
                 options);
 
-        return InvokeAndDisposeAsync(
-            classifier,
-            client,
-            userMessage, cancellationToken);
-    }
-
-    private static async ValueTask<SemanticRoutingResult> InvokeAndDisposeAsync(
-        OllamaSemanticRoutingClassifier classifier,
-        HttpClient client,
-        string userMessage,
-        CancellationToken cancellationToken)
-    {
-        using (client)
-        {
-            return await classifier
-                .ClassifyAsync(userMessage, cancellationToken)
-                .ConfigureAwait(false);
-        }
+        return await classifier
+            .ClassifyAsync(
+                userMessage,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 }

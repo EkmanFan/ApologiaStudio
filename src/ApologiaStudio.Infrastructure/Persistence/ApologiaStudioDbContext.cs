@@ -2,6 +2,7 @@ using ApologiaStudio.Domain.Conversations;
 using ApologiaStudio.Domain.Navigation;
 using ApologiaStudio.Domain.Projects;
 using ApologiaStudio.Domain.Users;
+using ApologiaStudio.Infrastructure.Persistence.AiRuntime;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApologiaStudio.Infrastructure.Persistence;
@@ -24,6 +25,12 @@ public sealed class ApologiaStudioDbContext(
 
     public DbSet<UserPreferences> UserPreferences =>
         Set<UserPreferences>();
+
+    internal DbSet<AiRuntimeSettingsEntity> AiRuntimeSettings =>
+        Set<AiRuntimeSettingsEntity>();
+
+    internal DbSet<AiAgentModelAssignmentEntity> AiAgentModelAssignments =>
+        Set<AiAgentModelAssignmentEntity>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

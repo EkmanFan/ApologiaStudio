@@ -11,7 +11,8 @@
 }
 
 .ollama-routing-settings > header,
-.ollama-routing-settings > footer {
+.ollama-routing-settings > footer,
+.catalog-actions {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -19,12 +20,14 @@
 }
 
 .ollama-routing-settings h2,
+.ollama-routing-settings h3,
 .ollama-routing-settings p {
     margin: 0;
 }
 
-.ollama-routing-settings header p:last-child {
-    max-width: 48rem;
+.ollama-routing-settings header p:last-child,
+.agent-models > div:first-child p {
+    max-width: 52rem;
     margin-top: 0.35rem;
     color: #697069;
     line-height: 1.5;
@@ -38,7 +41,7 @@
     text-transform: uppercase;
 }
 
-.local-only-badge {
+.database-badge {
     flex: 0 0 auto;
     padding: 0.35rem 0.58rem;
     border-radius: 999px;
@@ -48,13 +51,19 @@
     font-weight: 750;
 }
 
-.settings-grid {
+.settings-grid,
+.agent-model-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
 }
 
-.settings-grid label {
+.wide-field {
+    grid-column: 1 / -1;
+}
+
+.settings-grid label,
+.model-field {
     display: grid;
     align-content: start;
     gap: 0.38rem;
@@ -64,7 +73,9 @@
     font-weight: 700;
 }
 
-.settings-grid input {
+.settings-grid input,
+.settings-grid select,
+.model-field select {
     width: 100%;
     min-width: 0;
     min-height: 2.65rem;
@@ -77,13 +88,17 @@
     font-weight: 500;
 }
 
-.settings-grid input:focus-visible {
+.settings-grid input:focus-visible,
+.settings-grid select:focus-visible,
+.model-field select:focus-visible {
     border-color: #658a79;
     outline: 3px solid rgba(49, 95, 78, 0.16);
 }
 
 .settings-grid small,
-.settings-note {
+.model-field small,
+.settings-note,
+.catalog-note {
     color: #747b75;
     font-size: 0.72rem;
     font-weight: 450;
@@ -97,8 +112,50 @@
     gap: 0.5rem;
 }
 
+.agent-models,
+.execution-settings {
+    display: grid;
+    gap: 0.9rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e1dc;
+}
+
+.agent-models h3,
+.execution-settings h3 {
+    color: #303730;
+    font-size: 1rem;
+}
+
+.catalog-actions {
+    align-items: center;
+}
+
+.catalog-note {
+    max-width: 46rem;
+}
+
+.catalog-note code {
+    padding: 0.08rem 0.25rem;
+    border-radius: 0.25rem;
+    background: #eef0ed;
+    color: #3d4841;
+}
+
+.catalog-message {
+    color: #4f6659;
+    font-size: 0.78rem;
+    font-weight: 550;
+    line-height: 1.4;
+}
+
+.catalog-message.error {
+    color: #8a3029;
+}
+
 .ollama-routing-settings > footer {
     align-items: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e1dc;
 }
 
 .ollama-routing-settings button {
@@ -113,12 +170,25 @@
     cursor: pointer;
 }
 
+.ollama-routing-settings .secondary-action {
+    border: 1px solid #bfc7c1;
+    background: #f4f6f4;
+    color: #39433c;
+}
+
 .ollama-routing-settings button:hover:not(:disabled) {
     background: #244a3d;
 }
 
-.ollama-routing-settings button:disabled {
-    cursor: wait;
+.ollama-routing-settings .secondary-action:hover:not(:disabled) {
+    background: #e7ebe8;
+}
+
+.ollama-routing-settings button:disabled,
+.settings-grid input:disabled,
+.settings-grid select:disabled,
+.model-field select:disabled {
+    cursor: not-allowed;
     opacity: 0.62;
 }
 
@@ -140,16 +210,22 @@
 
 @media (max-width: 720px) {
     .ollama-routing-settings > header,
-    .ollama-routing-settings > footer {
+    .ollama-routing-settings > footer,
+    .catalog-actions {
         align-items: stretch;
         flex-direction: column;
     }
 
-    .settings-grid {
+    .settings-grid,
+    .agent-model-grid {
         grid-template-columns: 1fr;
     }
 
-    .local-only-badge {
+    .wide-field {
+        grid-column: auto;
+    }
+
+    .database-badge {
         align-self: flex-start;
     }
 
