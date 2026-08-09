@@ -18,36 +18,3 @@
         </option>
     }
 </select>
-
-@code {
-    [Parameter, EditorRequired]
-    public string Id { get; set; } = string.Empty;
-
-    [Parameter, EditorRequired]
-    public IReadOnlyList<OllamaLocalModel> Models { get; set; } =
-        Array.Empty<OllamaLocalModel>();
-
-    [Parameter, EditorRequired]
-    public string Value { get; set; } = string.Empty;
-
-    [Parameter]
-    public EventCallback<string> ValueChanged { get; set; }
-
-    [Parameter]
-    public bool IsDisabled { get; set; }
-
-    private bool HasUnavailableValue =>
-        !string.IsNullOrWhiteSpace(Value) &&
-        !Models.Any(
-            model =>
-                string.Equals(
-                    model.Name,
-                    Value,
-                    StringComparison.OrdinalIgnoreCase));
-
-    private Task HandleChangedAsync(ChangeEventArgs eventArgs)
-    {
-        return ValueChanged.InvokeAsync(
-            eventArgs.Value?.ToString() ?? string.Empty);
-    }
-}

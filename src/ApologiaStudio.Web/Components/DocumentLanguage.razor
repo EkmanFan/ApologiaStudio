@@ -1,26 +1,3 @@
 @using ApologiaStudio.Domain.Users
 
 @inject IJSRuntime JavaScript
-
-@code {
-    [Parameter]
-    public ApplicationLanguage Language { get; set; } =
-        ApplicationLanguage.French;
-
-    private ApplicationLanguage? _appliedLanguage;
-
-    protected override async Task OnAfterRenderAsync(
-        bool firstRender)
-    {
-        if (_appliedLanguage == Language)
-        {
-            return;
-        }
-
-        await JavaScript.InvokeVoidAsync(
-            "apologiaStudio.setDocumentLanguage",
-            Language.ToLanguageTag());
-
-        _appliedLanguage = Language;
-    }
-}
