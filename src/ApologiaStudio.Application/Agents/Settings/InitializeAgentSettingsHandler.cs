@@ -11,23 +11,47 @@ public sealed class InitializeAgentSettingsHandler(
     {
         ArgumentNullException.ThrowIfNull(defaults);
 
-        var existing = await settingsStore.ListAsync(cancellationToken);
-        var existingIds = existing
-            .Select(settings => settings.AgentId)
-            .ToHashSet();
-
+        var existing = (await settingsStore.ListAsync(cancellationToken))
+            .ToDictionary(settings => settings.AgentId);
         var created = 0;
+
         foreach (var defaultSettings in defaults)
         {
-            if (existingIds.Contains(defaultSettings.AgentId))
+            if (!existing.TryGetValue(
+                    defaultSettings.AgentId,
+                    out var current))
+            {
+                await settingsStore.SaveAsync(
+                    defaultSettings,
+                    cancellationToken);
+                created++;
+                continue;
+            }
+
+            if (!defaultSettings.IsBuiltIn)
+            {
+                continue;
+            }
+
+            var repaired = current with
+            {
+                Slug = defaultSettings.Slug,
+                RoutingDescription = string.IsNullOrWhiteSpace(
+                    current.RoutingDescription)
+                    ? defaultSettings.RoutingDescription
+                    : current.RoutingDescription,
+                IsBuiltIn = true,
+                IsEnabled = true
+            };
+
+            if (repaired == current)
             {
                 continue;
             }
 
             await settingsStore.SaveAsync(
-                defaultSettings,
+                repaired,
                 cancellationToken);
-            created++;
         }
 
         return created;

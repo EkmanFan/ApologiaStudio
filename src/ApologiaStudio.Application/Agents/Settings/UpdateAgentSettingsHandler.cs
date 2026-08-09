@@ -10,10 +10,24 @@ public sealed class UpdateAgentSettingsHandler(
         UpdateAgentSettingsCommand command,
         CancellationToken cancellationToken)
     {
-        var normalized = AgentSettingsValidator.Normalize(
-            command,
-            timeProvider.GetUtcNow());
+        ArgumentNullException.ThrowIfNull(command);
 
+        var existing = await settingsStore.GetAsync(
+            command.AgentId,
+            cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"L'agent '{command.AgentId}' n'existe pas.");
+
+        if (!existing.IsEnabled)
+        {
+            throw new InvalidOperationException(
+                "Un agent supprimé ne peut pas être modifié.");
+        }
+
+        var normalized = AgentSettingsValidator.NormalizeUpdate(
+            command,
+            existing,
+            timeProvider.GetUtcNow());
         await settingsStore.SaveAsync(
             normalized,
             cancellationToken);

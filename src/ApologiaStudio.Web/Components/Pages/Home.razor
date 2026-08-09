@@ -1590,14 +1590,20 @@ else
             return Ui("Vous", "You");
         }
 
-        if (message.AgentId is { } agentId &&
-            AgentRegistry.TryGet(
-                agentId,
-                out var profile))
+        if (message.AgentId is { } agentId)
         {
-            return GetAgentDisplayName(
-                profile.Agent.Id,
-                profile.Agent.DisplayName);
+            var persistedSettings = GetAgentSettings(agentId);
+            if (persistedSettings is not null)
+            {
+                return persistedSettings.DisplayName;
+            }
+
+            if (AgentRegistry.TryGet(
+                    agentId,
+                    out var profile))
+            {
+                return profile.Agent.DisplayName;
+            }
         }
 
         return Ui("Système", "System");

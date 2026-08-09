@@ -12,7 +12,17 @@ public interface IAgentSettingsStore
         AgentId agentId,
         CancellationToken cancellationToken);
 
+    Task<bool> TryCreateAsync(
+        AgentSettingsSnapshot settings,
+        int maximumActiveAgents,
+        CancellationToken cancellationToken);
+
     Task SaveAsync(
         AgentSettingsSnapshot settings,
+        CancellationToken cancellationToken);
+
+    Task<bool> DeactivateAsync(
+        AgentId agentId,
+        DateTimeOffset updatedAt,
         CancellationToken cancellationToken);
 }

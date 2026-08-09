@@ -7,6 +7,7 @@
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject IOllamaModelCatalogClient ModelCatalogClient
 @inject BuiltInAgentSettingsCatalog AgentDefaults
+@inject IMutableAgentRegistry AgentRegistry
 
 <section class="agent-settings-panel"
          aria-labelledby="agent-settings-panel-title">
@@ -17,8 +18,9 @@
                 Profils des agents
             </h2>
             <p>
-                Nom, avatar, couleur, modèle et prompt système sont persistés
-                dans PostgreSQL et utilisés dès le prochain tour d’agent.
+                Nom, avatar, couleur, modèle, description de routage et prompt
+                système sont persistés dans PostgreSQL et utilisés dès le
+                prochain tour d’agent.
             </p>
         </div>
         <span class="database-badge">PostgreSQL</span>
@@ -53,11 +55,23 @@
                 <div>
                     <p class="settings-kicker">Configuration</p>
                     <h3 id="agents-settings-title">Agents disponibles</h3>
+                    <p>
+                        Le modèle vide utilise le modèle par défaut défini dans
+                        l’onglet IA. La description de routage indique au routeur
+                        quand sélectionner l’agent.
+                    </p>
                 </div>
-                <p>
-                    Le modèle vide utilise le modèle par défaut défini dans
-                    l’onglet IA.
-                </p>
+                <div class="agent-list-actions">
+                    <span class="agent-count">
+                        @ActiveAgentCount / @AgentSettingsPolicy.MaximumActiveAgents agents
+                    </span>
+                    <button type="button"
+                            disabled="@(!CanAddAgent)"
+                            title="@AddAgentButtonTitle"
+                            @onclick="AddAgent">
+                        + Ajouter un agent
+                    </button>
+                </div>
             </div>
 
             <div class="agent-stack">
@@ -65,14 +79,18 @@
                 {
                     var isSavingAgent =
                         _savingAgentIds.Contains(editor.AgentId.Value);
-                    var modelSelectId = $"agent-model-{editor.Slug}";
-                    var nameInputId = $"agent-name-{editor.Slug}";
-                    var avatarInputId = $"agent-avatar-{editor.Slug}";
-                    var colorInputId = $"agent-color-{editor.Slug}";
-                    var colorTextInputId = $"agent-color-text-{editor.Slug}";
-                    var promptInputId = $"agent-prompt-{editor.Slug}";
+                    var editorKey = editor.IsNew
+                        ? editor.AgentId.Value.ToString("N")
+                        : editor.Slug;
+                    var modelSelectId = $"agent-model-{editorKey}";
+                    var nameInputId = $"agent-name-{editorKey}";
+                    var avatarInputId = $"agent-avatar-{editorKey}";
+                    var colorInputId = $"agent-color-{editorKey}";
+                    var colorTextInputId = $"agent-color-text-{editorKey}";
+                    var routingInputId = $"agent-routing-{editorKey}";
+                    var promptInputId = $"agent-prompt-{editorKey}";
 
-                    <details class="agent-card">
+                    <details class="agent-card" open="@editor.IsNew">
                         <summary class="agent-card-summary">
                             <div class="agent-identity-preview"
                                  style="@GetAgentPreviewStyle(editor)">
@@ -82,7 +100,10 @@
                                 </span>
                                 <div>
                                     <strong>@editor.DisplayName</strong>
-                                    <small>@editor.Slug</small>
+                                    <small>
+                                        @(editor.IsNew ? "Nouvel agent" : editor.Slug)
+                                        · @(editor.IsBuiltIn ? "intégré" : "personnalisé")
+                                    </small>
                                 </div>
                             </div>
                             <span class="agent-summary-meta">
@@ -157,6 +178,21 @@
                                     </div>
                                     <small>Format #RRGGBB.</small>
                                 </div>
+
+                                <label class="wide-field routing-field"
+                                       for="@routingInputId">
+                                    <span>Description de routage</span>
+                                    <textarea id="@routingInputId"
+                                              rows="4"
+                                              maxlength="@AgentSettingsValidator.MaximumRoutingDescriptionLength"
+                                              spellcheck="false"
+                                              disabled="@isSavingAgent"
+                                              @bind="editor.RoutingDescription"></textarea>
+                                    <small>
+                                        Décrivez le domaine d’expertise et les types de demandes
+                                        pour lesquels le routeur doit choisir cet agent.
+                                    </small>
+                                </label>
                             </div>
 
                             <details class="prompt-section">
@@ -197,17 +233,63 @@
                                     }
                                 </div>
                                 <div class="agent-actions">
-                                    <button class="secondary-action"
-                                            type="button"
-                                            disabled="@isSavingAgent"
-                                            @onclick="() => ResetAgentToDefaults(editor)">
-                                        Réinitialiser
-                                    </button>
-                                    <button type="button"
-                                            disabled="@isSavingAgent"
-                                            @onclick="() => SaveAgentAsync(editor)">
-                                        @(isSavingAgent ? "Enregistrement…" : "Enregistrer")
-                                    </button>
+                                    @if (editor.IsNew)
+                                    {
+                                        <button class="secondary-action"
+                                                type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => CancelNewAgent(editor)">
+                                            Annuler
+                                        </button>
+                                        <button type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => SaveAgentAsync(editor)">
+                                            @(isSavingAgent ? "Création…" : "Créer l’agent")
+                                        </button>
+                                    }
+                                    else if (editor.IsBuiltIn)
+                                    {
+                                        <button class="secondary-action"
+                                                type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => ResetAgentToDefaults(editor)">
+                                            Réinitialiser
+                                        </button>
+                                        <button type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => SaveAgentAsync(editor)">
+                                            @(isSavingAgent ? "Enregistrement…" : "Enregistrer")
+                                        </button>
+                                    }
+                                    else if (editor.ConfirmDelete)
+                                    {
+                                        <button class="secondary-action"
+                                                type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => editor.ConfirmDelete = false">
+                                            Annuler
+                                        </button>
+                                        <button class="danger-action"
+                                                type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => DeleteAgentAsync(editor)">
+                                            @(isSavingAgent ? "Suppression…" : "Confirmer la suppression")
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="danger-secondary-action"
+                                                type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => editor.ConfirmDelete = true">
+                                            Supprimer
+                                        </button>
+                                        <button type="button"
+                                                disabled="@isSavingAgent"
+                                                @onclick="() => SaveAgentAsync(editor)">
+                                            @(isSavingAgent ? "Enregistrement…" : "Enregistrer")
+                                        </button>
+                                    }
                                 </div>
                             </footer>
                         </div>
@@ -224,8 +306,7 @@
 
     private IReadOnlyList<OllamaLocalModel> _models =
         Array.Empty<OllamaLocalModel>();
-    private IReadOnlyList<AgentEditor> _agentEditors =
-        Array.Empty<AgentEditor>();
+    private List<AgentEditor> _agentEditors = [];
     private readonly HashSet<Guid> _savingAgentIds = [];
 
     private string _baseAddress = string.Empty;
@@ -238,6 +319,21 @@
     private bool _isLoadingSettings = true;
     private bool _isLoadingModels;
     private bool _modelCatalogIsError;
+
+    private int ActiveAgentCount =>
+        _agentEditors.Count(editor => !editor.IsNew);
+
+    private bool CanAddAgent =>
+        ActiveAgentCount < AgentSettingsPolicy.MaximumActiveAgents &&
+        !_agentEditors.Any(editor => editor.IsNew) &&
+        _savingAgentIds.Count == 0;
+
+    private string AddAgentButtonTitle =>
+        ActiveAgentCount >= AgentSettingsPolicy.MaximumActiveAgents
+            ? $"Maximum de {AgentSettingsPolicy.MaximumActiveAgents} agents atteint."
+            : _agentEditors.Any(editor => editor.IsNew)
+                ? "Terminez ou annulez le nouvel agent en cours."
+                : "Ajouter un agent personnalisé";
 
     protected override async Task OnInitializedAsync()
     {
@@ -380,7 +476,8 @@
 
     private async Task SaveAgentAsync(AgentEditor editor)
     {
-        if (!_savingAgentIds.Add(editor.AgentId.Value))
+        var operationId = editor.AgentId.Value;
+        if (!_savingAgentIds.Add(operationId))
         {
             return;
         }
@@ -390,36 +487,49 @@
 
         try
         {
-            if (_models.Count > 0 &&
-                !IsOptionalModelAvailable(editor.Model))
-            {
-                throw new InvalidOperationException(
-                    "Le modèle sélectionné pour cet agent n’est pas installé " +
-                    "sur le serveur Ollama indiqué.");
-            }
+            ValidateSelectedModel(editor);
 
             await using var scope =
                 ServiceScopeFactory.CreateAsyncScope();
-            var handler =
-                scope.ServiceProvider.GetRequiredService<
-                    UpdateAgentSettingsHandler>();
 
-            var saved =
-                await handler.HandleAsync(
+            AgentSettingsSnapshot saved;
+            if (editor.IsNew)
+            {
+                var handler =
+                    scope.ServiceProvider.GetRequiredService<
+                        CreateAgentSettingsHandler>();
+                saved = await handler.HandleAsync(
+                    new CreateAgentSettingsCommand(
+                        editor.DisplayName,
+                        editor.Avatar,
+                        editor.BubbleColor,
+                        NormalizeOptionalModel(editor.Model),
+                        editor.SystemPrompt,
+                        editor.RoutingDescription),
+                    CancellationToken.None);
+            }
+            else
+            {
+                var handler =
+                    scope.ServiceProvider.GetRequiredService<
+                        UpdateAgentSettingsHandler>();
+                saved = await handler.HandleAsync(
                     new UpdateAgentSettingsCommand(
                         editor.AgentId,
                         editor.DisplayName,
                         editor.Avatar,
                         editor.BubbleColor,
-                        string.IsNullOrWhiteSpace(editor.Model)
-                            ? null
-                            : editor.Model,
-                        editor.SystemPrompt),
+                        NormalizeOptionalModel(editor.Model),
+                        editor.SystemPrompt,
+                        editor.RoutingDescription),
                     CancellationToken.None);
+            }
 
             editor.Load(saved);
-            editor.StatusMessage =
-                "Profil enregistré. Il sera utilisé dès le prochain tour.";
+            AgentRegistry.Upsert(AgentRoutingProfile.FromSettings(saved));
+            editor.StatusMessage = editor.IsBuiltIn
+                ? "Profil enregistré. Il sera utilisé dès le prochain tour."
+                : "Agent enregistré et disponible immédiatement pour le routage.";
         }
         catch (Exception exception)
             when (exception is ArgumentException or
@@ -432,8 +542,96 @@
         }
         finally
         {
-            _savingAgentIds.Remove(editor.AgentId.Value);
+            _savingAgentIds.Remove(operationId);
         }
+    }
+
+    private async Task DeleteAgentAsync(AgentEditor editor)
+    {
+        if (editor.IsBuiltIn || editor.IsNew)
+        {
+            return;
+        }
+
+        var operationId = editor.AgentId.Value;
+        if (!_savingAgentIds.Add(operationId))
+        {
+            return;
+        }
+
+        editor.StatusMessage = null;
+        editor.StatusIsError = false;
+
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    DeleteAgentSettingsHandler>();
+
+            await handler.HandleAsync(
+                editor.AgentId,
+                CancellationToken.None);
+
+            AgentRegistry.Remove(editor.AgentId);
+            _agentEditors.Remove(editor);
+        }
+        catch (Exception exception)
+            when (exception is ArgumentException or
+                  InvalidOperationException or
+                  IOException or
+                  UnauthorizedAccessException)
+        {
+            editor.StatusIsError = true;
+            editor.StatusMessage = exception.Message;
+            editor.ConfirmDelete = false;
+        }
+        finally
+        {
+            _savingAgentIds.Remove(operationId);
+        }
+    }
+
+    private void AddAgent()
+    {
+        if (!CanAddAgent)
+        {
+            return;
+        }
+
+        var temporaryId = ApologiaStudio.Domain.Agents.AgentId.New();
+        _agentEditors.Add(
+            AgentEditor.NewDraft(temporaryId));
+    }
+
+    private void CancelNewAgent(AgentEditor editor)
+    {
+        if (!editor.IsNew ||
+            _savingAgentIds.Contains(editor.AgentId.Value))
+        {
+            return;
+        }
+
+        _agentEditors.Remove(editor);
+    }
+
+    private void ValidateSelectedModel(AgentEditor editor)
+    {
+        if (_models.Count > 0 &&
+            !IsOptionalModelAvailable(editor.Model))
+        {
+            throw new InvalidOperationException(
+                "Le modèle sélectionné pour cet agent n’est pas installé " +
+                "sur le serveur Ollama indiqué.");
+        }
+    }
+
+    private static string? NormalizeOptionalModel(string? model)
+    {
+        return string.IsNullOrWhiteSpace(model)
+            ? null
+            : model;
     }
 
     private void ResetAgentToDefaults(AgentEditor editor)
@@ -444,6 +642,7 @@
         editor.BubbleColor = defaults.BubbleColor;
         editor.Model = string.Empty;
         editor.SystemPrompt = defaults.Prompt.SystemPrompt;
+        editor.RoutingDescription = defaults.RoutingDescription;
         editor.StatusIsError = false;
         editor.StatusMessage =
             "Valeurs par défaut restaurées localement. Enregistrez pour les appliquer.";
@@ -458,32 +657,12 @@
     private void LoadAgents(
         IReadOnlyList<AgentSettingsSnapshot> persistedSettings)
     {
-        var byId = persistedSettings.ToDictionary(
-            settings => settings.AgentId);
-
-        _agentEditors = AgentDefaults.All
-            .Select(
-                defaults =>
-                {
-                    if (byId.TryGetValue(
-                            defaults.Agent.Id,
-                            out var persisted))
-                    {
-                        return AgentEditor.From(
-                            defaults.Agent.Slug,
-                            persisted);
-                    }
-
-                    return new AgentEditor(
-                        defaults.Agent.Id,
-                        defaults.Agent.Slug,
-                        defaults.Agent.DisplayName,
-                        defaults.Avatar,
-                        defaults.BubbleColor,
-                        string.Empty,
-                        defaults.Prompt.SystemPrompt);
-                })
-            .ToArray();
+        _agentEditors = persistedSettings
+            .Where(settings => settings.IsEnabled)
+            .OrderByDescending(settings => settings.IsBuiltIn)
+            .ThenBy(settings => settings.DisplayName)
+            .Select(AgentEditor.From)
+            .ToList();
     }
 
     private bool IsModelAvailable(string model)
@@ -553,39 +732,71 @@
         string avatar,
         string bubbleColor,
         string model,
-        string systemPrompt)
+        string systemPrompt,
+        string routingDescription,
+        bool isBuiltIn,
+        bool isNew)
     {
-        public ApologiaStudio.Domain.Agents.AgentId AgentId { get; } = agentId;
-        public string Slug { get; } = slug;
+        public ApologiaStudio.Domain.Agents.AgentId AgentId { get; private set; } = agentId;
+        public string Slug { get; private set; } = slug;
         public string DisplayName { get; set; } = displayName;
         public string Avatar { get; set; } = avatar;
         public string BubbleColor { get; set; } = bubbleColor;
         public string Model { get; set; } = model;
         public string SystemPrompt { get; set; } = systemPrompt;
+        public string RoutingDescription { get; set; } = routingDescription;
+        public bool IsBuiltIn { get; private set; } = isBuiltIn;
+        public bool IsNew { get; private set; } = isNew;
+        public bool ConfirmDelete { get; set; }
         public string? StatusMessage { get; set; }
         public bool StatusIsError { get; set; }
 
-        public static AgentEditor From(
-            string slug,
-            AgentSettingsSnapshot settings)
+        public static AgentEditor From(AgentSettingsSnapshot settings)
         {
             return new AgentEditor(
                 settings.AgentId,
-                slug,
+                settings.Slug,
                 settings.DisplayName,
                 settings.Avatar,
                 settings.BubbleColor,
                 settings.Model ?? string.Empty,
-                settings.SystemPrompt);
+                settings.SystemPrompt,
+                settings.RoutingDescription,
+                settings.IsBuiltIn,
+                isNew: false);
+        }
+
+        public static AgentEditor NewDraft(
+            ApologiaStudio.Domain.Agents.AgentId temporaryId)
+        {
+            return new AgentEditor(
+                temporaryId,
+                string.Empty,
+                "Nouvel agent",
+                "🤖",
+                "#EAF0F3",
+                string.Empty,
+                "You are a specialized AI assistant in ApologiaStudio. " +
+                "Follow the user's request while remaining within your configured area of expertise.",
+                string.Empty,
+                isBuiltIn: false,
+                isNew: true);
         }
 
         public void Load(AgentSettingsSnapshot settings)
         {
+            AgentId = settings.AgentId;
+            Slug = settings.Slug;
             DisplayName = settings.DisplayName;
             Avatar = settings.Avatar;
             BubbleColor = settings.BubbleColor;
             Model = settings.Model ?? string.Empty;
             SystemPrompt = settings.SystemPrompt;
+            RoutingDescription = settings.RoutingDescription;
+            IsBuiltIn = settings.IsBuiltIn;
+            IsNew = false;
+            ConfirmDelete = false;
         }
     }
+
 }

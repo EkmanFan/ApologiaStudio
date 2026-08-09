@@ -53,8 +53,11 @@ builder.Services.AddSingleton<TimeProvider>(
 builder.Services.AddSingleton<
     BiblePassageRequestParser>();
 
+builder.Services.AddSingleton<IMutableAgentRegistry>(
+    static _ => new AgentRegistry());
 builder.Services.AddSingleton<IAgentRegistry>(
-    static _ => new BuiltInAgentRegistry());
+    serviceProvider =>
+        serviceProvider.GetRequiredService<IMutableAgentRegistry>());
 
 builder.Services.AddSingleton<
     DeterministicAgentRouter>();
@@ -193,6 +196,10 @@ builder.Services.AddScoped<
     InitializeAgentSettingsHandler>();
 builder.Services.AddScoped<
     UpdateAgentSettingsHandler>();
+builder.Services.AddScoped<
+    CreateAgentSettingsHandler>();
+builder.Services.AddScoped<
+    DeleteAgentSettingsHandler>();
 
 // APOLOGIA-NORMALIZE-SIMULATED-RUNTIME-LIFETIME
 // Remove every earlier descriptor so a later or duplicate singleton
@@ -401,12 +408,16 @@ static async Task InitializeAgentSettingsAsync(WebApplication app)
 
                 return new AgentSettingsSnapshot(
                     definition.Agent.Id,
+                    definition.Agent.Slug,
                     definition.Agent.DisplayName,
                     definition.Avatar,
                     definition.BubbleColor,
                     model,
                     definition.Prompt.SystemPrompt,
-                    updatedAt);
+                    definition.RoutingDescription,
+                    IsBuiltIn: true,
+                    IsEnabled: true,
+                    UpdatedAt: updatedAt);
             })
         .ToArray();
 
@@ -416,6 +427,15 @@ static async Task InitializeAgentSettingsAsync(WebApplication app)
     await initializer.HandleAsync(
         defaults,
         CancellationToken.None);
+
+    var allSettings = await scope.ServiceProvider
+        .GetRequiredService<IAgentSettingsStore>()
+        .ListAsync(CancellationToken.None);
+    var registry = app.Services.GetRequiredService<IMutableAgentRegistry>();
+    registry.ReplaceAll(
+        allSettings
+            .Where(settings => settings.IsEnabled)
+            .Select(AgentRoutingProfile.FromSettings));
 }
 
 static void TryDeleteLegacySettings(string? legacyPath)

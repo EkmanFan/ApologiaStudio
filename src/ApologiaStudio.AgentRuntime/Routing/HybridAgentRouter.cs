@@ -38,6 +38,17 @@ public sealed class HybridAgentRouter(
         }
 
         if (!needsBibleIntentClassification &&
+            deterministicDecision.BiblePassageResolution !=
+                BiblePassageResolution.None)
+        {
+            return deterministicDecision;
+        }
+
+        var hasCustomAgents =
+            _agentRegistry.All.Count > BuiltInAgents.All.Count;
+
+        if (!needsBibleIntentClassification &&
+            !hasCustomAgents &&
             deterministicDecision.Confidence >=
             options.DeterministicConfidenceThreshold)
         {

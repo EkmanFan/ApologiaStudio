@@ -6,23 +6,24 @@ public sealed record BuiltInAgentSettingsDefinition(
     AgentDescriptor Agent,
     string Avatar,
     string BubbleColor,
-    AgentPromptDefinition Prompt);
+    AgentPromptDefinition Prompt,
+    string RoutingDescription);
 
 public sealed class BuiltInAgentSettingsCatalog(
     AgentPromptCatalog promptCatalog)
 {
     private readonly IReadOnlyList<BuiltInAgentSettingsDefinition> _all =
     [
-        new(
+        Create(
             BuiltInAgents.Historian,
             "🏛️",
             "#E7EEF4",
-            promptCatalog.Get(BuiltInAgents.Historian.Id)),
-        new(
+            promptCatalog),
+        Create(
             BuiltInAgents.ProtestantApologist,
             "✝️",
             "#F0E9F6",
-            promptCatalog.Get(BuiltInAgents.ProtestantApologist.Id))
+            promptCatalog)
     ];
 
     public IReadOnlyList<BuiltInAgentSettingsDefinition> All => _all;
@@ -34,5 +35,21 @@ public sealed class BuiltInAgentSettingsCatalog(
                ?? throw new ArgumentException(
                    $"No defaults are configured for agent '{agentId}'.",
                    nameof(agentId));
+    }
+
+    private static BuiltInAgentSettingsDefinition Create(
+        AgentDescriptor agent,
+        string avatar,
+        string bubbleColor,
+        AgentPromptCatalog promptCatalog)
+    {
+        var routingProfile = BuiltInAgentRegistry.Profiles.Single(
+            profile => profile.Agent.Id == agent.Id);
+        return new BuiltInAgentSettingsDefinition(
+            agent,
+            avatar,
+            bubbleColor,
+            promptCatalog.Get(agent.Id),
+            routingProfile.RoutingDescription);
     }
 }

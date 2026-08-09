@@ -4,10 +4,33 @@ namespace ApologiaStudio.AgentRuntime.Agents;
 
 public sealed class BuiltInAgentRegistry : IAgentRegistry
 {
+    public static IReadOnlyList<AgentRoutingProfile> Profiles { get; } =
+        Array.AsReadOnly(
+        [
+            new AgentRoutingProfile(
+                BuiltInAgents.Historian,
+                """
+                - historical people, rulers, events and institutions;
+                - chronology, dates, durations and ages at historical events;
+                - councils, political history and Church history;
+                - development of doctrines or practices through history;
+                - descriptive questions about what happened historically.
+                """),
+            new AgentRoutingProfile(
+                BuiltInAgents.ProtestantApologist,
+                """
+                - defence of Christian or Protestant beliefs;
+                - biblical doctrine and theological interpretation;
+                - objections from atheism, Islam, Catholicism or Orthodoxy;
+                - arguments for God, Christ, resurrection or Scripture;
+                - normative questions about what Christians should believe.
+                """)
+        ]);
+
     private readonly IReadOnlyList<AgentRoutingProfile> _all;
 
     public BuiltInAgentRegistry()
-        : this(CreateBuiltInProfiles())
+        : this(Profiles)
     {
     }
 
@@ -15,7 +38,6 @@ public sealed class BuiltInAgentRegistry : IAgentRegistry
         IEnumerable<AgentRoutingProfile> profiles)
     {
         ArgumentNullException.ThrowIfNull(profiles);
-
         var items = profiles.ToArray();
         if (items.Length == 0)
         {
@@ -23,7 +45,6 @@ public sealed class BuiltInAgentRegistry : IAgentRegistry
                 "At least one agent must be registered.",
                 nameof(profiles));
         }
-
         if (items.Any(
                 profile =>
                     string.IsNullOrWhiteSpace(profile.Agent.Slug) ||
@@ -34,7 +55,6 @@ public sealed class BuiltInAgentRegistry : IAgentRegistry
                 "Every registered agent must define a slug, display name and routing description.",
                 nameof(profiles));
         }
-
         if (items
             .GroupBy(profile => profile.Agent.Id)
             .Any(group => group.Count() > 1))
@@ -43,7 +63,6 @@ public sealed class BuiltInAgentRegistry : IAgentRegistry
                 "Agent identifiers must be unique.",
                 nameof(profiles));
         }
-
         if (items
             .GroupBy(
                 profile => profile.Agent.Slug,
@@ -66,7 +85,6 @@ public sealed class BuiltInAgentRegistry : IAgentRegistry
     {
         var result = _all.FirstOrDefault(
             candidate => candidate.Agent.Id == agentId);
-
         if (result is null)
         {
             profile = null!;
@@ -93,7 +111,6 @@ public sealed class BuiltInAgentRegistry : IAgentRegistry
                     candidate.Agent.Slug,
                     slug,
                     StringComparison.OrdinalIgnoreCase));
-
         if (result is null)
         {
             profile = null!;
@@ -102,31 +119,5 @@ public sealed class BuiltInAgentRegistry : IAgentRegistry
 
         profile = result;
         return true;
-    }
-
-    private static IReadOnlyList<AgentRoutingProfile>
-        CreateBuiltInProfiles()
-    {
-        return
-        [
-            new AgentRoutingProfile(
-                BuiltInAgents.Historian,
-                """
-                - historical people, rulers, events and institutions;
-                - chronology, dates, durations and ages at historical events;
-                - councils, political history and Church history;
-                - development of doctrines or practices through history;
-                - descriptive questions about what happened historically.
-                """),
-            new AgentRoutingProfile(
-                BuiltInAgents.ProtestantApologist,
-                """
-                - defence of Christian or Protestant beliefs;
-                - biblical doctrine and theological interpretation;
-                - objections from atheism, Islam, Catholicism or Orthodoxy;
-                - arguments for God, Christ, resurrection or Scripture;
-                - normative questions about what Christians should believe.
-                """)
-        ];
     }
 }

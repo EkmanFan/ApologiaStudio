@@ -18,17 +18,21 @@ internal sealed class AiAgentSettingsConfiguration
                     "bubble_color ~ '^#[0-9A-F]{6}$'"));
 
         builder.HasKey(settings => settings.AgentId);
-
         builder.Property(settings => settings.AgentId)
             .HasColumnName("agent_id")
             .HasColumnType("uuid")
             .ValueGeneratedNever();
 
+        builder.Property(settings => settings.Slug)
+            .HasColumnName("slug")
+            .HasMaxLength(AgentSettingsValidator.MaximumSlugLength);
+        builder.HasIndex(settings => settings.Slug)
+            .IsUnique();
+
         builder.Property(settings => settings.DisplayName)
             .HasColumnName("display_name")
             .HasMaxLength(AgentSettingsValidator.MaximumDisplayNameLength)
             .IsRequired();
-
         builder.Property(settings => settings.Avatar)
             .HasColumnName("avatar")
             .HasMaxLength(AgentSettingsValidator.MaximumAvatarLength)
@@ -39,7 +43,6 @@ internal sealed class AiAgentSettingsConfiguration
             .HasMaxLength(7)
             .IsFixedLength()
             .IsRequired();
-
         builder.Property(settings => settings.Model)
             .HasColumnName("model")
             .HasMaxLength(AgentSettingsValidator.MaximumModelLength);
@@ -47,6 +50,18 @@ internal sealed class AiAgentSettingsConfiguration
         builder.Property(settings => settings.SystemPrompt)
             .HasColumnName("system_prompt")
             .HasColumnType("text")
+            .IsRequired();
+        builder.Property(settings => settings.RoutingDescription)
+            .HasColumnName("routing_description")
+            .HasColumnType("text");
+
+        builder.Property(settings => settings.IsBuiltIn)
+            .HasColumnName("is_built_in")
+            .HasDefaultValue(false)
+            .IsRequired();
+        builder.Property(settings => settings.IsEnabled)
+            .HasColumnName("is_enabled")
+            .HasDefaultValue(true)
             .IsRequired();
 
         builder.Property(settings => settings.UpdatedAt)

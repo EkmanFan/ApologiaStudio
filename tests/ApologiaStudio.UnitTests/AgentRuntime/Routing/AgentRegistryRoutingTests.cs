@@ -38,6 +38,41 @@ public sealed class AgentRegistryRoutingTests
     }
 
     [Fact]
+    public void MutableRegistry_ShouldExposeAddedAgentAndRemoveItImmediately()
+    {
+        var registry = new AgentRegistry();
+        var profile = new AgentRoutingProfile(
+            PatristicsAgent,
+            "- early Christian writers, Church Fathers and patristic sources;");
+
+        registry.Upsert(profile);
+
+        Assert.True(registry.TryGet(PatristicsAgent.Id, out var added));
+        Assert.Equal(PatristicsAgent, added.Agent);
+
+        Assert.True(registry.Remove(PatristicsAgent.Id));
+        Assert.False(registry.TryGet(PatristicsAgent.Id, out _));
+        Assert.Contains(
+            registry.All,
+            item => item.Agent.Id == BuiltInAgents.Historian.Id);
+        Assert.Contains(
+            registry.All,
+            item => item.Agent.Id == BuiltInAgents.ProtestantApologist.Id);
+    }
+
+    [Fact]
+    public void MutableRegistry_ShouldRefuseRemovingBuiltInAgent()
+    {
+        var registry = new AgentRegistry();
+
+        Assert.False(registry.Remove(BuiltInAgents.Historian.Id));
+        Assert.True(
+            registry.TryGet(
+                BuiltInAgents.Historian.Id,
+                out _));
+    }
+
+    [Fact]
     public void DeterministicRouter_ShouldAcceptExplicitAgentFromRegistry()
     {
         var registry = CreateRegistryWithPatristicsAgent();
@@ -75,6 +110,58 @@ public sealed class AgentRegistryRoutingTests
         Assert.Equal(PatristicsAgent.Id, decision.AgentId);
         Assert.Equal(PatristicsAgent.DisplayName, decision.AgentName);
         Assert.Equal(1, classifier.CallCount);
+    }
+
+    [Fact]
+    public async Task HybridRouter_ShouldConsultSemanticRoutingWhenCustomAgentExists()
+    {
+        var registry = CreateRegistryWithPatristicsAgent();
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                PatristicsAgent.Slug,
+                0.99,
+                "Le spécialiste personnalisé est plus précis."));
+        var router = new HybridAgentRouter(
+            new DeterministicAgentRouter(registry),
+            classifier,
+            new HybridRoutingOptions(),
+            registry);
+
+        var decision = await router.RouteAsync(
+            CreateRequest(
+                "Explique cette objection sur l'islam, la trinité et la foi."),
+            CancellationToken.None);
+
+        Assert.Equal(PatristicsAgent.Id, decision.AgentId);
+        Assert.Equal(1, classifier.CallCount);
+    }
+
+    [Fact]
+    public async Task HybridRouter_ShouldKeepBibleLookupOnBuiltInApologistWhenCustomAgentExists()
+    {
+        var registry = CreateRegistryWithPatristicsAgent();
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                PatristicsAgent.Slug,
+                0.99,
+                "Le spécialiste personnalisé est plus précis."));
+        var router = new HybridAgentRouter(
+            new DeterministicAgentRouter(registry),
+            classifier,
+            new HybridRoutingOptions(),
+            registry);
+
+        var decision = await router.RouteAsync(
+            CreateRequest("John 3:16"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            BuiltInAgents.ProtestantApologist.Id,
+            decision.AgentId);
+        Assert.Equal(0, classifier.CallCount);
+        Assert.Equal(
+            BiblePassageResolution.Resolved,
+            decision.BiblePassageResolution);
     }
 
     [Fact]
