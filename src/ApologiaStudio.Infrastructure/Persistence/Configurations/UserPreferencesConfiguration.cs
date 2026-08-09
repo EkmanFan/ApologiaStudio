@@ -22,6 +22,11 @@ internal sealed class UserPreferencesConfiguration
                     "ck_user_preferences_theological_language",
                     "theological_language IS NULL OR " +
                     "theological_language IN ('French', 'English')");
+
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_preferences_composer_enter_behavior",
+                    "composer_enter_behavior IN " +
+                    "('NewLine', 'SendMessage')");
             });
 
         builder.HasKey(preferences => preferences.UserId);
@@ -42,6 +47,13 @@ internal sealed class UserPreferencesConfiguration
             .HasConversion<string>()
             .HasMaxLength(16)
             .HasColumnName("theological_language");
+
+        builder.Property(preferences => preferences.EnterBehavior)
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .HasColumnName("composer_enter_behavior")
+            .HasDefaultValueSql("'NewLine'")
+            .IsRequired();
 
         builder.Property(preferences => preferences.UpdatedAt)
             .HasColumnName("updated_at")

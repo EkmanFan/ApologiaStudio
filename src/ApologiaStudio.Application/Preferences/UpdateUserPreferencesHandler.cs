@@ -7,7 +7,9 @@ namespace ApologiaStudio.Application.Preferences;
 
 public sealed record UpdateUserPreferencesCommand(
     ApplicationLanguage InterfaceLanguage,
-    ApplicationLanguage? TheologicalLanguage);
+    ApplicationLanguage? TheologicalLanguage,
+    ComposerEnterBehavior EnterBehavior =
+        UserPreferences.DefaultEnterBehavior);
 
 public sealed class UpdateUserPreferencesHandler(
     IUserPreferencesRepository preferencesRepository,
@@ -40,6 +42,7 @@ public sealed class UpdateUserPreferencesHandler(
                 currentUser.UserId,
                 command.InterfaceLanguage,
                 command.TheologicalLanguage,
+                command.EnterBehavior,
                 timeProvider.GetUtcNow());
 
             preferencesRepository.Add(preferences);
@@ -49,6 +52,7 @@ public sealed class UpdateUserPreferencesHandler(
             preferences.Update(
                 command.InterfaceLanguage,
                 command.TheologicalLanguage,
+                command.EnterBehavior,
                 timeProvider.GetUtcNow());
         }
 

@@ -25,6 +25,9 @@ public sealed class UserPreferencesHandlerTests
         Assert.Equal(
             ApplicationLanguage.French,
             result.EffectiveTheologicalLanguage);
+        Assert.Equal(
+            ComposerEnterBehavior.NewLine,
+            result.EnterBehavior);
     }
 
     [Fact]
@@ -51,7 +54,8 @@ public sealed class UserPreferencesHandlerTests
         var result = await handler.HandleAsync(
             new UpdateUserPreferencesCommand(
                 ApplicationLanguage.English,
-                TheologicalLanguage: null),
+                TheologicalLanguage: null,
+                EnterBehavior: ComposerEnterBehavior.SendMessage),
             CancellationToken.None);
 
         Assert.Equal(
@@ -59,6 +63,12 @@ public sealed class UserPreferencesHandlerTests
             result.EffectiveTheologicalLanguage);
         Assert.NotNull(repository.Preferences);
         Assert.Null(repository.Preferences.TheologicalLanguage);
+        Assert.Equal(
+            ComposerEnterBehavior.SendMessage,
+            repository.Preferences.EnterBehavior);
+        Assert.Equal(
+            ComposerEnterBehavior.SendMessage,
+            result.EnterBehavior);
         Assert.Equal(1, unitOfWork.SaveCount);
     }
 

@@ -1,4 +1,5 @@
 const apologiaConversationThreads = new WeakMap();
+const apologiaComposerEnterHandlers = new WeakMap();
 
 window.apologiaStudio = {
     setDocumentLanguage(language) {
@@ -121,6 +122,53 @@ window.apologiaStudio = {
         }
 
         apologiaConversationThreads.delete(element);
+    },
+
+    registerComposerEnterBehavior(textArea, sendButton, sendOnEnter) {
+        if (!textArea || !sendButton) {
+            return;
+        }
+
+        this.unregisterComposerEnterBehavior(textArea);
+
+        if (!sendOnEnter) {
+            return;
+        }
+
+        const onKeyDown = event => {
+            if (event.key !== "Enter" ||
+                event.ctrlKey ||
+                event.isComposing) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (event.repeat || sendButton.disabled) {
+                return;
+            }
+
+            sendButton.click();
+        };
+
+        textArea.addEventListener("keydown", onKeyDown);
+        apologiaComposerEnterHandlers.set(textArea, onKeyDown);
+    },
+
+    unregisterComposerEnterBehavior(textArea) {
+        if (!textArea) {
+            return;
+        }
+
+        const onKeyDown =
+            apologiaComposerEnterHandlers.get(textArea);
+
+        if (!onKeyDown) {
+            return;
+        }
+
+        textArea.removeEventListener("keydown", onKeyDown);
+        apologiaComposerEnterHandlers.delete(textArea);
     },
 
     scrollConversationToEnd(element, behavior) {

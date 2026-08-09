@@ -273,7 +273,8 @@ else
                             </select>
                         </div>
 
-                        <textarea @bind="_draft"
+                        <textarea @ref="_composerTextArea"
+                                  @bind="_draft"
                                   @bind:event="oninput"
                                   disabled="@_isSending"
                                   maxlength="50000"
@@ -291,6 +292,7 @@ else
                             </span>
 
                             <button type="button"
+                                    @ref="_composerSendButton"
                                     disabled="@(_isSending ||
                                                string.IsNullOrWhiteSpace(
                                                    _draft))"

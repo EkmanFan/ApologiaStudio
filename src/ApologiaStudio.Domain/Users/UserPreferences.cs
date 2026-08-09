@@ -5,6 +5,9 @@ public sealed class UserPreferences
     public const ApplicationLanguage DefaultInterfaceLanguage =
         ApplicationLanguage.French;
 
+    public const ComposerEnterBehavior DefaultEnterBehavior =
+        ComposerEnterBehavior.NewLine;
+
     private UserPreferences()
     {
     }
@@ -13,12 +16,14 @@ public sealed class UserPreferences
         UserId userId,
         ApplicationLanguage interfaceLanguage,
         ApplicationLanguage? theologicalLanguage,
+        ComposerEnterBehavior enterBehavior,
         DateTimeOffset updatedAt)
     {
         UserId = userId;
         SetLanguages(
             interfaceLanguage,
             theologicalLanguage);
+        SetEnterBehavior(enterBehavior);
         UpdatedAt = updatedAt;
     }
 
@@ -27,6 +32,9 @@ public sealed class UserPreferences
     public ApplicationLanguage InterfaceLanguage { get; private set; }
 
     public ApplicationLanguage? TheologicalLanguage { get; private set; }
+
+    public ComposerEnterBehavior EnterBehavior { get; private set; } =
+        DefaultEnterBehavior;
 
     public ApplicationLanguage EffectiveTheologicalLanguage =>
         TheologicalLanguage ?? InterfaceLanguage;
@@ -39,10 +47,26 @@ public sealed class UserPreferences
         ApplicationLanguage? theologicalLanguage,
         DateTimeOffset updatedAt)
     {
+        return Create(
+            userId,
+            interfaceLanguage,
+            theologicalLanguage,
+            DefaultEnterBehavior,
+            updatedAt);
+    }
+
+    public static UserPreferences Create(
+        UserId userId,
+        ApplicationLanguage interfaceLanguage,
+        ApplicationLanguage? theologicalLanguage,
+        ComposerEnterBehavior enterBehavior,
+        DateTimeOffset updatedAt)
+    {
         return new UserPreferences(
             userId,
             interfaceLanguage,
             theologicalLanguage,
+            enterBehavior,
             updatedAt);
     }
 
@@ -54,6 +78,19 @@ public sealed class UserPreferences
         SetLanguages(
             interfaceLanguage,
             theologicalLanguage);
+        UpdatedAt = updatedAt;
+    }
+
+    public void Update(
+        ApplicationLanguage interfaceLanguage,
+        ApplicationLanguage? theologicalLanguage,
+        ComposerEnterBehavior enterBehavior,
+        DateTimeOffset updatedAt)
+    {
+        SetLanguages(
+            interfaceLanguage,
+            theologicalLanguage);
+        SetEnterBehavior(enterBehavior);
         UpdatedAt = updatedAt;
     }
 
@@ -72,5 +109,19 @@ public sealed class UserPreferences
 
         InterfaceLanguage = interfaceLanguage;
         TheologicalLanguage = theologicalLanguage;
+    }
+
+    private void SetEnterBehavior(
+        ComposerEnterBehavior enterBehavior)
+    {
+        if (!Enum.IsDefined(enterBehavior))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(enterBehavior),
+                enterBehavior,
+                "Unsupported composer Enter behavior.");
+        }
+
+        EnterBehavior = enterBehavior;
     }
 }

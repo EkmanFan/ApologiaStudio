@@ -131,6 +131,32 @@
                     </p>
                 </div>
 
+                <div class="settings-field">
+                    <label for="composer-enter-behavior">
+                        @Text(
+                            "Comportement de la touche Entrée",
+                            "Enter key behavior")
+                    </label>
+                    <select id="composer-enter-behavior"
+                            @bind="_composerEnterBehavior"
+                            disabled="@_isSaving">
+                        <option value="@ComposerEnterBehavior.NewLine">
+                            @Text(
+                                "Entrée ajoute une nouvelle ligne",
+                                "Enter inserts a new line")
+                        </option>
+                        <option value="@ComposerEnterBehavior.SendMessage">
+                            @Text(
+                                "Entrée envoie le message",
+                                "Enter sends the message")
+                        </option>
+                    </select>
+                    <p>
+                        @Text(
+                            "Lorsque Entrée envoie le message, Ctrl+Entrée ajoute une nouvelle ligne.",
+                            "When Enter sends the message, Ctrl+Enter inserts a new line.")
+                    </p>
+                </div>
                 <div class="effective-language">
                     <span>
                         @Text(

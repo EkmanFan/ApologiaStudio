@@ -4,7 +4,9 @@ namespace ApologiaStudio.Application.Preferences;
 
 public sealed record UserPreferencesView(
     ApplicationLanguage InterfaceLanguage,
-    ApplicationLanguage? TheologicalLanguage)
+    ApplicationLanguage? TheologicalLanguage,
+    ComposerEnterBehavior EnterBehavior =
+        UserPreferences.DefaultEnterBehavior)
 {
     public ApplicationLanguage EffectiveTheologicalLanguage =>
         TheologicalLanguage ?? InterfaceLanguage;
@@ -12,7 +14,8 @@ public sealed record UserPreferencesView(
     public static UserPreferencesView Default { get; } =
         new(
             UserPreferences.DefaultInterfaceLanguage,
-            TheologicalLanguage: null);
+            TheologicalLanguage: null,
+            EnterBehavior: UserPreferences.DefaultEnterBehavior);
 
     public static UserPreferencesView From(
         UserPreferences preferences)
@@ -21,6 +24,7 @@ public sealed record UserPreferencesView(
 
         return new UserPreferencesView(
             preferences.InterfaceLanguage,
-            preferences.TheologicalLanguage);
+            preferences.TheologicalLanguage,
+            preferences.EnterBehavior);
     }
 }

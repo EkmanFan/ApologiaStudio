@@ -31,6 +31,8 @@ public partial class Settings
     private int _agentActivationVersion;
     private string _interfaceLanguageCode = "fr";
     private string _theologicalLanguageCode = string.Empty;
+    private ComposerEnterBehavior _composerEnterBehavior =
+        UserPreferences.DefaultEnterBehavior;
     private string? _statusMessage;
     private string? _errorMessage;
     private bool _isLoading = true;
@@ -73,6 +75,8 @@ public partial class Settings
             _theologicalLanguageCode =
                 preferences.TheologicalLanguage?.ToLanguageTag() ??
                 string.Empty;
+            _composerEnterBehavior =
+                preferences.EnterBehavior;
         }
         catch (Exception exception)
         {
@@ -138,7 +142,8 @@ public partial class Settings
             await handler.HandleAsync(
                 new UpdateUserPreferencesCommand(
                     SelectedInterfaceLanguage,
-                    theologicalLanguage),
+                    theologicalLanguage,
+                    _composerEnterBehavior),
                 CancellationToken.None);
 
             _statusMessage =
