@@ -1,0 +1,52 @@
+@page "/library/{LibraryEditionCode}"
+@page "/library/{LibraryEditionCode}/{LibraryBookCode}/{LibraryChapterNumber:int}"
+
+@using ApologiaStudio.Web.Components.BibleReader
+@using ApologiaStudio.Web.Components.Navigation
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>@GetPageTitle()</PageTitle>
+<DocumentLanguage Language="@_interfaceLanguage" />
+
+@if (_isLoading)
+{
+    <div class="loading">
+        @Ui("Chargement du lecteur…", "Loading reader…")
+    </div>
+}
+else
+{
+    <section class="studio-layout"
+             @onkeydown="HandleShellKeyDown">
+        <StudioSidebar BibleEditions="@GetSidebarBibleEditions()"
+                       PinnedItems="@GetSidebarPinnedItems()"
+                       Projects="@GetSidebarProjects()"
+                       Conversations="@GetSidebarConversations()"
+                       DeletedConversations="@GetSidebarDeletedConversations()"
+                       Language="@_interfaceLanguage"
+                       IsOpen="@_isSidebarOpen"
+                       IsCreatingConversation="@_isCreatingConversation"
+                       IsBusy="@_isManagingSidebar"
+                       OnClose="CloseSidebar"
+                       OnCreateConversation="CreateConversationAsync"
+                       OnCreateProject="CreateProjectAsync"
+                       OnRename="RenameSidebarItemAsync"
+                       OnSetPin="SetSidebarPinAsync"
+                       OnMoveConversation="MoveConversationAsync"
+                       OnReorderProjects="ReorderProjectsAsync"
+                       OnReorderPinnedItems="ReorderPinnedItemsAsync"
+                       OnDelete="DeleteSidebarItemAsync"
+                       OnRestoreConversation="RestoreConversationAsync" />
+
+        @if (_bibleReader is not null)
+        {
+            <BibleReaderPanel Reader="@_bibleReader"
+                              Language="@_interfaceLanguage"
+                              SidebarIsOpen="@_isSidebarOpen"
+                              IsBusy="@_isCreatingConversation"
+                              ErrorMessage="@_errorMessage"
+                              OnOpenSidebar="OpenSidebar"
+                              OnUseInDiscussion="UseBibleSelectionAsync" />
+        }
+    </section>
+}
