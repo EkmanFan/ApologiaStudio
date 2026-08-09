@@ -1,3 +1,4 @@
+using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.AgentRuntime.Execution;
 using ApologiaStudio.Application.Abstractions.AiRuntime;
 
@@ -5,7 +6,8 @@ namespace ApologiaStudio.AgentRuntime.Routing.Semantic;
 
 public sealed class DynamicOllamaSemanticRoutingClassifier(
     IAiRuntimeSettingsStore settingsStore,
-    IOllamaHttpClientFactory httpClientFactory)
+    IOllamaHttpClientFactory httpClientFactory,
+    IAgentRegistry agentRegistry)
     : ISemanticRoutingClassifier
 {
     public async ValueTask<SemanticRoutingResult> ClassifyAsync(
@@ -28,7 +30,8 @@ public sealed class DynamicOllamaSemanticRoutingClassifier(
         using var classifier =
             new OllamaSemanticRoutingClassifier(
                 client,
-                options);
+                options,
+                agentRegistry.All);
 
         return await classifier
             .ClassifyAsync(

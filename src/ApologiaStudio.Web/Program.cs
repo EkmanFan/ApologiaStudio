@@ -53,6 +53,9 @@ builder.Services.AddSingleton<TimeProvider>(
 builder.Services.AddSingleton<
     BiblePassageRequestParser>();
 
+builder.Services.AddSingleton<IAgentRegistry>(
+    static _ => new BuiltInAgentRegistry());
+
 builder.Services.AddSingleton<
     DeterministicAgentRouter>();
 

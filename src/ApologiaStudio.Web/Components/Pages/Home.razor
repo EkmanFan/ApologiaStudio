@@ -41,6 +41,7 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 @inject IServiceScopeFactory ServiceScopeFactory
+@inject IAgentRegistry AgentRegistry
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
@@ -279,8 +280,9 @@ else
                                     @Ui("Routage automatique", "Automatic routing")
                                 </option>
 
-                                @foreach (var agent in BuiltInAgents.All)
+                                @foreach (var profile in AgentRegistry.All)
                                 {
+                                    var agent = profile.Agent;
                                     <option value="@agent.Slug">
                                         @GetAgentDisplayName(
                                             agent.Id,
@@ -1550,13 +1552,11 @@ else
             return null;
         }
 
-        return BuiltInAgents.All
-            .FirstOrDefault(
-                agent => string.Equals(
-                    agent.Slug,
-                    _selectedAgentSlug,
-                    StringComparison.OrdinalIgnoreCase))
-            ?.Id;
+        return AgentRegistry.TryGet(
+            _selectedAgentSlug,
+            out var profile)
+                ? profile.Agent.Id
+                : null;
     }
 
     private static string GetMessageCssClass(
@@ -1591,13 +1591,13 @@ else
         }
 
         if (message.AgentId is { } agentId &&
-            BuiltInAgents.TryGet(
+            AgentRegistry.TryGet(
                 agentId,
-                out var agent))
+                out var profile))
         {
             return GetAgentDisplayName(
-                agent.Id,
-                agent.DisplayName);
+                profile.Agent.Id,
+                profile.Agent.DisplayName);
         }
 
         return Ui("Système", "System");

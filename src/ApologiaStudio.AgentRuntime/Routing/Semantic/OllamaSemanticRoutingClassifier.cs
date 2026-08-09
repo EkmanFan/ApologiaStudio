@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.Application.BibleCorpora.Queries;
 using ApologiaStudio.Domain.BibleCorpora;
 
@@ -10,7 +11,8 @@ namespace ApologiaStudio.AgentRuntime.Routing.Semantic;
 
 public sealed class OllamaSemanticRoutingClassifier(
     HttpClient httpClient,
-    OllamaRoutingOptions options)
+    OllamaRoutingOptions options,
+    IReadOnlyList<AgentRoutingProfile>? routingProfiles = null)
     : ISemanticRoutingClassifier,
       IDisposable
 {
@@ -18,11 +20,9 @@ public sealed class OllamaSemanticRoutingClassifier(
     private const string PromptVersion =
         "routing-v5-bible-reference-normalization";
 
-    private static readonly string SystemPrompt =
-        CreateSystemPrompt();
-
-    private static readonly JsonElement RoutingSchema =
-        CreateRoutingSchema();
+    private readonly IReadOnlyList<AgentRoutingProfile> _routingProfiles =
+        ValidateRoutingProfiles(
+            routingProfiles ?? new BuiltInAgentRegistry().All);
 
     private static readonly JsonSerializerOptions JsonOptions =
         new(JsonSerializerDefaults.Web);
@@ -58,7 +58,7 @@ public sealed class OllamaSemanticRoutingClassifier(
                 new
                 {
                     role = "system",
-                    content = SystemPrompt
+                    content = CreateSystemPrompt()
                 },
                 new
                 {
@@ -68,7 +68,7 @@ public sealed class OllamaSemanticRoutingClassifier(
             },
             stream = false,
             think = false,
-            format = RoutingSchema,
+            format = CreateRoutingSchema(),
             options = new
             {
                 temperature = 0,
@@ -149,25 +149,26 @@ public sealed class OllamaSemanticRoutingClassifier(
         }
     }
 
-    private static SemanticRoutingResult CreateResult(
+    private SemanticRoutingResult CreateResult(
         RoutingPayload payload,
         BibleEditionCode? explicitlyRequestedEdition)
     {
-        ValidatePayload(payload);
+        var selectedProfile = ValidatePayload(payload);
+        var bibleAgentSlug = BuiltInAgents.ProtestantApologist.Slug;
 
         if (payload.Intent == "general")
         {
             if (payload.BibleReference is not null)
             {
                 return new SemanticRoutingResult(
-                    "protestant-apologist",
+                    bibleAgentSlug,
                     payload.Confidence,
                     payload.Reason,
                     BiblePassageResolution.Unsupported);
             }
 
             return new SemanticRoutingResult(
-                payload.Agent,
+                selectedProfile.Agent.Slug,
                 payload.Confidence,
                 payload.Reason);
         }
@@ -178,25 +179,31 @@ public sealed class OllamaSemanticRoutingClassifier(
                 out var biblePassage))
         {
             return new SemanticRoutingResult(
-                "protestant-apologist",
+                bibleAgentSlug,
                 payload.Confidence,
                 payload.Reason,
                 BiblePassageResolution.Unsupported);
         }
 
         return new SemanticRoutingResult(
-            "protestant-apologist",
+            bibleAgentSlug,
             payload.Confidence,
             payload.Reason,
             BiblePassageResolution.Resolved,
             biblePassage);
     }
 
-    private static void ValidatePayload(
+    private AgentRoutingProfile ValidatePayload(
         RoutingPayload payload)
     {
-        if (payload.Agent is not
-            ("historian" or "protestant-apologist"))
+        var selectedProfile = _routingProfiles.FirstOrDefault(
+            profile =>
+                string.Equals(
+                    profile.Agent.Slug,
+                    payload.Agent,
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (selectedProfile is null)
         {
             throw new InvalidOperationException(
                 $"Ollama returned an unknown agent: '{payload.Agent}'.");
@@ -221,6 +228,8 @@ public sealed class OllamaSemanticRoutingClassifier(
             throw new InvalidOperationException(
                 $"Ollama returned an unknown intent: '{payload.Intent}'.");
         }
+
+        return selectedProfile;
     }
 
     private static bool TryCreateBiblePassage(
@@ -258,11 +267,17 @@ public sealed class OllamaSemanticRoutingClassifier(
         return true;
     }
 
-    private static string CreateSystemPrompt()
+    private string CreateSystemPrompt()
     {
         var bookCodes = string.Join(
             ", ",
             BiblePassageRequestParser.SupportedBookCodes);
+        var specialists = string.Join(
+            Environment.NewLine + Environment.NewLine,
+            _routingProfiles.Select(
+                profile =>
+                    $"{profile.Agent.Slug}:{Environment.NewLine}" +
+                    profile.RoutingDescription));
 
         return $$"""
             You are a routing and Bible-reference normalization classifier
@@ -272,19 +287,7 @@ public sealed class OllamaSemanticRoutingClassifier(
 
             Select exactly one specialist.
 
-            historian:
-            - historical people, rulers, events and institutions;
-            - chronology, dates, durations and ages at historical events;
-            - councils, political history and Church history;
-            - development of doctrines or practices through history;
-            - descriptive questions about what happened historically.
-
-            protestant-apologist:
-            - defence of Christian or Protestant beliefs;
-            - biblical doctrine and theological interpretation;
-            - objections from atheism, Islam, Catholicism or Orthodoxy;
-            - arguments for God, Christ, resurrection or Scripture;
-            - normative questions about what Christians should believe.
+            {{specialists}}
 
             Also classify the intent:
             - bible-passage-lookup only when the user primarily asks to
@@ -297,7 +300,7 @@ public sealed class OllamaSemanticRoutingClassifier(
               or any other request, even when it mentions a reference.
 
             For bible-passage-lookup:
-            - select protestant-apologist;
+            - select {{BuiltInAgents.ProtestantApologist.Slug}};
             - normalize abbreviations, singular/plural differences and
               minor spelling mistakes;
             - return only a canonical Protestant USFM book code;
@@ -329,12 +332,16 @@ public sealed class OllamaSemanticRoutingClassifier(
             """;
     }
 
-    private static JsonElement CreateRoutingSchema()
+    private JsonElement CreateRoutingSchema()
     {
         var bookCodes = string.Join(
             ",",
             BiblePassageRequestParser.SupportedBookCodes.Select(
                 code => JsonSerializer.Serialize(code)));
+        var agentSlugs = string.Join(
+            ",",
+            _routingProfiles.Select(
+                profile => JsonSerializer.Serialize(profile.Agent.Slug)));
 
         return JsonSerializer.Deserialize<JsonElement>(
             $$"""
@@ -343,7 +350,7 @@ public sealed class OllamaSemanticRoutingClassifier(
               "properties": {
                 "agent": {
                   "type": "string",
-                  "enum": ["historian", "protestant-apologist"]
+                  "enum": [{{agentSlugs}}]
                 },
                 "intent": {
                   "type": "string",
@@ -414,6 +421,43 @@ public sealed class OllamaSemanticRoutingClassifier(
               "additionalProperties": false
             }
             """);
+    }
+
+    private static IReadOnlyList<AgentRoutingProfile>
+        ValidateRoutingProfiles(
+            IReadOnlyList<AgentRoutingProfile> routingProfiles)
+    {
+        ArgumentNullException.ThrowIfNull(routingProfiles);
+
+        if (routingProfiles.Count == 0)
+        {
+            throw new ArgumentException(
+                "At least one routing profile is required.",
+                nameof(routingProfiles));
+        }
+
+        if (routingProfiles
+            .GroupBy(
+                profile => profile.Agent.Slug,
+                StringComparer.OrdinalIgnoreCase)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "Routing profile slugs must be unique.",
+                nameof(routingProfiles));
+        }
+
+        if (!routingProfiles.Any(
+                profile =>
+                    profile.Agent.Id ==
+                    BuiltInAgents.ProtestantApologist.Id))
+        {
+            throw new ArgumentException(
+                "The Protestant apologist must remain registered because Bible lookup routes to it.",
+                nameof(routingProfiles));
+        }
+
+        return routingProfiles;
     }
 
     private static Exception CreateHttpException(

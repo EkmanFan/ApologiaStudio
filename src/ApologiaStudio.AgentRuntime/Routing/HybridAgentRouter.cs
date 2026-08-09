@@ -8,9 +8,13 @@ namespace ApologiaStudio.AgentRuntime.Routing;
 public sealed class HybridAgentRouter(
     DeterministicAgentRouter deterministicRouter,
     ISemanticRoutingClassifier semanticClassifier,
-    HybridRoutingOptions options)
+    HybridRoutingOptions options,
+    IAgentRegistry? agentRegistry = null)
     : IAgentRouter
 {
+    private readonly IAgentRegistry _agentRegistry =
+        agentRegistry ?? new BuiltInAgentRegistry();
+
     public async ValueTask<RoutingDecision> RouteAsync(
         AgentTurnRequest request,
         CancellationToken cancellationToken)
@@ -188,14 +192,13 @@ public sealed class HybridAgentRouter(
         return fallbackMessage.Content;
     }
 
-    private static AgentDescriptor? ResolveAgent(
+    private AgentDescriptor? ResolveAgent(
         string agentSlug)
     {
-        return BuiltInAgents.All.FirstOrDefault(
-            agent =>
-                string.Equals(
-                    agent.Slug,
-                    agentSlug,
-                    StringComparison.OrdinalIgnoreCase));
+        return _agentRegistry.TryGet(
+            agentSlug,
+            out var profile)
+                ? profile.Agent
+                : null;
     }
 }

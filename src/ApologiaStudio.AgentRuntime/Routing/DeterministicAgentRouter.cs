@@ -9,6 +9,7 @@ namespace ApologiaStudio.AgentRuntime.Routing;
 
 public sealed class DeterministicAgentRouter : IAgentRouter
 {
+    private readonly IAgentRegistry _agentRegistry;
     private readonly BiblePassageRequestParser
         _biblePassageRequestParser;
 
@@ -70,7 +71,19 @@ public sealed class DeterministicAgentRouter : IAgentRouter
 
     public DeterministicAgentRouter(
         BiblePassageRequestParser? biblePassageRequestParser = null)
+        : this(
+            new BuiltInAgentRegistry(),
+            biblePassageRequestParser)
     {
+    }
+
+    public DeterministicAgentRouter(
+        IAgentRegistry agentRegistry,
+        BiblePassageRequestParser? biblePassageRequestParser = null)
+    {
+        _agentRegistry =
+            agentRegistry ??
+            throw new ArgumentNullException(nameof(agentRegistry));
         _biblePassageRequestParser =
             biblePassageRequestParser ??
             new BiblePassageRequestParser();
@@ -100,14 +113,16 @@ public sealed class DeterministicAgentRouter : IAgentRouter
 
         if (request.RequestedAgentId is { } requestedAgentId)
         {
-            if (!BuiltInAgents.TryGet(
+            if (!_agentRegistry.TryGet(
                     requestedAgentId,
-                    out var requestedAgent))
+                    out var requestedProfile))
             {
                 throw new ArgumentException(
                     $"Requested agent '{requestedAgentId}' is not registered.",
                     nameof(request));
             }
+
+            var requestedAgent = requestedProfile.Agent;
 
             if (requestedAgent.Id ==
                     BuiltInAgents.ProtestantApologist.Id &&
