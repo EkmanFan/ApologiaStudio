@@ -27,6 +27,14 @@ internal sealed class UserPreferencesConfiguration
                     "ck_user_preferences_composer_enter_behavior",
                     "composer_enter_behavior IN " +
                     "('NewLine', 'SendMessage')");
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_preferences_message_date_format",
+                    "message_date_format IN " +
+                    "('dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd')");
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_preferences_message_time_format",
+                    "message_time_format IN " +
+                    "('HH:mm:ss', 'HH:mm', 'hh:mm:ss tt', 'hh:mm tt')");
             });
 
         builder.HasKey(preferences => preferences.UserId);
@@ -53,6 +61,18 @@ internal sealed class UserPreferencesConfiguration
             .HasMaxLength(32)
             .HasColumnName("composer_enter_behavior")
             .HasDefaultValueSql("'NewLine'")
+            .IsRequired();
+
+        builder.Property(preferences => preferences.MessageDateFormat)
+            .HasMaxLength(16)
+            .HasColumnName("message_date_format")
+            .HasDefaultValue(UserPreferences.DefaultMessageDateFormat)
+            .IsRequired();
+
+        builder.Property(preferences => preferences.MessageTimeFormat)
+            .HasMaxLength(16)
+            .HasColumnName("message_time_format")
+            .HasDefaultValue(UserPreferences.DefaultMessageTimeFormat)
             .IsRequired();
 
         builder.Property(preferences => preferences.UpdatedAt)

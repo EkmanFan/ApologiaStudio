@@ -8,6 +8,12 @@ public sealed class UserPreferences
     public const ComposerEnterBehavior DefaultEnterBehavior =
         ComposerEnterBehavior.NewLine;
 
+    public const string DefaultMessageDateFormat =
+        MessageTimestampFormats.DayMonthYear;
+
+    public const string DefaultMessageTimeFormat =
+        MessageTimestampFormats.TwentyFourHourWithSeconds;
+
     private UserPreferences()
     {
     }
@@ -17,6 +23,8 @@ public sealed class UserPreferences
         ApplicationLanguage interfaceLanguage,
         ApplicationLanguage? theologicalLanguage,
         ComposerEnterBehavior enterBehavior,
+        string messageDateFormat,
+        string messageTimeFormat,
         DateTimeOffset updatedAt)
     {
         UserId = userId;
@@ -24,6 +32,9 @@ public sealed class UserPreferences
             interfaceLanguage,
             theologicalLanguage);
         SetEnterBehavior(enterBehavior);
+        SetMessageTimestampFormats(
+            messageDateFormat,
+            messageTimeFormat);
         UpdatedAt = updatedAt;
     }
 
@@ -35,6 +46,12 @@ public sealed class UserPreferences
 
     public ComposerEnterBehavior EnterBehavior { get; private set; } =
         DefaultEnterBehavior;
+
+    public string MessageDateFormat { get; private set; } =
+        DefaultMessageDateFormat;
+
+    public string MessageTimeFormat { get; private set; } =
+        DefaultMessageTimeFormat;
 
     public ApplicationLanguage EffectiveTheologicalLanguage =>
         TheologicalLanguage ?? InterfaceLanguage;
@@ -52,6 +69,8 @@ public sealed class UserPreferences
             interfaceLanguage,
             theologicalLanguage,
             DefaultEnterBehavior,
+            DefaultMessageDateFormat,
+            DefaultMessageTimeFormat,
             updatedAt);
     }
 
@@ -62,11 +81,32 @@ public sealed class UserPreferences
         ComposerEnterBehavior enterBehavior,
         DateTimeOffset updatedAt)
     {
+        return Create(
+            userId,
+            interfaceLanguage,
+            theologicalLanguage,
+            enterBehavior,
+            DefaultMessageDateFormat,
+            DefaultMessageTimeFormat,
+            updatedAt);
+    }
+
+    public static UserPreferences Create(
+        UserId userId,
+        ApplicationLanguage interfaceLanguage,
+        ApplicationLanguage? theologicalLanguage,
+        ComposerEnterBehavior enterBehavior,
+        string messageDateFormat,
+        string messageTimeFormat,
+        DateTimeOffset updatedAt)
+    {
         return new UserPreferences(
             userId,
             interfaceLanguage,
             theologicalLanguage,
             enterBehavior,
+            messageDateFormat,
+            messageTimeFormat,
             updatedAt);
     }
 
@@ -91,6 +131,24 @@ public sealed class UserPreferences
             interfaceLanguage,
             theologicalLanguage);
         SetEnterBehavior(enterBehavior);
+        UpdatedAt = updatedAt;
+    }
+
+    public void Update(
+        ApplicationLanguage interfaceLanguage,
+        ApplicationLanguage? theologicalLanguage,
+        ComposerEnterBehavior enterBehavior,
+        string messageDateFormat,
+        string messageTimeFormat,
+        DateTimeOffset updatedAt)
+    {
+        SetLanguages(
+            interfaceLanguage,
+            theologicalLanguage);
+        SetEnterBehavior(enterBehavior);
+        SetMessageTimestampFormats(
+            messageDateFormat,
+            messageTimeFormat);
         UpdatedAt = updatedAt;
     }
 
@@ -123,5 +181,20 @@ public sealed class UserPreferences
         }
 
         EnterBehavior = enterBehavior;
+    }
+
+    private void SetMessageTimestampFormats(
+        string messageDateFormat,
+        string messageTimeFormat)
+    {
+        MessageTimestampFormats.EnsureSupportedDateFormat(
+            messageDateFormat,
+            nameof(messageDateFormat));
+        MessageTimestampFormats.EnsureSupportedTimeFormat(
+            messageTimeFormat,
+            nameof(messageTimeFormat));
+
+        MessageDateFormat = messageDateFormat;
+        MessageTimeFormat = messageTimeFormat;
     }
 }

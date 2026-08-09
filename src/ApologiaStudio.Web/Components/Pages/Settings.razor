@@ -85,8 +85,8 @@
                     </div>
                     <p>
                         @Text(
-                            "Langues utilisées par l’interface, les réponses théologiques et les textes bibliques.",
-                            "Languages used by the interface, theological answers, and Bible text.")
+                            "Langues, saisie et affichage des conversations.",
+                            "Languages, input, and conversation display.")
                     </p>
                 </header>
 
@@ -155,6 +155,55 @@
                         @Text(
                             "Lorsque Entrée envoie le message, Ctrl+Entrée ajoute une nouvelle ligne.",
                             "When Enter sends the message, Ctrl+Enter inserts a new line.")
+                    </p>
+                </div>
+                <div class="settings-field">
+                    <label for="message-date-format">
+                        @Text("Format de date", "Date format")
+                    </label>
+                    <select id="message-date-format"
+                            @bind="_messageDateFormat"
+                            disabled="@_isSaving">
+                        <option value="@MessageTimestampFormats.DayMonthYear">
+                            @Text("JJ/MM/YYYY — 23/08/2026", "DD/MM/YYYY — 23/08/2026")
+                        </option>
+                        <option value="@MessageTimestampFormats.MonthDayYear">
+                            @Text("MM/JJ/YYYY — 08/23/2026", "MM/DD/YYYY — 08/23/2026")
+                        </option>
+                        <option value="@MessageTimestampFormats.IsoYearMonthDay">
+                            YYYY-MM-DD — 2026-08-23
+                        </option>
+                    </select>
+                    <p>
+                        @Text(
+                            "Format de la date affichée dans les bulles de messages.",
+                            "Date format displayed in conversation message bubbles.")
+                    </p>
+                </div>
+                <div class="settings-field">
+                    <label for="message-time-format">
+                        @Text("Format de l’heure", "Time format")
+                    </label>
+                    <select id="message-time-format"
+                            @bind="_messageTimeFormat"
+                            disabled="@_isSaving">
+                        <option value="@MessageTimestampFormats.TwentyFourHourWithSeconds">
+                            HH:mm:ss — 23:45:38
+                        </option>
+                        <option value="@MessageTimestampFormats.TwentyFourHour">
+                            HH:mm — 23:45
+                        </option>
+                        <option value="@MessageTimestampFormats.TwelveHourWithSeconds">
+                            hh:mm:ss tt — 11:45:38 PM
+                        </option>
+                        <option value="@MessageTimestampFormats.TwelveHour">
+                            hh:mm tt — 11:45 PM
+                        </option>
+                    </select>
+                    <p>
+                        @Text(
+                            "Format de l’heure affichée dans les bulles de messages.",
+                            "Time format displayed in conversation message bubbles.")
                     </p>
                 </div>
                 <div class="effective-language">

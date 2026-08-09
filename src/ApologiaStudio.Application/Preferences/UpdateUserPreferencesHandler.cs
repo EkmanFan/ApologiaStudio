@@ -9,7 +9,11 @@ public sealed record UpdateUserPreferencesCommand(
     ApplicationLanguage InterfaceLanguage,
     ApplicationLanguage? TheologicalLanguage,
     ComposerEnterBehavior EnterBehavior =
-        UserPreferences.DefaultEnterBehavior);
+        UserPreferences.DefaultEnterBehavior,
+    string MessageDateFormat =
+        UserPreferences.DefaultMessageDateFormat,
+    string MessageTimeFormat =
+        UserPreferences.DefaultMessageTimeFormat);
 
 public sealed class UpdateUserPreferencesHandler(
     IUserPreferencesRepository preferencesRepository,
@@ -43,6 +47,8 @@ public sealed class UpdateUserPreferencesHandler(
                 command.InterfaceLanguage,
                 command.TheologicalLanguage,
                 command.EnterBehavior,
+                command.MessageDateFormat,
+                command.MessageTimeFormat,
                 timeProvider.GetUtcNow());
 
             preferencesRepository.Add(preferences);
@@ -53,6 +59,8 @@ public sealed class UpdateUserPreferencesHandler(
                 command.InterfaceLanguage,
                 command.TheologicalLanguage,
                 command.EnterBehavior,
+                command.MessageDateFormat,
+                command.MessageTimeFormat,
                 timeProvider.GetUtcNow());
         }
 

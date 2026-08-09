@@ -33,6 +33,10 @@ public partial class Settings
     private string _theologicalLanguageCode = string.Empty;
     private ComposerEnterBehavior _composerEnterBehavior =
         UserPreferences.DefaultEnterBehavior;
+    private string _messageDateFormat =
+        UserPreferences.DefaultMessageDateFormat;
+    private string _messageTimeFormat =
+        UserPreferences.DefaultMessageTimeFormat;
     private string? _statusMessage;
     private string? _errorMessage;
     private bool _isLoading = true;
@@ -77,6 +81,10 @@ public partial class Settings
                 string.Empty;
             _composerEnterBehavior =
                 preferences.EnterBehavior;
+            _messageDateFormat =
+                preferences.MessageDateFormat;
+            _messageTimeFormat =
+                preferences.MessageTimeFormat;
         }
         catch (Exception exception)
         {
@@ -143,7 +151,9 @@ public partial class Settings
                 new UpdateUserPreferencesCommand(
                     SelectedInterfaceLanguage,
                     theologicalLanguage,
-                    _composerEnterBehavior),
+                    _composerEnterBehavior,
+                    _messageDateFormat,
+                    _messageTimeFormat),
                 CancellationToken.None);
 
             _statusMessage =

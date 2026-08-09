@@ -6,7 +6,11 @@ public sealed record UserPreferencesView(
     ApplicationLanguage InterfaceLanguage,
     ApplicationLanguage? TheologicalLanguage,
     ComposerEnterBehavior EnterBehavior =
-        UserPreferences.DefaultEnterBehavior)
+        UserPreferences.DefaultEnterBehavior,
+    string MessageDateFormat =
+        UserPreferences.DefaultMessageDateFormat,
+    string MessageTimeFormat =
+        UserPreferences.DefaultMessageTimeFormat)
 {
     public ApplicationLanguage EffectiveTheologicalLanguage =>
         TheologicalLanguage ?? InterfaceLanguage;
@@ -15,7 +19,9 @@ public sealed record UserPreferencesView(
         new(
             UserPreferences.DefaultInterfaceLanguage,
             TheologicalLanguage: null,
-            EnterBehavior: UserPreferences.DefaultEnterBehavior);
+            EnterBehavior: UserPreferences.DefaultEnterBehavior,
+            MessageDateFormat: UserPreferences.DefaultMessageDateFormat,
+            MessageTimeFormat: UserPreferences.DefaultMessageTimeFormat);
 
     public static UserPreferencesView From(
         UserPreferences preferences)
@@ -25,6 +31,8 @@ public sealed record UserPreferencesView(
         return new UserPreferencesView(
             preferences.InterfaceLanguage,
             preferences.TheologicalLanguage,
-            preferences.EnterBehavior);
+            preferences.EnterBehavior,
+            preferences.MessageDateFormat,
+            preferences.MessageTimeFormat);
     }
 }

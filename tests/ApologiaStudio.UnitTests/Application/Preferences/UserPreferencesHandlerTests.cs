@@ -28,6 +28,12 @@ public sealed class UserPreferencesHandlerTests
         Assert.Equal(
             ComposerEnterBehavior.NewLine,
             result.EnterBehavior);
+        Assert.Equal(
+            UserPreferences.DefaultMessageDateFormat,
+            result.MessageDateFormat);
+        Assert.Equal(
+            UserPreferences.DefaultMessageTimeFormat,
+            result.MessageTimeFormat);
     }
 
     [Fact]
@@ -55,7 +61,9 @@ public sealed class UserPreferencesHandlerTests
             new UpdateUserPreferencesCommand(
                 ApplicationLanguage.English,
                 TheologicalLanguage: null,
-                EnterBehavior: ComposerEnterBehavior.SendMessage),
+                EnterBehavior: ComposerEnterBehavior.SendMessage,
+                MessageDateFormat: MessageTimestampFormats.IsoYearMonthDay,
+                MessageTimeFormat: MessageTimestampFormats.TwentyFourHour),
             CancellationToken.None);
 
         Assert.Equal(
@@ -69,6 +77,18 @@ public sealed class UserPreferencesHandlerTests
         Assert.Equal(
             ComposerEnterBehavior.SendMessage,
             result.EnterBehavior);
+        Assert.Equal(
+            MessageTimestampFormats.IsoYearMonthDay,
+            result.MessageDateFormat);
+        Assert.Equal(
+            MessageTimestampFormats.TwentyFourHour,
+            result.MessageTimeFormat);
+        Assert.Equal(
+            MessageTimestampFormats.IsoYearMonthDay,
+            repository.Preferences.MessageDateFormat);
+        Assert.Equal(
+            MessageTimestampFormats.TwentyFourHour,
+            repository.Preferences.MessageTimeFormat);
         Assert.Equal(1, unitOfWork.SaveCount);
     }
 

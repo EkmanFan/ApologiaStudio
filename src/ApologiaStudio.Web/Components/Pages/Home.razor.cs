@@ -82,6 +82,10 @@ public partial class Home
         UserPreferences.DefaultInterfaceLanguage;
     private ComposerEnterBehavior _composerEnterBehavior =
         UserPreferences.DefaultEnterBehavior;
+    private string _messageDateFormat =
+        UserPreferences.DefaultMessageDateFormat;
+    private string _messageTimeFormat =
+        UserPreferences.DefaultMessageTimeFormat;
     private bool _isLoading = true;
     private bool _isSending;
     private bool _isCreatingConversation;
@@ -193,6 +197,10 @@ public partial class Home
 
             _composerEnterBehavior =
                 preferences.EnterBehavior;
+            _messageDateFormat =
+                preferences.MessageDateFormat;
+            _messageTimeFormat =
+                preferences.MessageTimeFormat;
 
             await RefreshAgentSettingsAsync(
                 scope.ServiceProvider,
@@ -1173,6 +1181,26 @@ public partial class Home
         }
 
         return Ui("Système", "System");
+    }
+
+    private string FormatMessageTimestamp(DateTimeOffset createdAt)
+    {
+        var localTimestamp = createdAt.ToLocalTime();
+        return localTimestamp.ToString(
+                   _messageDateFormat,
+                   CultureInfo.InvariantCulture) +
+               " " +
+               localTimestamp.ToString(
+                   _messageTimeFormat,
+                   CultureInfo.InvariantCulture);
+    }
+
+    private static string GetMessageTimestampMachineValue(
+        DateTimeOffset createdAt)
+    {
+        return createdAt.ToUniversalTime().ToString(
+            "O",
+            CultureInfo.InvariantCulture);
     }
 
     private string GetAgentDisplayName(

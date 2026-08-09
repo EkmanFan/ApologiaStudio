@@ -187,12 +187,30 @@
     min-width: 0;
 }
 
-.message-author {
+.message-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
     margin-bottom: 0.28rem;
+}
+
+.message-author {
+    min-width: 0;
     color: inherit;
     opacity: 0.72;
     font-size: 0.75rem;
     font-weight: 800;
+}
+
+.message-timestamp {
+    flex: 0 0 auto;
+    margin-left: auto;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 0.66rem;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 .message-content {

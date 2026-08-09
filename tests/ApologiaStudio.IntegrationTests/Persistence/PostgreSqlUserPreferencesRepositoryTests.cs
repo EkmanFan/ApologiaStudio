@@ -51,6 +51,9 @@ public sealed class PostgreSqlUserPreferencesRepositoryTests
                     userId,
                     ApplicationLanguage.English,
                     theologicalLanguage: null,
+                    enterBehavior: ComposerEnterBehavior.SendMessage,
+                    messageDateFormat: MessageTimestampFormats.IsoYearMonthDay,
+                    messageTimeFormat: MessageTimestampFormats.TwelveHourWithSeconds,
                     updatedAt: DateTimeOffset.UtcNow));
 
             await writeContext.SaveChangesAsync();
@@ -76,6 +79,15 @@ public sealed class PostgreSqlUserPreferencesRepositoryTests
             Assert.Equal(
                 ApplicationLanguage.English,
                 preferences.EffectiveTheologicalLanguage);
+            Assert.Equal(
+                ComposerEnterBehavior.SendMessage,
+                preferences.EnterBehavior);
+            Assert.Equal(
+                MessageTimestampFormats.IsoYearMonthDay,
+                preferences.MessageDateFormat);
+            Assert.Equal(
+                MessageTimestampFormats.TwelveHourWithSeconds,
+                preferences.MessageTimeFormat);
         }
     }
 }

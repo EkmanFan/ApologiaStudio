@@ -182,8 +182,14 @@ else
                                 }
 
                                 <div class="message-body">
-                                    <div class="message-author">
-                                        @GetMessageAuthor(message)
+                                    <div class="message-meta">
+                                        <div class="message-author">
+                                            @GetMessageAuthor(message)
+                                        </div>
+                                        <time class="message-timestamp"
+                                              datetime="@GetMessageTimestampMachineValue(message.CreatedAt)">
+                                            @FormatMessageTimestamp(message.CreatedAt)
+                                        </time>
                                     </div>
 
                                     <div class="message-content">
@@ -203,8 +209,10 @@ else
                                 </div>
 
                                 <div class="message-body">
-                                    <div class="message-author">
-                                        @(_activeAgentName ?? "Agent")
+                                    <div class="message-meta">
+                                        <div class="message-author">
+                                            @(_activeAgentName ?? "Agent")
+                                        </div>
                                     </div>
 
                                     <div class="message-content">
