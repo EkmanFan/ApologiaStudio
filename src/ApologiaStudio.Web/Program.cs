@@ -53,11 +53,9 @@ builder.Services.AddSingleton<TimeProvider>(
 builder.Services.AddSingleton<
     BiblePassageRequestParser>();
 
-builder.Services.AddSingleton<IMutableAgentRegistry>(
-    static _ => new AgentRegistry());
-builder.Services.AddSingleton<IAgentRegistry>(
-    serviceProvider =>
-        serviceProvider.GetRequiredService<IMutableAgentRegistry>());
+builder.Services.AddScoped<
+    IAgentRoutingSnapshotProvider,
+    DatabaseAgentRoutingSnapshotProvider>();
 
 builder.Services.AddSingleton<
     DeterministicAgentRouter>();
@@ -428,14 +426,6 @@ static async Task InitializeAgentSettingsAsync(WebApplication app)
         defaults,
         CancellationToken.None);
 
-    var allSettings = await scope.ServiceProvider
-        .GetRequiredService<IAgentSettingsStore>()
-        .ListAsync(CancellationToken.None);
-    var registry = app.Services.GetRequiredService<IMutableAgentRegistry>();
-    registry.ReplaceAll(
-        allSettings
-            .Where(settings => settings.IsEnabled)
-            .Select(AgentRoutingProfile.FromSettings));
 }
 
 static void TryDeleteLegacySettings(string? legacyPath)

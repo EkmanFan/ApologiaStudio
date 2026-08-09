@@ -13,8 +13,7 @@ public sealed class OllamaSemanticRoutingClassifier(
     HttpClient httpClient,
     OllamaRoutingOptions options,
     IReadOnlyList<AgentRoutingProfile>? routingProfiles = null)
-    : ISemanticRoutingClassifier,
-      IDisposable
+    : IDisposable
 {
     private const int MaximumErrorBodyLength = 2_000;
     private const string PromptVersion =

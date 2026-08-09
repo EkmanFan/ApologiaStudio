@@ -48,7 +48,7 @@ public sealed class RoutingEvaluationTests(
         var router =
             new HybridAgentRouter(
                 new DeterministicAgentRouter(),
-                classifier,
+                new BuiltInSemanticClassifierAdapter(classifier),
                 new HybridRoutingOptions());
 
         var cases = LoadCases();
@@ -189,6 +189,37 @@ public sealed class RoutingEvaluationTests(
                     AgentId: null,
                     DateTimeOffset.UtcNow)
             ]);
+    }
+
+    private sealed class BuiltInSemanticClassifierAdapter(
+        OllamaSemanticRoutingClassifier classifier)
+        : ISemanticRoutingClassifier
+    {
+        public ValueTask<SemanticRoutingResult> ClassifyAsync(
+            string userMessage,
+            IReadOnlyList<AgentRoutingProfile> routingProfiles,
+            CancellationToken cancellationToken)
+        {
+            var expectedIds =
+                BuiltInAgentRegistry.Profiles
+                    .Select(profile => profile.Agent.Id)
+                    .ToHashSet();
+            var actualIds =
+                routingProfiles
+                    .Select(profile => profile.Agent.Id)
+                    .ToHashSet();
+
+            if (!expectedIds.SetEquals(actualIds))
+            {
+                throw new InvalidOperationException(
+                    "This evaluation currently supports the built-in " +
+                    "routing snapshot only.");
+            }
+
+            return classifier.ClassifyAsync(
+                userMessage,
+                cancellationToken);
+        }
     }
 
     private sealed record RoutingEvaluationCase(

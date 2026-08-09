@@ -107,13 +107,21 @@ public sealed class DeterministicAgentRouter : IAgentRouter
 
     public RoutingDecision Route(AgentTurnRequest request)
     {
+        return Route(request, _agentRegistry);
+    }
+
+    public RoutingDecision Route(
+        AgentTurnRequest request,
+        IAgentRegistry agentRegistry)
+    {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(agentRegistry);
 
         var currentMessage = FindCurrentUserMessage(request);
 
         if (request.RequestedAgentId is { } requestedAgentId)
         {
-            if (!_agentRegistry.TryGet(
+            if (!agentRegistry.TryGet(
                     requestedAgentId,
                     out var requestedProfile))
             {

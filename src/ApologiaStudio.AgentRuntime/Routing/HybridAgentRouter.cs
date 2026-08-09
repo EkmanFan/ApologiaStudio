@@ -9,11 +9,11 @@ public sealed class HybridAgentRouter(
     DeterministicAgentRouter deterministicRouter,
     ISemanticRoutingClassifier semanticClassifier,
     HybridRoutingOptions options,
-    IAgentRegistry? agentRegistry = null)
+    IAgentRoutingSnapshotProvider? routingSnapshotProvider = null)
     : IAgentRouter
 {
-    private readonly IAgentRegistry _agentRegistry =
-        agentRegistry ?? new BuiltInAgentRegistry();
+    private readonly IAgentRoutingSnapshotProvider _routingSnapshotProvider =
+        routingSnapshotProvider ?? new BuiltInRoutingSnapshotProvider();
 
     public async ValueTask<RoutingDecision> RouteAsync(
         AgentTurnRequest request,
@@ -21,8 +21,12 @@ public sealed class HybridAgentRouter(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var agentRegistry = await _routingSnapshotProvider
+            .GetActiveAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var deterministicDecision =
-            deterministicRouter.Route(request);
+            deterministicRouter.Route(request, agentRegistry);
 
         var needsBibleIntentClassification =
             deterministicDecision.WasExplicitlyRequested &&
@@ -45,7 +49,7 @@ public sealed class HybridAgentRouter(
         }
 
         var hasCustomAgents =
-            _agentRegistry.All.Count > BuiltInAgents.All.Count;
+            agentRegistry.All.Count > BuiltInAgents.All.Count;
 
         if (!needsBibleIntentClassification &&
             !hasCustomAgents &&
@@ -67,6 +71,7 @@ public sealed class HybridAgentRouter(
             var semanticDecision =
                 await semanticClassifier.ClassifyAsync(
                     currentMessage,
+                    agentRegistry.All,
                     cancellationToken);
 
             if (semanticDecision.BiblePassageResolution !=
@@ -122,7 +127,9 @@ public sealed class HybridAgentRouter(
             }
 
             var selectedAgent =
-                ResolveAgent(semanticDecision.AgentSlug);
+                ResolveAgent(
+                    agentRegistry,
+                    semanticDecision.AgentSlug);
 
             if (selectedAgent is null)
             {
@@ -203,13 +210,28 @@ public sealed class HybridAgentRouter(
         return fallbackMessage.Content;
     }
 
-    private AgentDescriptor? ResolveAgent(
+    private static AgentDescriptor? ResolveAgent(
+        IAgentRegistry agentRegistry,
         string agentSlug)
     {
-        return _agentRegistry.TryGet(
+        return agentRegistry.TryGet(
             agentSlug,
             out var profile)
                 ? profile.Agent
                 : null;
+    }
+
+    private sealed class BuiltInRoutingSnapshotProvider
+        : IAgentRoutingSnapshotProvider
+    {
+        private static readonly IAgentRegistry Registry =
+            new AgentRegistry();
+
+        public ValueTask<IAgentRegistry> GetActiveAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(Registry);
+        }
     }
 }

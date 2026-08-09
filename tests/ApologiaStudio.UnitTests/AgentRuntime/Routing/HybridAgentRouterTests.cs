@@ -387,6 +387,7 @@ public sealed class HybridAgentRouterTests
 
         public ValueTask<SemanticRoutingResult> ClassifyAsync(
             string userMessage,
+            IReadOnlyList<AgentRoutingProfile> routingProfiles,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -402,6 +403,7 @@ public sealed class HybridAgentRouterTests
     {
         public ValueTask<SemanticRoutingResult> ClassifyAsync(
             string userMessage,
+            IReadOnlyList<AgentRoutingProfile> routingProfiles,
             CancellationToken cancellationToken)
         {
             throw new InvalidOperationException(

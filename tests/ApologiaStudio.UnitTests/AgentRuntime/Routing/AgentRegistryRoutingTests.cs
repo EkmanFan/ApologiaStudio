@@ -38,41 +38,6 @@ public sealed class AgentRegistryRoutingTests
     }
 
     [Fact]
-    public void MutableRegistry_ShouldExposeAddedAgentAndRemoveItImmediately()
-    {
-        var registry = new AgentRegistry();
-        var profile = new AgentRoutingProfile(
-            PatristicsAgent,
-            "- early Christian writers, Church Fathers and patristic sources;");
-
-        registry.Upsert(profile);
-
-        Assert.True(registry.TryGet(PatristicsAgent.Id, out var added));
-        Assert.Equal(PatristicsAgent, added.Agent);
-
-        Assert.True(registry.Remove(PatristicsAgent.Id));
-        Assert.False(registry.TryGet(PatristicsAgent.Id, out _));
-        Assert.Contains(
-            registry.All,
-            item => item.Agent.Id == BuiltInAgents.Historian.Id);
-        Assert.Contains(
-            registry.All,
-            item => item.Agent.Id == BuiltInAgents.ProtestantApologist.Id);
-    }
-
-    [Fact]
-    public void MutableRegistry_ShouldRefuseRemovingBuiltInAgent()
-    {
-        var registry = new AgentRegistry();
-
-        Assert.False(registry.Remove(BuiltInAgents.Historian.Id));
-        Assert.True(
-            registry.TryGet(
-                BuiltInAgents.Historian.Id,
-                out _));
-    }
-
-    [Fact]
     public void DeterministicRouter_ShouldAcceptExplicitAgentFromRegistry()
     {
         var registry = CreateRegistryWithPatristicsAgent();
@@ -89,7 +54,7 @@ public sealed class AgentRegistryRoutingTests
     }
 
     [Fact]
-    public async Task HybridRouter_ShouldResolveSemanticAgentFromRegistry()
+    public async Task HybridRouter_ShouldResolveSemanticAgentFromSnapshot()
     {
         var registry = CreateRegistryWithPatristicsAgent();
         var classifier = new StubSemanticClassifier(
@@ -98,10 +63,10 @@ public sealed class AgentRegistryRoutingTests
                 0.99,
                 "La demande relève de la patristique."));
         var router = new HybridAgentRouter(
-            new DeterministicAgentRouter(registry),
+            new DeterministicAgentRouter(),
             classifier,
             new HybridRoutingOptions(),
-            registry);
+            new StaticRoutingSnapshotProvider(registry));
 
         var decision = await router.RouteAsync(
             CreateRequest("Aide-moi sur ce sujet spécialisé."),
@@ -122,10 +87,10 @@ public sealed class AgentRegistryRoutingTests
                 0.99,
                 "Le spécialiste personnalisé est plus précis."));
         var router = new HybridAgentRouter(
-            new DeterministicAgentRouter(registry),
+            new DeterministicAgentRouter(),
             classifier,
             new HybridRoutingOptions(),
-            registry);
+            new StaticRoutingSnapshotProvider(registry));
 
         var decision = await router.RouteAsync(
             CreateRequest(
@@ -146,10 +111,10 @@ public sealed class AgentRegistryRoutingTests
                 0.99,
                 "Le spécialiste personnalisé est plus précis."));
         var router = new HybridAgentRouter(
-            new DeterministicAgentRouter(registry),
+            new DeterministicAgentRouter(),
             classifier,
             new HybridRoutingOptions(),
-            registry);
+            new StaticRoutingSnapshotProvider(registry));
 
         var decision = await router.RouteAsync(
             CreateRequest("John 3:16"),
@@ -162,6 +127,43 @@ public sealed class AgentRegistryRoutingTests
         Assert.Equal(
             BiblePassageResolution.Resolved,
             decision.BiblePassageResolution);
+    }
+
+    [Fact]
+    public async Task HybridRouter_ShouldReloadRoutingSnapshotForEveryTurn()
+    {
+        var provider = new SequenceRoutingSnapshotProvider(
+            new AgentRegistry(),
+            CreateRegistryWithPatristicsAgent());
+        var classifier = new StubSemanticClassifier(
+            new SemanticRoutingResult(
+                PatristicsAgent.Slug,
+                0.99,
+                "Le nouveau spécialiste est disponible."));
+        var router = new HybridAgentRouter(
+            new DeterministicAgentRouter(),
+            classifier,
+            new HybridRoutingOptions(),
+            provider);
+
+        var firstDecision = await router.RouteAsync(
+            CreateRequest(
+                "À quelle époque cette doctrine est-elle apparue dans l'histoire ?"),
+            CancellationToken.None);
+        var secondDecision = await router.RouteAsync(
+            CreateRequest(
+                "À quelle époque cette doctrine est-elle apparue dans l'histoire ?"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            BuiltInAgents.Historian.Id,
+            firstDecision.AgentId);
+        Assert.Equal(PatristicsAgent.Id, secondDecision.AgentId);
+        Assert.Equal(2, provider.CallCount);
+        Assert.Equal(1, classifier.CallCount);
+        Assert.Contains(
+            classifier.LastRoutingProfiles,
+            profile => profile.Agent.Id == PatristicsAgent.Id);
     }
 
     [Fact]
@@ -186,7 +188,6 @@ public sealed class AgentRegistryRoutingTests
             RequestTimeout = TimeSpan.FromSeconds(30),
             KeepAlive = "1m"
         };
-
         using var classifier = new OllamaSemanticRoutingClassifier(
             new HttpClient(handler)
             {
@@ -201,7 +202,6 @@ public sealed class AgentRegistryRoutingTests
             CancellationToken.None);
 
         Assert.Equal(PatristicsAgent.Slug, result.AgentSlug);
-
         using var requestDocument = JsonDocument.Parse(
             handler.RequestBody);
         var root = requestDocument.RootElement;
@@ -209,7 +209,6 @@ public sealed class AgentRegistryRoutingTests
             .GetProperty("messages")[0]
             .GetProperty("content")
             .GetString();
-
         Assert.Contains(
             "patristics",
             systemPrompt,
@@ -218,7 +217,6 @@ public sealed class AgentRegistryRoutingTests
             "early Christian writers",
             systemPrompt,
             StringComparison.Ordinal);
-
         var agentValues = root
             .GetProperty("format")
             .GetProperty("properties")
@@ -227,7 +225,6 @@ public sealed class AgentRegistryRoutingTests
             .EnumerateArray()
             .Select(value => value.GetString())
             .ToArray();
-
         Assert.Contains(PatristicsAgent.Slug, agentValues);
         Assert.Contains(BuiltInAgents.Historian.Slug, agentValues);
         Assert.Contains(
@@ -235,11 +232,10 @@ public sealed class AgentRegistryRoutingTests
             agentValues);
     }
 
-    private static BuiltInAgentRegistry CreateRegistryWithPatristicsAgent()
+    private static AgentRegistry CreateRegistryWithPatristicsAgent()
     {
-        var builtIns = new BuiltInAgentRegistry();
-        return new BuiltInAgentRegistry(
-            builtIns.All.Concat(
+        return new AgentRegistry(
+            BuiltInAgentRegistry.Profiles.Concat(
             [
                 new AgentRoutingProfile(
                     PatristicsAgent,
@@ -282,17 +278,60 @@ public sealed class AgentRegistryRoutingTests
             });
     }
 
+    private sealed class StaticRoutingSnapshotProvider(
+        IAgentRegistry registry)
+        : IAgentRoutingSnapshotProvider
+    {
+        public ValueTask<IAgentRegistry> GetActiveAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(registry);
+        }
+    }
+
+    private sealed class SequenceRoutingSnapshotProvider(
+        params IAgentRegistry[] registries)
+        : IAgentRoutingSnapshotProvider
+    {
+        private int _index;
+
+        public int CallCount { get; private set; }
+
+        public ValueTask<IAgentRegistry> GetActiveAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (registries.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "At least one routing snapshot is required.");
+            }
+
+            var index = Math.Min(_index, registries.Length - 1);
+            _index++;
+            CallCount++;
+            return ValueTask.FromResult(registries[index]);
+        }
+    }
+
     private sealed class StubSemanticClassifier(
         SemanticRoutingResult result)
         : ISemanticRoutingClassifier
     {
         public int CallCount { get; private set; }
 
+        public IReadOnlyList<AgentRoutingProfile> LastRoutingProfiles
+            { get; private set; } = [];
+
         public ValueTask<SemanticRoutingResult> ClassifyAsync(
             string userMessage,
+            IReadOnlyList<AgentRoutingProfile> routingProfiles,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            Assert.NotEmpty(routingProfiles);
+            LastRoutingProfiles = routingProfiles;
             CallCount++;
             return ValueTask.FromResult(result);
         }
@@ -313,7 +352,6 @@ public sealed class AgentRegistryRoutingTests
                 ? string.Empty
                 : await request.Content.ReadAsStringAsync(
                     cancellationToken);
-
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(

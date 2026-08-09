@@ -8,7 +8,6 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.Extensions.DependencyInjection
-@using ApologiaStudio.AgentRuntime.Agents
 @using ApologiaStudio.Application.Agents
 @using ApologiaStudio.Application.Agents.Settings
 @using ApologiaStudio.Application.Abstractions.BibleCorpora
@@ -41,7 +40,6 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 @inject IServiceScopeFactory ServiceScopeFactory
-@inject IAgentRegistry AgentRegistry
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
@@ -280,13 +278,13 @@ else
                                     @Ui("Routage automatique", "Automatic routing")
                                 </option>
 
-                                @foreach (var profile in AgentRegistry.All)
+                                @foreach (var settings in _agentSettings.Values
+                                    .Where(candidate => candidate.IsEnabled)
+                                    .OrderByDescending(candidate => candidate.IsBuiltIn)
+                                    .ThenBy(candidate => candidate.DisplayName))
                                 {
-                                    var agent = profile.Agent;
-                                    <option value="@agent.Slug">
-                                        @GetAgentDisplayName(
-                                            agent.Id,
-                                            agent.DisplayName)
+                                    <option value="@settings.Slug">
+                                        @settings.DisplayName
                                     </option>
                                 }
                             </select>
@@ -1552,11 +1550,16 @@ else
             return null;
         }
 
-        return AgentRegistry.TryGet(
-            _selectedAgentSlug,
-            out var profile)
-                ? profile.Agent.Id
-                : null;
+        var selectedSettings =
+            _agentSettings.Values.FirstOrDefault(
+                candidate =>
+                    candidate.IsEnabled &&
+                    string.Equals(
+                        candidate.Slug,
+                        _selectedAgentSlug,
+                        StringComparison.OrdinalIgnoreCase));
+
+        return selectedSettings?.AgentId;
     }
 
     private static string GetMessageCssClass(
@@ -1598,12 +1601,6 @@ else
                 return persistedSettings.DisplayName;
             }
 
-            if (AgentRegistry.TryGet(
-                    agentId,
-                    out var profile))
-            {
-                return profile.Agent.DisplayName;
-            }
         }
 
         return Ui("Système", "System");

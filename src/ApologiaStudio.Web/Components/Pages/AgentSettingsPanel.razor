@@ -7,7 +7,6 @@
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject IOllamaModelCatalogClient ModelCatalogClient
 @inject BuiltInAgentSettingsCatalog AgentDefaults
-@inject IMutableAgentRegistry AgentRegistry
 
 <section class="agent-settings-panel"
          aria-labelledby="agent-settings-panel-title">
@@ -526,7 +525,6 @@
             }
 
             editor.Load(saved);
-            AgentRegistry.Upsert(AgentRoutingProfile.FromSettings(saved));
             editor.StatusMessage = editor.IsBuiltIn
                 ? "Profil enregistré. Il sera utilisé dès le prochain tour."
                 : "Agent enregistré et disponible immédiatement pour le routage.";
@@ -574,7 +572,6 @@
                 editor.AgentId,
                 CancellationToken.None);
 
-            AgentRegistry.Remove(editor.AgentId);
             _agentEditors.Remove(editor);
         }
         catch (Exception exception)

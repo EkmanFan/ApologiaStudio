@@ -6,14 +6,16 @@ namespace ApologiaStudio.AgentRuntime.Routing.Semantic;
 
 public sealed class DynamicOllamaSemanticRoutingClassifier(
     IAiRuntimeSettingsStore settingsStore,
-    IOllamaHttpClientFactory httpClientFactory,
-    IAgentRegistry agentRegistry)
+    IOllamaHttpClientFactory httpClientFactory)
     : ISemanticRoutingClassifier
 {
     public async ValueTask<SemanticRoutingResult> ClassifyAsync(
         string userMessage,
+        IReadOnlyList<AgentRoutingProfile> routingProfiles,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(routingProfiles);
+
         var settings =
             await settingsStore.GetAsync(cancellationToken)
             ?? throw new InvalidOperationException(
@@ -31,7 +33,7 @@ public sealed class DynamicOllamaSemanticRoutingClassifier(
             new OllamaSemanticRoutingClassifier(
                 client,
                 options,
-                agentRegistry.All);
+                routingProfiles);
 
         return await classifier
             .ClassifyAsync(
