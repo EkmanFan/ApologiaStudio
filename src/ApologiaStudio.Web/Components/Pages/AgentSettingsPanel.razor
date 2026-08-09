@@ -8,18 +8,17 @@
 @inject IOllamaModelCatalogClient ModelCatalogClient
 @inject BuiltInAgentSettingsCatalog AgentDefaults
 
-<section class="ollama-routing-settings"
-         aria-labelledby="ollama-routing-settings-title">
+<section class="agent-settings-panel"
+         aria-labelledby="agent-settings-panel-title">
     <header>
         <div>
-            <p class="settings-kicker">Ollama</p>
-            <h2 id="ollama-routing-settings-title">
-                Modèles et exécution locale
+            <p class="settings-kicker">Agents</p>
+            <h2 id="agent-settings-panel-title">
+                Profils des agents
             </h2>
             <p>
-                Les paramètres runtime et les profils d’agents sont
-                enregistrés dans PostgreSQL. Les changements de modèle et de
-                prompt sont relus au prochain tour d’agent, sans redémarrage.
+                Nom, avatar, couleur, modèle et prompt système sont persistés
+                dans PostgreSQL et utilisés dès le prochain tour d’agent.
             </p>
         </div>
         <span class="database-badge">PostgreSQL</span>
@@ -28,191 +27,36 @@
     @if (_isLoadingSettings)
     {
         <p class="settings-status">
-            Chargement des paramètres d’IA…
+            Chargement des profils d’agents…
         </p>
     }
     else
     {
-        <section class="runtime-settings"
-                 aria-labelledby="runtime-settings-title">
-            <div class="section-heading">
-                <div>
-                    <p class="settings-kicker">Runtime</p>
-                    <h3 id="runtime-settings-title">Ollama</h3>
-                </div>
-                <p>
-                    Configuration commune à tous les agents et au routeur.
-                </p>
-            </div>
+        @if (!string.IsNullOrWhiteSpace(_loadStatusMessage))
+        {
+            <p class="settings-status error" role="alert">
+                @_loadStatusMessage
+            </p>
+        }
 
-            <div class="settings-grid">
-                <label class="wide-field">
-                    <span>Adresse du serveur Ollama</span>
-                    <input type="url"
-                           autocomplete="off"
-                           spellcheck="false"
-                           disabled="@(_isSavingRuntime || _isLoadingModels)"
-                           value="@_baseAddress"
-                           @onchange="HandleBaseAddressChangedAsync" />
-                    <small>
-                        Une adresse de bouclage est imposée
-                        (127.0.0.1, localhost ou ::1).
-                    </small>
-                </label>
-
-                <div class="model-field">
-                    <label for="ollama-routing-model">
-                        Modèle de routage sémantique
-                    </label>
-                    <OllamaModelSelect Id="ollama-routing-model"
-                                       Models="@_models"
-                                       Value="@_routingModel"
-                                       ValueChanged="@SetRoutingModel"
-                                       IsDisabled="@(_isSavingRuntime || _isLoadingModels)" />
-                    <small>
-                        Utilisé seulement lorsque le routeur déterministe ne
-                        peut pas choisir l’agent avec assez de confiance.
-                    </small>
-                </div>
-
-                <div class="model-field">
-                    <label for="ollama-default-agent-model">
-                        Modèle par défaut des agents
-                    </label>
-                    <OllamaModelSelect Id="ollama-default-agent-model"
-                                       Models="@_models"
-                                       Value="@_defaultAgentModel"
-                                       ValueChanged="@SetDefaultAgentModel"
-                                       IsDisabled="@(_isSavingRuntime || _isLoadingModels)" />
-                    <small>
-                        Utilisé lorsqu’un agent n’a pas de modèle spécifique.
-                    </small>
-                </div>
-            </div>
-
-            <section class="execution-settings"
-                     aria-labelledby="execution-settings-title">
-                <h4 id="execution-settings-title">
-                    Limites d’exécution
-                </h4>
-                <div class="settings-grid">
-                    <label>
-                        <span>Délai maximal de routage</span>
-                        <div class="number-field">
-                            <input type="number"
-                                   min="1"
-                                   max="300"
-                                   step="1"
-                                   disabled="@_isSavingRuntime"
-                                   @bind="_routingTimeoutSeconds" />
-                            <span>secondes</span>
-                        </div>
-                    </label>
-                    <label>
-                        <span>Délai maximal de génération</span>
-                        <div class="number-field">
-                            <input type="number"
-                                   min="1"
-                                   max="600"
-                                   step="1"
-                                   disabled="@_isSavingRuntime"
-                                   @bind="_generationTimeoutSeconds" />
-                            <span>secondes</span>
-                        </div>
-                    </label>
-                    <label>
-                        <span>Conservation du modèle en mémoire</span>
-                        <input type="text"
-                               maxlength="32"
-                               autocomplete="off"
-                               spellcheck="false"
-                               disabled="@_isSavingRuntime"
-                               @bind="_keepAlive" />
-                        <small>Exemples : 10m, 1h, 0 ou -1.</small>
-                    </label>
-                    <label>
-                        <span>Messages d’historique maximum</span>
-                        <input type="number"
-                               min="1"
-                               max="100"
-                               step="1"
-                               disabled="@_isSavingRuntime"
-                               @bind="_maximumHistoryMessages" />
-                    </label>
-                    <label>
-                        <span>Caractères d’historique maximum</span>
-                        <input type="number"
-                               min="1000"
-                               max="100000"
-                               step="1000"
-                               disabled="@_isSavingRuntime"
-                               @bind="_maximumHistoryCharacters" />
-                    </label>
-                    <label>
-                        <span>Tokens de sortie maximum</span>
-                        <input type="number"
-                               min="64"
-                               max="8192"
-                               step="64"
-                               disabled="@_isSavingRuntime"
-                               @bind="_maximumOutputTokens" />
-                    </label>
-                </div>
-            </section>
-
-            <div class="catalog-actions">
-                <p class="catalog-note">
-                    La liste provient de <code>GET /api/tags</code> sur
-                    l’adresse indiquée et contient les modèles installés.
-                </p>
-                <button class="secondary-action"
-                        type="button"
-                        disabled="@(_isSavingRuntime || _isLoadingModels)"
-                        @onclick="RefreshModelsAsync">
-                    @(_isLoadingModels ? "Chargement…" : "Actualiser les modèles")
-                </button>
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(_modelCatalogMessage))
-            {
-                <p class="catalog-message @(_modelCatalogIsError ? "error" : null)"
-                   role="@(_modelCatalogIsError ? "alert" : "status")">
-                    @_modelCatalogMessage
-                </p>
-            }
-
-            <footer class="runtime-footer">
-                <p class="settings-note">
-                    Les changements runtime sont appliqués à la prochaine
-                    requête.
-                </p>
-                <button type="button"
-                        disabled="@(_isSavingRuntime ||
-                                    _isLoadingModels ||
-                                    !AreRuntimeModelsAvailable)"
-                        @onclick="SaveRuntimeAsync">
-                    @(_isSavingRuntime ? "Enregistrement…" : "Enregistrer le runtime")
-                </button>
-            </footer>
-
-            @if (!string.IsNullOrWhiteSpace(_runtimeStatusMessage))
-            {
-                <p class="settings-status @(_runtimeStatusIsError ? "error" : "success")"
-                   role="@(_runtimeStatusIsError ? "alert" : "status")">
-                    @_runtimeStatusMessage
-                </p>
-            }
-        </section>
+        @if (!string.IsNullOrWhiteSpace(_modelCatalogMessage))
+        {
+            <p class="catalog-message @(_modelCatalogIsError ? "error" : null)"
+               role="@(_modelCatalogIsError ? "alert" : "status")">
+                @_modelCatalogMessage
+            </p>
+        }
 
         <section class="agents-settings"
                  aria-labelledby="agents-settings-title">
             <div class="section-heading">
                 <div>
-                    <p class="settings-kicker">Agents</p>
-                    <h3 id="agents-settings-title">Profils des agents</h3>
+                    <p class="settings-kicker">Configuration</p>
+                    <h3 id="agents-settings-title">Agents disponibles</h3>
                 </div>
                 <p>
-
+                    Le modèle vide utilise le modèle par défaut défini dans
+                    l’onglet IA.
                 </p>
             </div>
 
@@ -242,10 +86,6 @@
                                 </div>
                             </div>
                             <span class="agent-summary-meta">
-                                <span class="agent-id"
-                                      title="Identifiant technique immuable">
-                                    @* @editor.AgentId.Value.ToString("D") *@
-                                </span>
                                 <span class="collapse-chevron"
                                       aria-hidden="true"></span>
                             </span>
@@ -379,35 +219,25 @@
 </section>
 
 @code {
+    [Parameter]
+    public int ActivationVersion { get; set; }
+
     private IReadOnlyList<OllamaLocalModel> _models =
         Array.Empty<OllamaLocalModel>();
     private IReadOnlyList<AgentEditor> _agentEditors =
         Array.Empty<AgentEditor>();
-    private IReadOnlyDictionary<Guid, string> _legacyAgentModels =
-        new Dictionary<Guid, string>();
     private readonly HashSet<Guid> _savingAgentIds = [];
 
     private string _baseAddress = string.Empty;
-    private string _routingModel = string.Empty;
     private string _defaultAgentModel = string.Empty;
-    private string _keepAlive = string.Empty;
-    private string? _runtimeStatusMessage;
+    private string? _loadStatusMessage;
     private string? _modelCatalogMessage;
-    private int _routingTimeoutSeconds;
-    private int _generationTimeoutSeconds;
-    private int _maximumHistoryMessages;
-    private int _maximumHistoryCharacters;
-    private int _maximumOutputTokens;
     private int _modelLoadVersion;
+    private int _lastActivationVersion;
+    private bool _initialized;
     private bool _isLoadingSettings = true;
     private bool _isLoadingModels;
-    private bool _isSavingRuntime;
-    private bool _runtimeStatusIsError;
     private bool _modelCatalogIsError;
-
-    private bool AreRuntimeModelsAvailable =>
-        IsModelAvailable(_routingModel) &&
-        IsModelAvailable(_defaultAgentModel);
 
     protected override async Task OnInitializedAsync()
     {
@@ -415,7 +245,6 @@
         {
             await using var scope =
                 ServiceScopeFactory.CreateAsyncScope();
-
             var runtimeHandler =
                 scope.ServiceProvider.GetRequiredService<
                     GetAiRuntimeSettingsHandler>();
@@ -424,53 +253,62 @@
                     GetAgentSettingsHandler>();
 
             var runtimeSettings =
-                await runtimeHandler.HandleAsync(
-                    CancellationToken.None);
+                await runtimeHandler.HandleAsync(CancellationToken.None);
             var agentSettings =
-                await agentHandler.HandleAsync(
-                    CancellationToken.None);
+                await agentHandler.HandleAsync(CancellationToken.None);
 
-            LoadRuntime(runtimeSettings);
+            LoadRuntimeContext(runtimeSettings);
             LoadAgents(agentSettings);
             await LoadModelsAsync(showSuccess: false);
         }
         catch (Exception exception)
         {
-            _runtimeStatusIsError = true;
-            _runtimeStatusMessage =
-                "Les paramètres d’IA n’ont pas pu être chargés : " +
+            _loadStatusMessage =
+                "Les profils d’agents n’ont pas pu être chargés : " +
                 exception.Message;
         }
         finally
         {
+            _lastActivationVersion = ActivationVersion;
+            _initialized = true;
             _isLoadingSettings = false;
         }
     }
 
-    private void SetRoutingModel(string value)
+    protected override async Task OnParametersSetAsync()
     {
-        _routingModel = value;
+        if (!_initialized ||
+            ActivationVersion == _lastActivationVersion)
+        {
+            return;
+        }
+
+        _lastActivationVersion = ActivationVersion;
+        await RefreshRuntimeContextAsync();
     }
 
-    private void SetDefaultAgentModel(string value)
+    private async Task RefreshRuntimeContextAsync()
     {
-        _defaultAgentModel = value;
-    }
+        try
+        {
+            await using var scope =
+                ServiceScopeFactory.CreateAsyncScope();
+            var handler =
+                scope.ServiceProvider.GetRequiredService<
+                    GetAiRuntimeSettingsHandler>();
+            var runtimeSettings =
+                await handler.HandleAsync(CancellationToken.None);
 
-    private async Task HandleBaseAddressChangedAsync(
-        ChangeEventArgs eventArgs)
-    {
-        _baseAddress =
-            eventArgs.Value?.ToString()?.Trim()
-            ?? string.Empty;
-
-        _runtimeStatusMessage = null;
-        await LoadModelsAsync(showSuccess: false);
-    }
-
-    private Task RefreshModelsAsync()
-    {
-        return LoadModelsAsync(showSuccess: true);
+            LoadRuntimeContext(runtimeSettings);
+            await LoadModelsAsync(showSuccess: false);
+        }
+        catch (Exception exception)
+        {
+            _modelCatalogIsError = true;
+            _modelCatalogMessage =
+                "Le contexte Ollama n’a pas pu être actualisé : " +
+                exception.Message;
+        }
     }
 
     private async Task LoadModelsAsync(bool showSuccess)
@@ -511,7 +349,7 @@
                 _modelCatalogMessage =
                     "Modèle(s) configuré(s) indisponible(s) : " +
                     string.Join(", ", unavailable) +
-                    ". Sélectionnez un modèle installé localement.";
+                    ". Vérifiez l’onglet IA ou le modèle de l’agent.";
             }
             else if (showSuccess)
             {
@@ -537,74 +375,6 @@
             {
                 _isLoadingModels = false;
             }
-        }
-    }
-
-    private async Task SaveRuntimeAsync()
-    {
-        if (_isSavingRuntime)
-        {
-            return;
-        }
-
-        _isSavingRuntime = true;
-        _runtimeStatusMessage = null;
-        _runtimeStatusIsError = false;
-
-        try
-        {
-            if (!AreRuntimeModelsAvailable)
-            {
-                throw new InvalidOperationException(
-                    "Les modèles du runtime doivent être installés sur " +
-                    "le serveur Ollama indiqué.");
-            }
-
-            var assignments = _legacyAgentModels
-                .Select(
-                    assignment =>
-                        new AgentModelAssignmentInput(
-                            assignment.Key,
-                            assignment.Value))
-                .ToArray();
-
-            await using var scope =
-                ServiceScopeFactory.CreateAsyncScope();
-            var handler =
-                scope.ServiceProvider.GetRequiredService<
-                    UpdateAiRuntimeSettingsHandler>();
-
-            var settings =
-                await handler.HandleAsync(
-                    new UpdateAiRuntimeSettingsCommand(
-                        _baseAddress,
-                        _routingModel,
-                        _defaultAgentModel,
-                        _routingTimeoutSeconds,
-                        _generationTimeoutSeconds,
-                        _keepAlive,
-                        _maximumHistoryMessages,
-                        _maximumHistoryCharacters,
-                        _maximumOutputTokens,
-                        assignments),
-                    CancellationToken.None);
-
-            LoadRuntime(settings);
-            _runtimeStatusMessage =
-                "Les paramètres du runtime ont été enregistrés dans PostgreSQL.";
-        }
-        catch (Exception exception)
-            when (exception is ArgumentException or
-                  InvalidOperationException or
-                  IOException or
-                  UnauthorizedAccessException)
-        {
-            _runtimeStatusIsError = true;
-            _runtimeStatusMessage = exception.Message;
-        }
-        finally
-        {
-            _isSavingRuntime = false;
         }
     }
 
@@ -679,19 +449,10 @@
             "Valeurs par défaut restaurées localement. Enregistrez pour les appliquer.";
     }
 
-    private void LoadRuntime(AiRuntimeSettingsSnapshot settings)
+    private void LoadRuntimeContext(AiRuntimeSettingsSnapshot settings)
     {
         _baseAddress = settings.BaseAddress;
-        _routingModel = settings.RoutingModel;
         _defaultAgentModel = settings.DefaultAgentModel;
-        _routingTimeoutSeconds = settings.RoutingTimeoutSeconds;
-        _generationTimeoutSeconds = settings.GenerationTimeoutSeconds;
-        _keepAlive = settings.KeepAlive;
-        _maximumHistoryMessages = settings.MaximumHistoryMessages;
-        _maximumHistoryCharacters = settings.MaximumHistoryCharacters;
-        _maximumOutputTokens = settings.MaximumOutputTokens;
-        _legacyAgentModels =
-            new Dictionary<Guid, string>(settings.AgentModels);
     }
 
     private void LoadAgents(
@@ -743,16 +504,9 @@
 
     private IReadOnlyList<string> GetUnavailableSelections()
     {
-        return new[]
-            {
-                _routingModel,
-                _defaultAgentModel
-            }
-            .Concat(
-                _agentEditors
-                    .Select(editor => editor.Model))
+        return new[] { _defaultAgentModel }
+            .Concat(_agentEditors.Select(editor => editor.Model))
             .Where(model => !string.IsNullOrWhiteSpace(model))
-            .Cast<string>()
             .Where(model => !IsModelAvailable(model))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();

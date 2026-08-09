@@ -1,7 +1,8 @@
 .settings-shell {
     display: grid;
+    align-content: start;
     gap: 1.5rem;
-    width: min(100%, 52rem);
+    width: min(100%, 74rem);
     min-height: 100dvh;
     margin: 0 auto;
     padding: clamp(1.25rem, 4vw, 3rem);
@@ -14,12 +15,13 @@
     gap: 2rem;
 }
 
-.settings-header h1 {
+.settings-header h1,
+.panel-heading h2 {
     margin: 0;
 }
 
 .settings-header p:not(.settings-eyebrow) {
-    max-width: 42rem;
+    max-width: 52rem;
     margin: 0.5rem 0 0;
     color: #59636e;
 }
@@ -42,6 +44,51 @@
     text-transform: uppercase;
 }
 
+.settings-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.3rem;
+    overflow-x: auto;
+    border: 1px solid #d5d7da;
+    border-radius: 0.8rem;
+    background: #f3f4f2;
+}
+
+.settings-tab {
+    min-width: 7rem;
+    padding: 0.65rem 1rem;
+    border: 0;
+    border-radius: 0.6rem;
+    background: transparent;
+    color: #535d56;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.settings-tab:hover:not(:disabled) {
+    background: #e7eae6;
+}
+
+.settings-tab.active {
+    background: var(--bs-body-bg);
+    color: #2457a6;
+    box-shadow: 0 0.15rem 0.45rem rgba(34, 39, 35, 0.12);
+}
+
+.settings-tab:focus-visible {
+    outline: 3px solid rgba(36, 87, 166, 0.2);
+    outline-offset: 1px;
+}
+
+.settings-tab-panel {
+    min-width: 0;
+}
+
+.settings-tab-panel[hidden] {
+    display: none;
+}
+
 .settings-card {
     display: grid;
     gap: 1.5rem;
@@ -49,6 +96,23 @@
     border: 1px solid #d5d7da;
     border-radius: 0.8rem;
     background: var(--bs-body-bg);
+}
+
+.panel-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e4e1;
+}
+
+.panel-heading p:last-child {
+    max-width: 34rem;
+    margin: 0;
+    color: #68737e;
+    font-size: 0.9rem;
+    line-height: 1.45;
 }
 
 .settings-field {
@@ -112,9 +176,18 @@ button:disabled {
 }
 
 @media (max-width: 680px) {
-    .settings-header {
+    .settings-header,
+    .panel-heading {
         flex-direction: column;
         gap: 1rem;
+    }
+
+    .settings-tabs {
+        width: 100%;
+    }
+
+    .settings-tab {
+        flex: 1 0 auto;
     }
 
     .effective-language {

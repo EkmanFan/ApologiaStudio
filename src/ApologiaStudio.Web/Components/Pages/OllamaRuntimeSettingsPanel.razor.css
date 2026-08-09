@@ -1,11 +1,11 @@
-.ollama-routing-settings {
+.ollama-runtime-settings {
     display: grid;
     gap: 1.25rem;
     margin-top: 1.5rem;
     color: #252823;
 }
 
-.ollama-routing-settings > header,
+.ollama-runtime-settings > header,
 .runtime-footer,
 .catalog-actions,
 .agent-card-footer {
@@ -15,7 +15,7 @@
     gap: 1rem;
 }
 
-.ollama-routing-settings > header {
+.ollama-runtime-settings > header {
     padding: 1.35rem;
     border: 1px solid #d8d7d1;
     border-radius: 1rem;
@@ -23,14 +23,14 @@
     box-shadow: 0 0.45rem 1.4rem rgba(34, 39, 35, 0.06);
 }
 
-.ollama-routing-settings h2,
-.ollama-routing-settings h3,
-.ollama-routing-settings h4,
-.ollama-routing-settings p {
+.ollama-runtime-settings h2,
+.ollama-runtime-settings h3,
+.ollama-runtime-settings h4,
+.ollama-runtime-settings p {
     margin: 0;
 }
 
-.ollama-routing-settings > header p:last-child,
+.ollama-runtime-settings > header p:last-child,
 .section-heading > p {
     max-width: 52rem;
     margin-top: 0.35rem;
@@ -386,7 +386,7 @@
     gap: 0.55rem;
 }
 
-.ollama-routing-settings button {
+.ollama-runtime-settings button {
     flex: 0 0 auto;
     min-height: 2.55rem;
     padding: 0.58rem 0.9rem;
@@ -398,21 +398,21 @@
     cursor: pointer;
 }
 
-.ollama-routing-settings .secondary-action {
+.ollama-runtime-settings .secondary-action {
     border: 1px solid #bfc7c1;
     background: #f4f6f4;
     color: #39433c;
 }
 
-.ollama-routing-settings button:hover:not(:disabled) {
+.ollama-runtime-settings button:hover:not(:disabled) {
     background: #244a3d;
 }
 
-.ollama-routing-settings .secondary-action:hover:not(:disabled) {
+.ollama-runtime-settings .secondary-action:hover:not(:disabled) {
     background: #e7ebe8;
 }
 
-.ollama-routing-settings button:disabled,
+.ollama-runtime-settings button:disabled,
 .settings-grid input:disabled,
 .settings-grid select:disabled,
 .agent-fields-grid input:disabled,
@@ -439,7 +439,7 @@
 }
 
 @media (max-width: 820px) {
-    .ollama-routing-settings > header,
+    .ollama-runtime-settings > header,
     .section-heading,
     .runtime-footer,
     .catalog-actions,

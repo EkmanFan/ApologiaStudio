@@ -18,104 +18,173 @@
             <h1>@Text("Préférences", "Preferences")</h1>
             <p>
                 @Text(
-                    "Choisissez la langue de l’application et celle du contenu théologique.",
-                    "Choose the application language and the language of theological content.")
+                    "Configurez l’application, le runtime d’IA et les profils des agents.",
+                    "Configure the application, AI runtime, and agent profiles.")
             </p>
         </div>
-
         <a href="/">
             @Text("Retour aux conversations", "Back to conversations")
         </a>
     </header>
 
-    @if (_isLoading)
-    {
-        <p class="settings-status">
-            @Text("Chargement des préférences…", "Loading preferences…")
-        </p>
-    }
-    else
-    {
-        <section class="settings-card">
-            <div class="settings-field">
-                <label for="interface-language">
-                    @Text("Langue de l’IHM", "Interface language")
-                </label>
+    <nav class="settings-tabs"
+         role="tablist"
+         aria-label="@Text("Catégories de préférences", "Settings categories")">
+        <button id="settings-tab-general"
+                type="button"
+                role="tab"
+                aria-selected="@(_activeTab == SettingsTab.General)"
+                aria-controls="settings-panel-general"
+                class="@TabClass(SettingsTab.General)"
+                @onclick="() => SelectTab(SettingsTab.General)">
+            @Text("Général", "General")
+        </button>
+        <button id="settings-tab-ai"
+                type="button"
+                role="tab"
+                aria-selected="@(_activeTab == SettingsTab.Ai)"
+                aria-controls="settings-panel-ai"
+                class="@TabClass(SettingsTab.Ai)"
+                @onclick="() => SelectTab(SettingsTab.Ai)">
+            @Text("IA", "AI")
+        </button>
+        <button id="settings-tab-agents"
+                type="button"
+                role="tab"
+                aria-selected="@(_activeTab == SettingsTab.Agents)"
+                aria-controls="settings-panel-agents"
+                class="@TabClass(SettingsTab.Agents)"
+                @onclick="() => SelectTab(SettingsTab.Agents)">
+            @Text("Agents", "Agents")
+        </button>
+    </nav>
 
-                <select id="interface-language"
-                        @bind="_interfaceLanguageCode"
-                        disabled="@_isSaving">
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                </select>
-
-                <p>
-                    @Text(
-                        "Détermine la langue des menus, boutons et messages de l’application.",
-                        "Controls the language of application menus, buttons, and messages.")
-                </p>
-            </div>
-
-            <div class="settings-field">
-                <label for="theological-language">
-                    @Text("Langue théologique", "Theological language")
-                </label>
-
-                <select id="theological-language"
-                        @bind="_theologicalLanguageCode"
-                        disabled="@_isSaving">
-                    <option value="">
+    <section id="settings-panel-general"
+             class="settings-tab-panel"
+             role="tabpanel"
+             aria-labelledby="settings-tab-general"
+             hidden="@(_activeTab != SettingsTab.General)">
+        @if (_isLoading)
+        {
+            <p class="settings-status">
+                @Text("Chargement des préférences…", "Loading preferences…")
+            </p>
+        }
+        else
+        {
+            <section class="settings-card"
+                     aria-labelledby="general-settings-title">
+                <header class="panel-heading">
+                    <div>
+                        <p class="settings-eyebrow">
+                            @Text("Application", "Application")
+                        </p>
+                        <h2 id="general-settings-title">
+                            @Text("Paramètres généraux", "General settings")
+                        </h2>
+                    </div>
+                    <p>
                         @Text(
-                            "Identique à la langue de l’IHM",
-                            "Same as interface language")
-                    </option>
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                </select>
+                            "Langues utilisées par l’interface, les réponses théologiques et les textes bibliques.",
+                            "Languages used by the interface, theological answers, and Bible text.")
+                    </p>
+                </header>
 
-                <p>
-                    @Text(
-                        "Utilisée par défaut pour les réponses théologiques et les textes bibliques. Une langue demandée explicitement dans un message reste prioritaire.",
-                        "Used by default for theological answers and Bible text. A language explicitly requested in a message still takes priority.")
-                </p>
-            </div>
+                <div class="settings-field">
+                    <label for="interface-language">
+                        @Text("Langue de l’IHM", "Interface language")
+                    </label>
+                    <select id="interface-language"
+                            @bind="_interfaceLanguageCode"
+                            disabled="@_isSaving">
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                    </select>
+                    <p>
+                        @Text(
+                            "Détermine la langue des menus, boutons et messages de l’application.",
+                            "Controls the language of application menus, buttons, and messages.")
+                    </p>
+                </div>
 
-            <div class="effective-language">
-                <span>
-                    @Text("Langue théologique effective", "Effective theological language")
-                </span>
-                <strong>@EffectiveTheologicalLanguageLabel</strong>
-            </div>
+                <div class="settings-field">
+                    <label for="theological-language">
+                        @Text(
+                            "Langue biblique et théologique",
+                            "Bible and theological language")
+                    </label>
+                    <select id="theological-language"
+                            @bind="_theologicalLanguageCode"
+                            disabled="@_isSaving">
+                        <option value="">
+                            @Text(
+                                "Identique à la langue de l’IHM",
+                                "Same as interface language")
+                        </option>
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                    </select>
+                    <p>
+                        @Text(
+                            "Utilisée par défaut pour les réponses théologiques et les textes bibliques. Une langue demandée explicitement dans un message reste prioritaire.",
+                            "Used by default for theological answers and Bible text. A language explicitly requested in a message still takes priority.")
+                    </p>
+                </div>
 
-            @if (!string.IsNullOrWhiteSpace(_statusMessage))
-            {
-                <p class="settings-status success">
-                    @_statusMessage
-                </p>
-            }
+                <div class="effective-language">
+                    <span>
+                        @Text(
+                            "Langue biblique et théologique effective",
+                            "Effective Bible and theological language")
+                    </span>
+                    <strong>@EffectiveTheologicalLanguageLabel</strong>
+                </div>
 
-            @if (!string.IsNullOrWhiteSpace(_errorMessage))
-            {
-                <p class="settings-status error">
-                    @_errorMessage
-                </p>
-            }
+                @if (!string.IsNullOrWhiteSpace(_statusMessage))
+                {
+                    <p class="settings-status success">
+                        @_statusMessage
+                    </p>
+                }
 
-            <button type="button"
-                    disabled="@_isSaving"
-                    @onclick="SaveAsync">
-                @(_isSaving
-                    ? Text("Enregistrement…", "Saving…")
-                    : Text("Enregistrer", "Save"))
-            </button>
-        </section>
-    }
+                @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                {
+                    <p class="settings-status error">
+                        @_errorMessage
+                    </p>
+                }
+
+                <button type="button"
+                        disabled="@_isSaving"
+                        @onclick="SaveAsync">
+                    @(_isSaving
+                        ? Text("Enregistrement…", "Saving…")
+                        : Text("Enregistrer", "Save"))
+                </button>
+            </section>
+        }
+    </section>
+
+    <section id="settings-panel-ai"
+             class="settings-tab-panel"
+             role="tabpanel"
+             aria-labelledby="settings-tab-ai"
+             hidden="@(_activeTab != SettingsTab.Ai)">
+        <OllamaRuntimeSettingsPanel />
+    </section>
+
+    <section id="settings-panel-agents"
+             class="settings-tab-panel"
+             role="tabpanel"
+             aria-labelledby="settings-tab-agents"
+             hidden="@(_activeTab != SettingsTab.Agents)">
+        <AgentSettingsPanel ActivationVersion="@_agentActivationVersion" />
+    </section>
 </main>
 
-<!-- APOLOGIA-DYNAMIC-OLLAMA-ROUTING-SETTINGS -->
-<OllamaRoutingSettingsPanel />
-
 @code {
+    private SettingsTab _activeTab = SettingsTab.General;
+    private int _agentActivationVersion;
     private string _interfaceLanguageCode = "fr";
     private string _theologicalLanguageCode = string.Empty;
     private string? _statusMessage;
@@ -152,13 +221,11 @@
             var handler =
                 scope.ServiceProvider.GetRequiredService<
                     GetUserPreferencesHandler>();
-
             var preferences = await handler.HandleAsync(
                 CancellationToken.None);
 
             _interfaceLanguageCode =
                 preferences.InterfaceLanguage.ToLanguageTag();
-
             _theologicalLanguageCode =
                 preferences.TheologicalLanguage?.ToLanguageTag() ??
                 string.Empty;
@@ -175,6 +242,27 @@
         {
             _isLoading = false;
         }
+    }
+
+    private void SelectTab(SettingsTab tab)
+    {
+        if (_activeTab == tab)
+        {
+            return;
+        }
+
+        _activeTab = tab;
+        if (tab == SettingsTab.Agents)
+        {
+            _agentActivationVersion++;
+        }
+    }
+
+    private string TabClass(SettingsTab tab)
+    {
+        return _activeTab == tab
+            ? "settings-tab active"
+            : "settings-tab";
     }
 
     private async Task SaveAsync()
@@ -236,5 +324,12 @@
                 ApplicationLanguage.English
             ? english
             : french;
+    }
+
+    private enum SettingsTab
+    {
+        General,
+        Ai,
+        Agents
     }
 }
