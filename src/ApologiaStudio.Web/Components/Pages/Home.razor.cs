@@ -63,8 +63,6 @@ public partial class Home
 
     private Conversation? _conversation;
     private ElementReference _conversationThread;
-    private ElementReference _composerTextArea;
-    private ElementReference _composerSendButton;
     private DotNetObjectReference<Home>? _dotNetReference;
     private string? _loadedRouteKey;
     private string? _preparedDraftRouteKey;
@@ -93,7 +91,6 @@ public partial class Home
     private bool _isThreadNearBottom = true;
     private bool _showJumpToLatest;
     private bool _threadRegistered;
-    private bool _composerEnterBehaviorRegistered;
     private bool _scrollThreadAfterRender;
     private bool _focusSidebarAfterRender;
     private bool _focusSidebarToggleAfterRender;
@@ -102,11 +99,6 @@ public partial class Home
         Ui(
             "Titre de la conversation",
             "Conversation title");
-
-    private string QuestionPlaceholder =>
-        Ui(
-            "Posez votre question…",
-            "Ask your question…");
 
     protected override async Task OnParametersSetAsync()
     {
@@ -162,18 +154,6 @@ public partial class Home
             _threadRegistered = true;
         }
 
-        if (!_composerEnterBehaviorRegistered)
-        {
-            await JsRuntime.InvokeVoidAsync(
-                "apologiaStudio.registerComposerEnterBehavior",
-                _composerTextArea,
-                _composerSendButton,
-                _composerEnterBehavior ==
-                    ComposerEnterBehavior.SendMessage);
-
-            _composerEnterBehaviorRegistered = true;
-        }
-
         if (_scrollThreadAfterRender)
         {
             _scrollThreadAfterRender = false;
@@ -190,7 +170,6 @@ public partial class Home
         _isLoading = true;
         _errorMessage = null;
         _threadRegistered = false;
-        _composerEnterBehaviorRegistered = false;
         _scrollThreadAfterRender = false;
 
         try
@@ -1299,24 +1278,6 @@ public partial class Home
 
     public async ValueTask DisposeAsync()
     {
-        if (_composerEnterBehaviorRegistered)
-        {
-            try
-            {
-                await JsRuntime.InvokeVoidAsync(
-                    "apologiaStudio.unregisterComposerEnterBehavior",
-                    _composerTextArea);
-            }
-            catch (JSDisconnectedException)
-            {
-                // The browser has already disconnected.
-            }
-            catch (InvalidOperationException)
-            {
-                // JavaScript interop is unavailable during shutdown.
-            }
-        }
-
         if (_threadRegistered)
         {
             try

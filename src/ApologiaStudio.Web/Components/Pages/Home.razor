@@ -33,6 +33,7 @@
 @using ApologiaStudio.Domain.Projects
 @using ApologiaStudio.Domain.Users
 @using ApologiaStudio.Web.Components.Navigation
+@using ApologiaStudio.Web.Components.Conversations
 
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
@@ -247,61 +248,13 @@ else
                     </div>
                 }
 
-                <footer class="composer">
-                    <div class="composer-surface">
-                        <div class="composer-options">
-                            <label for="agent-selection">
-                                @Ui("Expert", "Specialist")
-                            </label>
-
-                            <select id="agent-selection"
-                                    @bind="_selectedAgentSlug"
-                                    disabled="@_isSending">
-                                <option value="">
-                                    @Ui("Routage automatique", "Automatic routing")
-                                </option>
-
-                                @foreach (var settings in _agentSettings.Values
-                                    .Where(candidate => candidate.IsEnabled)
-                                    .OrderByDescending(candidate => candidate.IsBuiltIn)
-                                    .ThenBy(candidate => candidate.DisplayName))
-                                {
-                                    <option value="@settings.Slug">
-                                        @settings.DisplayName
-                                    </option>
-                                }
-                            </select>
-                        </div>
-
-                        <textarea @ref="_composerTextArea"
-                                  @bind="_draft"
-                                  @bind:event="oninput"
-                                  disabled="@_isSending"
-                                  maxlength="50000"
-                                  rows="4"
-                                  placeholder="@QuestionPlaceholder">
-                        </textarea>
-
-                        <div class="composer-actions">
-                            <span>
-                                @(_isSending
-                                    ? Ui("Réponse en cours…", "Generating response…")
-                                    : Ui(
-                                        "Routage automatique ou sélection manuelle.",
-                                        "Automatic routing or manual selection."))
-                            </span>
-
-                            <button type="button"
-                                    @ref="_composerSendButton"
-                                    disabled="@(_isSending ||
-                                               string.IsNullOrWhiteSpace(
-                                                   _draft))"
-                                    @onclick="SendAsync">
-                                @Ui("Envoyer", "Send")
-                            </button>
-                        </div>
-                    </div>
-                </footer>
+                <ConversationComposer Agents="@_agentSettings.Values"
+                                      @bind-Draft="_draft"
+                                      @bind-SelectedAgentSlug="_selectedAgentSlug"
+                                      IsSending="@_isSending"
+                                      EnterBehavior="@_composerEnterBehavior"
+                                      Language="@_interfaceLanguage"
+                                      OnSend="SendAsync" />
             }
             </section>
     </section>

@@ -1,0 +1,51 @@
+<footer class="composer">
+    <div class="composer-surface">
+        <div class="composer-options">
+            <label for="agent-selection">
+                @Ui("Expert", "Specialist")
+            </label>
+
+            <select id="agent-selection"
+                    value="@SelectedAgentSlug"
+                    @onchange="HandleAgentSelectionChangedAsync"
+                    disabled="@IsSending">
+                <option value="">
+                    @Ui("Routage automatique", "Automatic routing")
+                </option>
+
+                @foreach (var settings in OrderedAgents)
+                {
+                    <option value="@settings.Slug">
+                        @settings.DisplayName
+                    </option>
+                }
+            </select>
+        </div>
+
+        <textarea @ref="_textArea"
+                  value="@Draft"
+                  @oninput="HandleDraftChangedAsync"
+                  disabled="@IsSending"
+                  maxlength="50000"
+                  rows="4"
+                  placeholder="@QuestionPlaceholder">
+        </textarea>
+
+        <div class="composer-actions">
+            <span>
+                @(IsSending
+                    ? Ui("Réponse en cours…", "Generating response…")
+                    : Ui(
+                        "Routage automatique ou sélection manuelle.",
+                        "Automatic routing or manual selection."))
+            </span>
+
+            <button type="button"
+                    @ref="_sendButton"
+                    disabled="@(IsSending || string.IsNullOrWhiteSpace(Draft))"
+                    @onclick="HandleSendAsync">
+                @Ui("Envoyer", "Send")
+            </button>
+        </div>
+    </div>
+</footer>
