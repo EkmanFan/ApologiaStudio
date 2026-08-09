@@ -157,15 +157,6 @@ public sealed class OllamaSemanticRoutingClassifier(
 
         if (payload.Intent == "general")
         {
-            if (payload.BibleReference is not null)
-            {
-                return new SemanticRoutingResult(
-                    bibleAgentSlug,
-                    payload.Confidence,
-                    payload.Reason,
-                    BiblePassageResolution.Unsupported);
-            }
-
             return new SemanticRoutingResult(
                 selectedProfile.Agent.Slug,
                 payload.Confidence,

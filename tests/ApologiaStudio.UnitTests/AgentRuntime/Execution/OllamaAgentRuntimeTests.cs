@@ -287,6 +287,108 @@ public sealed class OllamaAgentRuntimeTests
     }
 
     [Fact]
+    public async Task RunTurnAsync_ShouldIsolateHistoryToSelectedAgentTurns()
+    {
+        const string responseBody = """
+            {"message":{"role":"assistant","content":"Réponse courante."},"done":false}
+            {"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","eval_count":5}
+            """;
+
+        var historianUserMessageId = MessageId.New();
+        var historianAssistantMessageId = MessageId.New();
+        var apologistUserMessageId = MessageId.New();
+        var apologistAssistantMessageId = MessageId.New();
+        var currentMessageId = MessageId.New();
+
+        var request =
+            new AgentTurnRequest(
+                ConversationId.New(),
+                UserId.New(),
+                currentMessageId,
+                RequestedAgentId: BuiltInAgents.ProtestantApologist.Id,
+                History:
+                [
+                    new ConversationMessageContext(
+                        historianUserMessageId,
+                        MessageRole.User,
+                        "HISTORIAN-QUESTION-MARKER",
+                        AgentId: null,
+                        DateTimeOffset.UtcNow.AddMinutes(-5)),
+                    new ConversationMessageContext(
+                        historianAssistantMessageId,
+                        MessageRole.Agent,
+                        "HISTORIAN-ANSWER-MARKER",
+                        BuiltInAgents.Historian.Id,
+                        DateTimeOffset.UtcNow.AddMinutes(-4)),
+                    new ConversationMessageContext(
+                        apologistUserMessageId,
+                        MessageRole.User,
+                        "APOLOGIST-QUESTION-MARKER",
+                        AgentId: null,
+                        DateTimeOffset.UtcNow.AddMinutes(-3)),
+                    new ConversationMessageContext(
+                        apologistAssistantMessageId,
+                        MessageRole.Agent,
+                        "APOLOGIST-ANSWER-MARKER",
+                        BuiltInAgents.ProtestantApologist.Id,
+                        DateTimeOffset.UtcNow.AddMinutes(-2)),
+                    new ConversationMessageContext(
+                        currentMessageId,
+                        MessageRole.User,
+                        "CURRENT-QUESTION-MARKER",
+                        AgentId: null,
+                        DateTimeOffset.UtcNow)
+                ],
+                ApplicationLanguage.French);
+
+        var handler =
+            new StubHttpMessageHandler(responseBody);
+
+        var runtime =
+            new OllamaAgentRuntime(
+                new StubAgentRouter(
+                    new RoutingDecision(
+                        BuiltInAgents.ProtestantApologist.Id,
+                        BuiltInAgents.ProtestantApologist.DisplayName,
+                        "Explicit selection.",
+                        1.0,
+                        WasExplicitlyRequested: true)),
+                new AgentPromptCatalog(),
+                new StubAiRuntimeSettingsStore(
+                    CreateSettings()),
+                new StubOllamaHttpClientFactory(handler),
+                new RecordingOllamaRuntimeTelemetry());
+
+        await foreach (var _ in runtime.RunTurnAsync(
+                           request,
+                           CancellationToken.None))
+        {
+        }
+
+        Assert.NotNull(handler.RequestBody);
+        Assert.DoesNotContain(
+            "HISTORIAN-QUESTION-MARKER",
+            handler.RequestBody,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "HISTORIAN-ANSWER-MARKER",
+            handler.RequestBody,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "APOLOGIST-QUESTION-MARKER",
+            handler.RequestBody,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "APOLOGIST-ANSWER-MARKER",
+            handler.RequestBody,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "CURRENT-QUESTION-MARKER",
+            handler.RequestBody,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunTurnAsync_ShouldExcludeRepetitiveAssistantHistory()
     {
         const string responseBody = """

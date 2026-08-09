@@ -301,74 +301,100 @@ public sealed class OllamaAgentRuntime(
         var selectedHistory =
             new List<OllamaRequestMessage>();
 
-        var characterCount = 0;
+        var currentUserMessage =
+            request.History[currentMessageIndex];
 
-        for (var index = currentMessageIndex;
-             index >= 0 &&
-             selectedHistory.Count <
-                 settings.MaximumHistoryMessages;
-             index--)
+        var currentContent =
+            currentUserMessage.Content;
+
+        if (currentContent.Length >
+            settings.MaximumHistoryCharacters)
         {
-            var message =
+            currentContent =
+                currentContent[..settings.MaximumHistoryCharacters];
+        }
+
+        selectedHistory.Add(
+            new OllamaRequestMessage(
+                Role: "user",
+                Content: currentContent));
+
+        var characterCount =
+            currentContent.Length;
+
+        for (var index = currentMessageIndex - 1;
+             index >= 0;)
+        {
+            var assistantMessage =
                 request.History[index];
 
-            if (string.IsNullOrWhiteSpace(message.Content))
+            if (assistantMessage.Role != MessageRole.Agent)
+            {
+                index--;
+                continue;
+            }
+
+            if (index == 0)
+            {
+                break;
+            }
+
+            var userMessage =
+                request.History[index - 1];
+
+            index -= 2;
+
+            if (userMessage.Role != MessageRole.User ||
+                assistantMessage.AgentId != agentId ||
+                string.IsNullOrWhiteSpace(userMessage.Content) ||
+                string.IsNullOrWhiteSpace(assistantMessage.Content))
             {
                 continue;
             }
 
-            if (message.Role == MessageRole.Agent &&
-                OllamaRepetitionDetector.TryDetect(
-                    message.Content,
+            if (OllamaRepetitionDetector.TryDetect(
+                    assistantMessage.Content,
                     out var repetition))
             {
                 telemetry.HistoryMessageSkipped(
                     new OllamaHistoryMessageSkippedObservation(
                         request.ConversationId,
-                        message.MessageId,
-                        message.AgentId,
-                        message.Content.Length,
+                        assistantMessage.MessageId,
+                        assistantMessage.AgentId,
+                        assistantMessage.Content.Length,
                         repetition.PatternLength,
                         repetition.RepeatCount));
 
                 continue;
             }
 
-            var remainingCharacters =
-                settings.MaximumHistoryCharacters -
-                characterCount;
-
-            if (remainingCharacters <= 0)
+            if (selectedHistory.Count + 2 >
+                settings.MaximumHistoryMessages)
             {
                 break;
             }
 
-            var content =
-                message.Content;
+            var pairCharacterCount =
+                userMessage.Content.Length +
+                assistantMessage.Content.Length;
 
-            if (content.Length > remainingCharacters)
+            if (characterCount + pairCharacterCount >
+                settings.MaximumHistoryCharacters)
             {
-                if (selectedHistory.Count > 0)
-                {
-                    break;
-                }
-
-                content =
-                    content[..remainingCharacters];
+                break;
             }
 
             selectedHistory.Add(
                 new OllamaRequestMessage(
-                    Role:
-                        message.Role ==
-                            MessageRole.User
-                            ? "user"
-                            : "assistant",
-                    Content:
-                        content));
+                    Role: "assistant",
+                    Content: assistantMessage.Content));
+            selectedHistory.Add(
+                new OllamaRequestMessage(
+                    Role: "user",
+                    Content: userMessage.Content));
 
             characterCount +=
-                content.Length;
+                pairCharacterCount;
         }
 
         selectedHistory.Reverse();
