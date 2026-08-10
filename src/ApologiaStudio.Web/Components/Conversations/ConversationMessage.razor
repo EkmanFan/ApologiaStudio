@@ -1,0 +1,28 @@
+@using ApologiaStudio.Domain.Conversations
+
+<article class="@MessageCssClass"
+         style="@MessageStyle">
+    @if (Message.Role == MessageRole.Agent &&
+         Message.AgentId is not null)
+    {
+        <div class="message-avatar"
+             aria-hidden="true">
+            @AgentAvatar
+        </div>
+    }
+
+    <div class="message-body">
+        <div class="message-meta">
+            <div class="message-author">
+                @MessageAuthor
+            </div>
+            <time class="message-timestamp"
+                  datetime="@MessageTimestampMachineValue">
+                @MessageTimestamp
+            </time>
+        </div>
+        <div class="message-content">
+            @Message.Content
+        </div>
+    </div>
+</article>

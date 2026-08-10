@@ -170,33 +170,11 @@ else
 
                         @foreach (var message in _conversation.Messages)
                         {
-                            <article class="@GetMessageCssClass(message)"
-                                     style="@GetMessageStyle(message)">
-                                @if (message.Role == MessageRole.Agent &&
-                                     message.AgentId is { } messageAgentId)
-                                {
-                                    <div class="message-avatar"
-                                         aria-hidden="true">
-                                        @GetAgentAvatar(messageAgentId)
-                                    </div>
-                                }
-
-                                <div class="message-body">
-                                    <div class="message-meta">
-                                        <div class="message-author">
-                                            @GetMessageAuthor(message)
-                                        </div>
-                                        <time class="message-timestamp"
-                                              datetime="@GetMessageTimestampMachineValue(message.CreatedAt)">
-                                            @FormatMessageTimestamp(message.CreatedAt)
-                                        </time>
-                                    </div>
-
-                                    <div class="message-content">
-                                        @message.Content
-                                    </div>
-                                </div>
-                            </article>
+                            <ConversationMessage Message="@message"
+                                                 AgentSettings="@_agentSettings"
+                                                 IsEnglish="@(_interfaceLanguage == ApplicationLanguage.English)"
+                                                 DateFormat="@_messageDateFormat"
+                                                 TimeFormat="@_messageTimeFormat" />
                         }
 
                         @if (!string.IsNullOrEmpty(_streamingText))
