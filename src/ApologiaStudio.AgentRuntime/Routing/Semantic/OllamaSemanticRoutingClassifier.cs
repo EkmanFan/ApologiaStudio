@@ -17,7 +17,7 @@ public sealed class OllamaSemanticRoutingClassifier(
 {
     private const int MaximumErrorBodyLength = 2_000;
     private const string PromptVersion =
-        "routing-v5-bible-reference-normalization";
+        "routing-v6-compact-reason";
 
     private readonly IReadOnlyList<AgentRoutingProfile> _routingProfiles =
         ValidateRoutingProfiles(
@@ -71,7 +71,7 @@ public sealed class OllamaSemanticRoutingClassifier(
             options = new
             {
                 temperature = 0,
-                num_predict = 160
+                num_predict = 256
             },
             keep_alive = options.KeepAlive
         };
@@ -317,7 +317,8 @@ public sealed class OllamaSemanticRoutingClassifier(
             - Never quote or paraphrase Bible text.
             - Return only JSON matching the supplied schema.
             - Confidence must be between 0.0 and 1.0.
-            - Write the reason in French.
+            - Write the reason in French as one short sentence
+              of at most 20 words.
             - For general intent, bibleReference must be null.
             """;
     }

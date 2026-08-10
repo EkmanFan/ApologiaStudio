@@ -1,0 +1,50 @@
+[
+  {
+    "id": "custom-argument-validity",
+    "question": "Analyse seulement la validité de cet argument : tous les hommes sont mortels, Socrate est un homme, donc Socrate est mortel.",
+    "expectedAgent": "argument-analyst",
+    "category": "custom"
+  },
+  {
+    "id": "custom-fallacy-detection",
+    "question": "Identifie le sophisme dans cet argument sans défendre sa conclusion : si Dieu n'existe pas, la morale s'effondre ; la morale ne s'effondre pas ; donc Dieu existe.",
+    "expectedAgent": "argument-analyst",
+    "category": "custom"
+  },
+  {
+    "id": "ambiguous-cosmological-structure",
+    "question": "Cartographie les prémisses et la conclusion de l'argument cosmologique, sans dire s'il prouve Dieu.",
+    "expectedAgent": "argument-analyst",
+    "category": "ambiguous"
+  },
+  {
+    "id": "ambiguous-cosmological-defence",
+    "question": "Comment défendre l'argument cosmologique face à un athée ?",
+    "expectedAgent": "protestant-apologist",
+    "category": "ambiguous"
+  },
+  {
+    "id": "ambiguous-nicea-description",
+    "question": "Décris historiquement ce qui s'est passé au concile de Nicée sans défendre une position confessionnelle.",
+    "expectedAgent": "historian",
+    "category": "ambiguous"
+  },
+  {
+    "id": "ambiguous-nicea-apologetics",
+    "question": "Comment répondre à l'objection selon laquelle le concile de Nicée aurait inventé la divinité du Christ ?",
+    "expectedAgent": "protestant-apologist",
+    "category": "ambiguous"
+  },
+  {
+    "id": "historian-chronology",
+    "question": "À quelle date Luther a-t-il publié les 95 thèses et quel âge avait-il ?",
+    "expectedAgent": "historian",
+    "category": "baseline"
+  },
+  {
+    "id": "apologist-scripture-defence",
+    "question": "Comment défendre Sola Scriptura face à une objection catholique ?",
+    "expectedAgent": "protestant-apologist",
+    "category": "baseline"
+  }
+]

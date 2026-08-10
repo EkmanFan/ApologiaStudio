@@ -62,6 +62,49 @@ public sealed class OllamaSemanticRoutingClassifierTests
     }
 
     [Fact]
+    public async Task ClassifyAsync_ShouldBoundRoutingOutput()
+    {
+        const string payload = """
+            {
+              "agent": "historian",
+              "intent": "general",
+              "confidence": 0.95,
+              "reason": "La demande est historique.",
+              "bibleReference": null
+            }
+            """;
+        var handler = new StubHttpMessageHandler(
+            CreateOllamaResponse(payload));
+        using var classifier = CreateClassifier(handler);
+
+        await classifier.ClassifyAsync(
+            "Quand a eu lieu le concile de Nicée ?",
+            CancellationToken.None);
+
+        using var requestDocument = JsonDocument.Parse(
+            handler.RequestBody);
+        var root = requestDocument.RootElement;
+        var systemPrompt = root
+            .GetProperty("messages")[0]
+            .GetProperty("content")
+            .GetString();
+        var numPredict = root
+            .GetProperty("options")
+            .GetProperty("num_predict")
+            .GetInt32();
+
+        Assert.Equal(256, numPredict);
+        Assert.Contains(
+            "of at most 20 words.",
+            systemPrompt,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "routing-v6-compact-reason",
+            systemPrompt,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ClassifyAsync_ShouldRejectBookOutsideProtestantCanon()
     {
         const string payload = """
