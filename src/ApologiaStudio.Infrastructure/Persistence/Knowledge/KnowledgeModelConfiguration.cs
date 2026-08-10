@@ -1,0 +1,1144 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace ApologiaStudio.Infrastructure.Persistence.Knowledge;
+
+internal static class KnowledgeModelConfiguration
+{
+    public static void Configure(ModelBuilder modelBuilder)
+    {
+        ConfigureResource(modelBuilder.Entity<KnowledgeResourceEntity>());
+        ConfigureWork(modelBuilder.Entity<KnowledgeWorkEntity>());
+        ConfigureExpression(modelBuilder.Entity<KnowledgeExpressionEntity>());
+        ConfigureExpressionRelation(modelBuilder.Entity<KnowledgeExpressionRelationEntity>());
+        ConfigureManifestation(modelBuilder.Entity<KnowledgeManifestationEntity>());
+        ConfigureManifestationIdentifier(modelBuilder.Entity<KnowledgeManifestationIdentifierEntity>());
+        ConfigureContributor(modelBuilder.Entity<KnowledgeContributorEntity>());
+        ConfigureContributorIdentifier(modelBuilder.Entity<KnowledgeContributorIdentifierEntity>());
+        ConfigureContribution(modelBuilder.Entity<KnowledgeContributionEntity>());
+        ConfigureArtifact(modelBuilder.Entity<KnowledgeArtifactEntity>());
+        ConfigureProcessingActivity(modelBuilder.Entity<KnowledgeProcessingActivityEntity>());
+        ConfigureDocumentSegment(modelBuilder.Entity<KnowledgeDocumentSegmentEntity>());
+        ConfigureRetrievalChunk(modelBuilder.Entity<KnowledgeRetrievalChunkEntity>());
+        ConfigureChunkSegment(modelBuilder.Entity<KnowledgeRetrievalChunkSegmentEntity>());
+        ConfigureMetadataAssertion(modelBuilder.Entity<KnowledgeMetadataAssertionEntity>());
+        ConfigureSourceKind(modelBuilder.Entity<KnowledgeSourceKindEntity>());
+        ConfigureSourceKindAssertion(modelBuilder.Entity<KnowledgeSourceKindAssertionEntity>());
+        ConfigurePerspective(modelBuilder.Entity<KnowledgePerspectiveEntity>());
+        ConfigurePerspectiveAssertion(modelBuilder.Entity<KnowledgePerspectiveAssertionEntity>());
+        ConfigureEvidenceRole(modelBuilder.Entity<KnowledgeEvidenceRoleEntity>());
+        ConfigureEvidenceRoleAssertion(modelBuilder.Entity<KnowledgeEvidenceRoleAssertionEntity>());
+    }
+
+    private static void ConfigureResource(EntityTypeBuilder<KnowledgeResourceEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_resources",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_resources_review",
+                    "editorial_review_status IN ('pending', 'in_review', 'approved', 'rejected')");
+            });
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .HasColumnType("uuid")
+            .ValueGeneratedNever();
+        builder.Property(x => x.EditorialReviewStatus)
+            .HasColumnName("editorial_review_status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.CreatedAt)
+            .HasColumnName("created_at")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+
+        builder.HasIndex(x => x.EditorialReviewStatus)
+            .HasDatabaseName("ix_knowledge_resources_review");
+    }
+
+    private static void ConfigureWork(EntityTypeBuilder<KnowledgeWorkEntity> builder)
+    {
+        builder.ToTable("knowledge_works");
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.Title)
+            .HasColumnName("title")
+            .HasMaxLength(500)
+            .IsRequired();
+        builder.Property(x => x.OriginalLanguage)
+            .HasColumnName("original_language")
+            .HasMaxLength(32);
+        builder.Property(x => x.Description)
+            .HasColumnName("description")
+            .HasColumnType("text");
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithOne()
+            .HasForeignKey<KnowledgeWorkEntity>(x => x.Id)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+    }
+
+    private static void ConfigureExpression(EntityTypeBuilder<KnowledgeExpressionEntity> builder)
+    {
+        builder.ToTable("knowledge_expressions");
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.WorkId)
+            .HasColumnName("work_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.LanguageCode)
+            .HasColumnName("language_code")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.Label)
+            .HasColumnName("label")
+            .HasMaxLength(500);
+        builder.Property(x => x.Description)
+            .HasColumnName("description")
+            .HasColumnType("text");
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithOne()
+            .HasForeignKey<KnowledgeExpressionEntity>(x => x.Id)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeWorkEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.WorkId, x.LanguageCode })
+            .HasDatabaseName("ix_knowledge_expressions_work_language");
+    }
+
+    private static void ConfigureExpressionRelation(
+        EntityTypeBuilder<KnowledgeExpressionRelationEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_expression_relations",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_expr_rel_distinct",
+                    "from_expression_id <> to_expression_id");
+                table.HasCheckConstraint(
+                    "ck_knowledge_expr_rel_type",
+                    "relation_type IN ('translation_of', 'revision_of', 'adaptation_of', 'derived_from')");
+            });
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .UseIdentityByDefaultColumn();
+        builder.Property(x => x.FromExpressionId)
+            .HasColumnName("from_expression_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ToExpressionId)
+            .HasColumnName("to_expression_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.RelationType)
+            .HasColumnName("relation_type")
+            .HasMaxLength(32)
+            .IsRequired();
+
+        builder.HasOne<KnowledgeExpressionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.FromExpressionId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeExpressionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ToExpressionId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.FromExpressionId, x.ToExpressionId, x.RelationType })
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_expression_relations");
+    }
+
+    private static void ConfigureManifestation(EntityTypeBuilder<KnowledgeManifestationEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_manifestations",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_manifestation_year",
+                    "publication_year IS NULL OR publication_year BETWEEN 1 AND 9999");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.ExpressionId)
+            .HasColumnName("expression_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.EditionStatement)
+            .HasColumnName("edition_statement")
+            .HasMaxLength(500);
+        builder.Property(x => x.PublicationYear)
+            .HasColumnName("publication_year");
+        builder.Property(x => x.PublicationPlace)
+            .HasColumnName("publication_place")
+            .HasMaxLength(255);
+        builder.Property(x => x.CitationLabel)
+            .HasColumnName("citation_label")
+            .HasMaxLength(500);
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithOne()
+            .HasForeignKey<KnowledgeManifestationEntity>(x => x.Id)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeExpressionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ExpressionId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+
+        builder.HasIndex(x => x.ExpressionId)
+            .HasDatabaseName("ix_knowledge_manifestations_expression");
+    }
+
+    private static void ConfigureManifestationIdentifier(
+        EntityTypeBuilder<KnowledgeManifestationIdentifierEntity> builder)
+    {
+        builder.ToTable("knowledge_manifestation_identifiers");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .UseIdentityByDefaultColumn();
+        builder.Property(x => x.ManifestationId)
+            .HasColumnName("manifestation_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        ConfigureIdentifier(
+            builder.Property(x => x.Scheme),
+            builder.Property(x => x.Value),
+            builder.Property(x => x.Uri));
+
+        builder.HasOne<KnowledgeManifestationEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ManifestationId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.ManifestationId, x.Scheme, x.Value })
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_manifestation_identifier");
+    }
+
+    private static void ConfigureContributor(EntityTypeBuilder<KnowledgeContributorEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_contributors",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_contributor_type",
+                    "contributor_type IN ('person', 'collective_body')");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.ContributorType)
+            .HasColumnName("contributor_type")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.PreferredName)
+            .HasColumnName("preferred_name")
+            .HasMaxLength(500)
+            .IsRequired();
+        builder.Property(x => x.SortName)
+            .HasColumnName("sort_name")
+            .HasMaxLength(500);
+        builder.Property(x => x.Description)
+            .HasColumnName("description")
+            .HasColumnType("text");
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithOne()
+            .HasForeignKey<KnowledgeContributorEntity>(x => x.Id)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+
+        builder.HasIndex(x => x.PreferredName)
+            .HasDatabaseName("ix_knowledge_contributors_preferred_name");
+    }
+
+    private static void ConfigureContributorIdentifier(
+        EntityTypeBuilder<KnowledgeContributorIdentifierEntity> builder)
+    {
+        builder.ToTable("knowledge_contributor_identifiers");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .UseIdentityByDefaultColumn();
+        builder.Property(x => x.ContributorId)
+            .HasColumnName("contributor_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        ConfigureIdentifier(
+            builder.Property(x => x.Scheme),
+            builder.Property(x => x.Value),
+            builder.Property(x => x.Uri));
+
+        builder.HasOne<KnowledgeContributorEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ContributorId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.ContributorId, x.Scheme, x.Value })
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_contributor_identifier");
+    }
+
+    private static void ConfigureContribution(EntityTypeBuilder<KnowledgeContributionEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_contributions",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_contribution_target",
+                    "(CASE WHEN work_id IS NULL THEN 0 ELSE 1 END + " +
+                    "CASE WHEN expression_id IS NULL THEN 0 ELSE 1 END + " +
+                    "CASE WHEN manifestation_id IS NULL THEN 0 ELSE 1 END) = 1");
+                table.HasCheckConstraint(
+                    "ck_knowledge_contribution_role",
+                    "role IN ('author', 'corporate_author', 'compiler', 'issuing_body', " +
+                    "'translator', 'reviser', 'textual_editor', 'transcriber', 'commentator', " +
+                    "'publisher', 'series_editor', 'distributor', 'producer')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_contribution_attribution",
+                    "attribution_status IN ('explicit', 'established', 'traditional', 'probable', 'possible', 'disputed')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_contribution_ordinal",
+                    "ordinal >= 0");
+            });
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .UseIdentityByDefaultColumn();
+        builder.Property(x => x.ContributorId)
+            .HasColumnName("contributor_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.WorkId)
+            .HasColumnName("work_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ExpressionId)
+            .HasColumnName("expression_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ManifestationId)
+            .HasColumnName("manifestation_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.Role)
+            .HasColumnName("role")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.AttributionStatus)
+            .HasColumnName("attribution_status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.Ordinal)
+            .HasColumnName("ordinal")
+            .IsRequired();
+
+        builder.HasOne<KnowledgeContributorEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ContributorId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeWorkEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<KnowledgeExpressionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ExpressionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<KnowledgeManifestationEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ManifestationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => x.ContributorId)
+            .HasDatabaseName("ix_knowledge_contributions_contributor");
+    }
+
+    private static void ConfigureArtifact(EntityTypeBuilder<KnowledgeArtifactEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_artifacts",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_artifact_type",
+                    "artifact_type IN ('raw', 'ocr', 'parsed', 'normalized')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_artifact_sha256",
+                    "sha256 ~ '^[0-9a-f]{64}$'");
+                table.HasCheckConstraint(
+                    "ck_knowledge_artifact_length",
+                    "byte_length >= 0");
+                table.HasCheckConstraint(
+                    "ck_knowledge_artifact_lifecycle",
+                    "lifecycle_status IN ('active', 'superseded', 'retired', 'corrupted', 'deleted')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_artifact_derivation",
+                    "derived_from_artifact_id IS NULL OR derived_from_artifact_id <> id");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.ManifestationId)
+            .HasColumnName("manifestation_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.DerivedFromArtifactId)
+            .HasColumnName("derived_from_artifact_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ArtifactType)
+            .HasColumnName("artifact_type")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.Sha256)
+            .HasColumnName("sha256")
+            .HasColumnType("character(64)")
+            .IsRequired();
+        builder.Property(x => x.MediaType)
+            .HasColumnName("media_type")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.ByteLength)
+            .HasColumnName("byte_length")
+            .IsRequired();
+        builder.Property(x => x.OriginUri)
+            .HasColumnName("origin_uri")
+            .HasMaxLength(2048);
+        builder.Property(x => x.AcquiredAt)
+            .HasColumnName("acquired_at")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+        builder.Property(x => x.LifecycleStatus)
+            .HasColumnName("lifecycle_status")
+            .HasMaxLength(32)
+            .IsRequired();
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithOne()
+            .HasForeignKey<KnowledgeArtifactEntity>(x => x.Id)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeManifestationEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ManifestationId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeArtifactEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.DerivedFromArtifactId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.Sha256)
+            .HasDatabaseName("ix_knowledge_artifacts_sha256");
+        builder.HasIndex(x => x.DerivedFromArtifactId)
+            .HasDatabaseName("ix_knowledge_artifacts_derived_from");
+    }
+
+    private static void ConfigureProcessingActivity(
+        EntityTypeBuilder<KnowledgeProcessingActivityEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_processing_activities",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_processing_type",
+                    "activity_type IN ('download', 'ocr', 'parse', 'normalize', 'correct')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_processing_status",
+                    "status IN ('pending', 'completed', 'failed')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_processing_artifacts",
+                    "input_artifact_id IS NULL OR input_artifact_id <> output_artifact_id");
+                table.HasCheckConstraint(
+                    "ck_knowledge_processing_time",
+                    "completed_at IS NULL OR completed_at >= started_at");
+            });
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .UseIdentityByDefaultColumn();
+        builder.Property(x => x.InputArtifactId)
+            .HasColumnName("input_artifact_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.OutputArtifactId)
+            .HasColumnName("output_artifact_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ActivityType)
+            .HasColumnName("activity_type")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.ToolName)
+            .HasColumnName("tool_name")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.ToolVersion)
+            .HasColumnName("tool_version")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.ConfigurationJson)
+            .HasColumnName("configuration_json")
+            .HasColumnType("jsonb");
+        builder.Property(x => x.StartedAt)
+            .HasColumnName("started_at")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+        builder.Property(x => x.CompletedAt)
+            .HasColumnName("completed_at")
+            .HasColumnType("timestamp with time zone");
+        builder.Property(x => x.ExecutedBy)
+            .HasColumnName("executed_by")
+            .HasMaxLength(255);
+        builder.Property(x => x.Status)
+            .HasColumnName("status")
+            .HasMaxLength(32)
+            .IsRequired();
+
+        builder.HasOne<KnowledgeArtifactEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.InputArtifactId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgeArtifactEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.OutputArtifactId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+
+        builder.HasIndex(x => x.OutputArtifactId)
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_processing_output");
+    }
+
+    private static void ConfigureDocumentSegment(
+        EntityTypeBuilder<KnowledgeDocumentSegmentEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_document_segments",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_segment_ordinal",
+                    "ordinal >= 0");
+                table.HasCheckConstraint(
+                    "ck_knowledge_segment_parent",
+                    "parent_segment_id IS NULL OR parent_segment_id <> id");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.ArtifactId)
+            .HasColumnName("artifact_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ParentSegmentId)
+            .HasColumnName("parent_segment_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.SegmentType)
+            .HasColumnName("segment_type")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.Ordinal)
+            .HasColumnName("ordinal")
+            .IsRequired();
+        builder.Property(x => x.Title)
+            .HasColumnName("title")
+            .HasMaxLength(1000);
+        builder.Property(x => x.Text)
+            .HasColumnName("text")
+            .HasColumnType("text")
+            .IsRequired();
+        builder.Property(x => x.Locator)
+            .HasColumnName("locator")
+            .HasMaxLength(500);
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithOne()
+            .HasForeignKey<KnowledgeDocumentSegmentEntity>(x => x.Id)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeArtifactEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ArtifactId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ParentSegmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.ArtifactId, x.ParentSegmentId, x.Ordinal })
+            .HasDatabaseName("ix_knowledge_segments_structure");
+        builder.HasIndex(x => new { x.ArtifactId, x.Locator })
+            .HasDatabaseName("ix_knowledge_segments_locator");
+    }
+
+    private static void ConfigureRetrievalChunk(
+        EntityTypeBuilder<KnowledgeRetrievalChunkEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_retrieval_chunks",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_chunk_ordinal",
+                    "ordinal >= 0");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ArtifactId)
+            .HasColumnName("artifact_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.Ordinal)
+            .HasColumnName("ordinal")
+            .IsRequired();
+        builder.Property(x => x.Text)
+            .HasColumnName("text")
+            .HasColumnType("text")
+            .IsRequired();
+        builder.Property(x => x.ChunkingStrategy)
+            .HasColumnName("chunking_strategy")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.ChunkingVersion)
+            .HasColumnName("chunking_version")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.CreatedAt)
+            .HasColumnName("created_at")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+
+        builder.HasOne<KnowledgeArtifactEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ArtifactId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+
+        builder.HasIndex(x => new
+            {
+                x.ArtifactId,
+                x.ChunkingStrategy,
+                x.ChunkingVersion,
+                x.Ordinal
+            })
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_retrieval_chunks_projection");
+    }
+
+    private static void ConfigureChunkSegment(
+        EntityTypeBuilder<KnowledgeRetrievalChunkSegmentEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_chunk_segments",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_chunk_segment_sequence",
+                    "sequence >= 0");
+                table.HasCheckConstraint(
+                    "ck_knowledge_chunk_segment_offsets",
+                    "start_offset >= 0 AND end_offset > start_offset");
+            });
+
+        builder.HasKey(x => new { x.ChunkId, x.SegmentId });
+
+        builder.Property(x => x.ChunkId)
+            .HasColumnName("chunk_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.SegmentId)
+            .HasColumnName("segment_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.Sequence)
+            .HasColumnName("sequence")
+            .IsRequired();
+        builder.Property(x => x.StartOffset)
+            .HasColumnName("start_offset")
+            .IsRequired();
+        builder.Property(x => x.EndOffset)
+            .HasColumnName("end_offset")
+            .IsRequired();
+
+        builder.HasOne<KnowledgeRetrievalChunkEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ChunkId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SegmentId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.ChunkId, x.Sequence })
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_chunk_segments_sequence");
+    }
+
+    private static void ConfigureMetadataAssertion(
+        EntityTypeBuilder<KnowledgeMetadataAssertionEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_metadata_assertions",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_metadata_origin",
+                    "assertion_origin IN ('imported', 'ai_proposed', 'editorial')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_metadata_review",
+                    "review_status IN ('proposed', 'verified', 'rejected', 'disputed', 'superseded')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_metadata_review_time",
+                    "reviewed_at IS NULL OR reviewed_at >= asserted_at");
+                table.HasCheckConstraint(
+                    "ck_knowledge_metadata_confidence",
+                    "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)");
+                table.HasCheckConstraint(
+                    "ck_knowledge_metadata_supersedes",
+                    "supersedes_assertion_id IS NULL OR supersedes_assertion_id <> id");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ResourceId)
+            .HasColumnName("resource_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.Property)
+            .HasColumnName("property")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.Value)
+            .HasColumnName("value")
+            .HasColumnType("text")
+            .IsRequired();
+        ConfigureAssertionCommon(
+            builder.Property(x => x.AssertionOrigin),
+            builder.Property(x => x.AssertedBy),
+            builder.Property(x => x.AssertedAt),
+            builder.Property(x => x.ReviewStatus),
+            builder.Property(x => x.ReviewedBy),
+            builder.Property(x => x.ReviewedAt),
+            builder.Property(x => x.Justification),
+            builder.Property(x => x.SupportingSegmentId));
+        builder.Property(x => x.Confidence)
+            .HasColumnName("confidence");
+        builder.Property(x => x.SupersedesAssertionId)
+            .HasColumnName("supersedes_assertion_id")
+            .HasColumnType("uuid");
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ResourceId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupportingSegmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgeMetadataAssertionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupersedesAssertionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.ResourceId, x.Property, x.ReviewStatus })
+            .HasDatabaseName("ix_knowledge_metadata_resource_property");
+    }
+
+    private static void ConfigureSourceKind(EntityTypeBuilder<KnowledgeSourceKindEntity> builder)
+    {
+        builder.ToTable("knowledge_source_kinds");
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        ConfigureControlledTerm(
+            builder.Property(x => x.Code),
+            builder.Property(x => x.Label),
+            builder.Property(x => x.Description));
+
+        builder.HasIndex(x => x.Code)
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_source_kinds_code");
+    }
+
+    private static void ConfigureSourceKindAssertion(
+        EntityTypeBuilder<KnowledgeSourceKindAssertionEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_source_kind_assertions",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_source_kind_origin",
+                    "assertion_origin IN ('imported', 'ai_proposed', 'editorial')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_source_kind_review",
+                    "review_status IN ('proposed', 'verified', 'rejected', 'disputed', 'superseded')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_source_kind_review_time",
+                    "reviewed_at IS NULL OR reviewed_at >= asserted_at");
+                table.HasCheckConstraint(
+                    "ck_knowledge_source_kind_supersedes",
+                    "supersedes_assertion_id IS NULL OR supersedes_assertion_id <> id");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ResourceId)
+            .HasColumnName("resource_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.SourceKindId)
+            .HasColumnName("source_kind_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        ConfigureAssertionCommon(
+            builder.Property(x => x.AssertionOrigin),
+            builder.Property(x => x.AssertedBy),
+            builder.Property(x => x.AssertedAt),
+            builder.Property(x => x.ReviewStatus),
+            builder.Property(x => x.ReviewedBy),
+            builder.Property(x => x.ReviewedAt),
+            builder.Property(x => x.Justification),
+            builder.Property(x => x.SupportingSegmentId));
+        builder.Property(x => x.SupersedesAssertionId)
+            .HasColumnName("supersedes_assertion_id")
+            .HasColumnType("uuid");
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ResourceId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeSourceKindEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SourceKindId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupportingSegmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgeSourceKindAssertionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupersedesAssertionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.ResourceId, x.SourceKindId, x.ReviewStatus })
+            .HasDatabaseName("ix_knowledge_source_kind_assertions");
+    }
+
+    private static void ConfigurePerspective(EntityTypeBuilder<KnowledgePerspectiveEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_perspectives",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_perspective_parent",
+                    "parent_perspective_id IS NULL OR parent_perspective_id <> id");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.Code)
+            .HasColumnName("code")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.Label)
+            .HasColumnName("label")
+            .HasMaxLength(255)
+            .IsRequired();
+        builder.Property(x => x.ParentPerspectiveId)
+            .HasColumnName("parent_perspective_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.Description)
+            .HasColumnName("description")
+            .HasColumnType("text");
+        builder.Property(x => x.HistoricalPeriod)
+            .HasColumnName("historical_period")
+            .HasMaxLength(255);
+
+        builder.HasOne<KnowledgePerspectiveEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ParentPerspectiveId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.Code)
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_perspectives_code");
+    }
+
+    private static void ConfigurePerspectiveAssertion(
+        EntityTypeBuilder<KnowledgePerspectiveAssertionEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_perspective_assertions",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_perspective_origin",
+                    "assertion_origin IN ('imported', 'ai_proposed', 'editorial')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_perspective_review",
+                    "review_status IN ('proposed', 'verified', 'rejected', 'disputed', 'superseded')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_perspective_review_time",
+                    "reviewed_at IS NULL OR reviewed_at >= asserted_at");
+                table.HasCheckConstraint(
+                    "ck_knowledge_perspective_type",
+                    "perspective_type IN ('declared', 'analytical')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_perspective_supersedes",
+                    "supersedes_assertion_id IS NULL OR supersedes_assertion_id <> id");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ResourceId)
+            .HasColumnName("resource_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.PerspectiveId)
+            .HasColumnName("perspective_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.PerspectiveType)
+            .HasColumnName("perspective_type")
+            .HasMaxLength(32)
+            .IsRequired();
+        ConfigureAssertionCommon(
+            builder.Property(x => x.AssertionOrigin),
+            builder.Property(x => x.AssertedBy),
+            builder.Property(x => x.AssertedAt),
+            builder.Property(x => x.ReviewStatus),
+            builder.Property(x => x.ReviewedBy),
+            builder.Property(x => x.ReviewedAt),
+            builder.Property(x => x.Justification),
+            builder.Property(x => x.SupportingSegmentId));
+        builder.Property(x => x.SupersedesAssertionId)
+            .HasColumnName("supersedes_assertion_id")
+            .HasColumnType("uuid");
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ResourceId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgePerspectiveEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.PerspectiveId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupportingSegmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgePerspectiveAssertionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupersedesAssertionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.ResourceId, x.PerspectiveId, x.ReviewStatus })
+            .HasDatabaseName("ix_knowledge_perspective_assertions");
+    }
+
+    private static void ConfigureEvidenceRole(EntityTypeBuilder<KnowledgeEvidenceRoleEntity> builder)
+    {
+        builder.ToTable("knowledge_evidence_roles");
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        ConfigureControlledTerm(
+            builder.Property(x => x.Code),
+            builder.Property(x => x.Label),
+            builder.Property(x => x.Description));
+
+        builder.HasIndex(x => x.Code)
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_evidence_roles_code");
+    }
+
+    private static void ConfigureEvidenceRoleAssertion(
+        EntityTypeBuilder<KnowledgeEvidenceRoleAssertionEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_evidence_role_assertions",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_evidence_role_origin",
+                    "assertion_origin IN ('imported', 'ai_proposed', 'editorial')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_evidence_role_review",
+                    "review_status IN ('proposed', 'verified', 'rejected', 'disputed', 'superseded')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_evidence_role_review_time",
+                    "reviewed_at IS NULL OR reviewed_at >= asserted_at");
+                table.HasCheckConstraint(
+                    "ck_knowledge_evidence_role_supersedes",
+                    "supersedes_assertion_id IS NULL OR supersedes_assertion_id <> id");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ResourceId)
+            .HasColumnName("resource_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.EvidenceRoleId)
+            .HasColumnName("evidence_role_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        ConfigureAssertionCommon(
+            builder.Property(x => x.AssertionOrigin),
+            builder.Property(x => x.AssertedBy),
+            builder.Property(x => x.AssertedAt),
+            builder.Property(x => x.ReviewStatus),
+            builder.Property(x => x.ReviewedBy),
+            builder.Property(x => x.ReviewedAt),
+            builder.Property(x => x.Justification),
+            builder.Property(x => x.SupportingSegmentId));
+        builder.Property(x => x.SupersedesAssertionId)
+            .HasColumnName("supersedes_assertion_id")
+            .HasColumnType("uuid");
+
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ResourceId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeEvidenceRoleEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.EvidenceRoleId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupportingSegmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgeEvidenceRoleAssertionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupersedesAssertionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.ResourceId, x.EvidenceRoleId, x.ReviewStatus })
+            .HasDatabaseName("ix_knowledge_evidence_role_assertions");
+    }
+
+    private static void ConfigureUuidId(PropertyBuilder<Guid> property)
+    {
+        property
+            .HasColumnName("id")
+            .HasColumnType("uuid")
+            .ValueGeneratedNever();
+    }
+
+    private static void ConfigureIdentifier(
+        PropertyBuilder<string> scheme,
+        PropertyBuilder<string> value,
+        PropertyBuilder<string?> uri)
+    {
+        scheme
+            .HasColumnName("scheme")
+            .HasMaxLength(64)
+            .IsRequired();
+        value
+            .HasColumnName("value")
+            .HasMaxLength(500)
+            .IsRequired();
+        uri
+            .HasColumnName("uri")
+            .HasMaxLength(2048);
+    }
+
+    private static void ConfigureControlledTerm(
+        PropertyBuilder<string> code,
+        PropertyBuilder<string> label,
+        PropertyBuilder<string?> description)
+    {
+        code
+            .HasColumnName("code")
+            .HasMaxLength(128)
+            .IsRequired();
+        label
+            .HasColumnName("label")
+            .HasMaxLength(255)
+            .IsRequired();
+        description
+            .HasColumnName("description")
+            .HasColumnType("text");
+    }
+
+    private static void ConfigureAssertionCommon(
+        PropertyBuilder<string> origin,
+        PropertyBuilder<string> assertedBy,
+        PropertyBuilder<DateTimeOffset> assertedAt,
+        PropertyBuilder<string> reviewStatus,
+        PropertyBuilder<string?> reviewedBy,
+        PropertyBuilder<DateTimeOffset?> reviewedAt,
+        PropertyBuilder<string?> justification,
+        PropertyBuilder<Guid?> supportingSegmentId)
+    {
+        origin
+            .HasColumnName("assertion_origin")
+            .HasMaxLength(32)
+            .IsRequired();
+        assertedBy
+            .HasColumnName("asserted_by")
+            .HasMaxLength(255)
+            .IsRequired();
+        assertedAt
+            .HasColumnName("asserted_at")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+        reviewStatus
+            .HasColumnName("review_status")
+            .HasMaxLength(32)
+            .IsRequired();
+        reviewedBy
+            .HasColumnName("reviewed_by")
+            .HasMaxLength(255);
+        reviewedAt
+            .HasColumnName("reviewed_at")
+            .HasColumnType("timestamp with time zone");
+        justification
+            .HasColumnName("justification")
+            .HasColumnType("text");
+        supportingSegmentId
+            .HasColumnName("supporting_segment_id")
+            .HasColumnType("uuid");
+    }
+}
