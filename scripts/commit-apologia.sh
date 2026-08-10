@@ -14,36 +14,69 @@
 
 PROJECT_DIR="${APOLOGIA_PROJECT_DIR:-$HOME/RiderProjects/ApologiaStudio}"
 REASON="${1:-}"
-COMMIT_TYPE="${2:-feat}"
+COMMIT_TYPE="${2:-}"
 
 print_error() {
     echo
     echo "ERROR: $1"
 }
 
+SUPPORTED_TYPES="feat, fix, refactor, chore, test, docs, perf"
+
+is_supported_type() {
+    case "$1" in
+        feat|fix|refactor|chore|test|docs|perf)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 if [[ -z "$REASON" ]]; then
     echo "Usage:"
     echo "  bash $0 \"commit reason\" [type]"
+    echo "  bash $0 \"type: commit reason\""
     echo
     echo "Examples:"
     echo "  bash $0 \"add user-created agents\""
-    echo "  bash $0 \"fix agent bubble display name\" fix"
+    echo "  bash $0 \"improve telemetry readability\" chore"
+    echo "  bash $0 \"chore: improve telemetry readability\""
     echo
-    echo "Supported types: feat, fix, refactor, chore, test, docs, perf"
+    echo "Supported types: $SUPPORTED_TYPES"
     exit 2
 fi
 
-case "$COMMIT_TYPE" in
-    feat|fix|refactor|chore|test|docs|perf)
+MESSAGE_HAS_TYPE=false
+
+case "$REASON" in
+    "feat: "*|"fix: "*|"refactor: "*|"chore: "*|"test: "*|"docs: "*|"perf: "*)
+        MESSAGE_HAS_TYPE=true
         ;;
-    *)
-        print_error "Unsupported commit type '$COMMIT_TYPE'."
-        echo "Supported types: feat, fix, refactor, chore, test, docs, perf"
-        exit 2
+    feat\(*\):\ *|fix\(*\):\ *|refactor\(*\):\ *|chore\(*\):\ *|test\(*\):\ *|docs\(*\):\ *|perf\(*\):\ *)
+        MESSAGE_HAS_TYPE=true
         ;;
 esac
 
-COMMIT_MESSAGE="${COMMIT_TYPE}: ${REASON}"
+if [[ "$MESSAGE_HAS_TYPE" == true ]]; then
+    if [[ -n "$COMMIT_TYPE" ]]; then
+        print_error "Do not provide a separate type when the message already has one."
+        exit 2
+    fi
+
+    COMMIT_MESSAGE="$REASON"
+else
+    COMMIT_TYPE="${COMMIT_TYPE:-feat}"
+
+    if ! is_supported_type "$COMMIT_TYPE"; then
+        print_error "Unsupported commit type '$COMMIT_TYPE'."
+        echo "Supported types: $SUPPORTED_TYPES"
+        exit 2
+    fi
+
+    COMMIT_MESSAGE="${COMMIT_TYPE}: ${REASON}"
+fi
 
 echo "ApologiaStudio safe commit helper"
 echo "Project: $PROJECT_DIR"
