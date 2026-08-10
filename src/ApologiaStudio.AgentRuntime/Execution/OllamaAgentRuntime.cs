@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -146,6 +147,7 @@ public sealed class OllamaAgentRuntime(
                         options: JsonOptions)
             };
 
+        var generationStartedAt = Stopwatch.GetTimestamp();
         using var response =
             await httpClient.SendAsync(
                 httpRequest,
@@ -176,6 +178,7 @@ public sealed class OllamaAgentRuntime(
         var streamCompleted = false;
         OllamaChatChunk? completionChunk = null;
         var repetitionGuard = new OllamaRepetitionGuard();
+        var firstTokenObserved = false;
 
         while (true)
         {
@@ -213,6 +216,18 @@ public sealed class OllamaAgentRuntime(
 
             if (!string.IsNullOrEmpty(delta))
             {
+                if (!firstTokenObserved)
+                {
+                    firstTokenObserved = true;
+                    telemetry.GenerationFirstToken(
+                        new OllamaGenerationFirstTokenObservation(
+                            request.ConversationId,
+                            routingDecision.AgentId,
+                            model,
+                            Stopwatch.GetElapsedTime(
+                                generationStartedAt).TotalMilliseconds));
+                }
+
                 completeResponse.Append(delta);
 
                 if (repetitionGuard.TryDetect(

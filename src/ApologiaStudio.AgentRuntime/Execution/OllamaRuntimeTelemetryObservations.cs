@@ -3,6 +3,12 @@ using ApologiaStudio.Domain.Conversations;
 
 namespace ApologiaStudio.AgentRuntime.Execution;
 
+public sealed record OllamaGenerationFirstTokenObservation(
+    ConversationId ConversationId,
+    AgentId AgentId,
+    string Model,
+    double TimeToFirstTokenMilliseconds);
+
 public sealed record OllamaGenerationStartedObservation(
     ConversationId ConversationId,
     AgentId AgentId,

@@ -96,8 +96,20 @@ builder.Services.AddScoped<
     DynamicOllamaSemanticRoutingClassifier>();
 
 builder.Services.AddScoped<
-    IAgentRouter,
     HybridAgentRouter>();
+
+builder.Services.AddSingleton<
+    IAgentRoutingTelemetry,
+    LoggingAgentRoutingTelemetry>();
+
+builder.Services.AddScoped<
+    IAgentRouter>(
+    serviceProvider =>
+        new TelemetryAgentRouter(
+            serviceProvider.GetRequiredService<
+                HybridAgentRouter>(),
+            serviceProvider.GetRequiredService<
+                IAgentRoutingTelemetry>()));
 
 builder.Services.AddSingleton<
     AgentPromptCatalog>();

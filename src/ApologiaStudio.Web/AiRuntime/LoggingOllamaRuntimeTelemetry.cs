@@ -6,6 +6,19 @@ public sealed class LoggingOllamaRuntimeTelemetry(
     ILogger<LoggingOllamaRuntimeTelemetry> logger)
     : IOllamaRuntimeTelemetry
 {
+    public void GenerationFirstToken(
+        OllamaGenerationFirstTokenObservation observation)
+    {
+        logger.LogInformation(
+            "Ollama first token received. " +
+            "ConversationId={ConversationId} AgentId={AgentId} " +
+            "Model={Model} TimeToFirstTokenMs={TimeToFirstTokenMs:F1}",
+            observation.ConversationId.Value,
+            observation.AgentId.Value,
+            observation.Model,
+            observation.TimeToFirstTokenMilliseconds);
+    }
+
     public void GenerationStarted(
         OllamaGenerationStartedObservation observation)
     {

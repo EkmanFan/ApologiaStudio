@@ -111,6 +111,11 @@ public sealed class OllamaAgentRuntimeTests
 
         Assert.Equal(1, router.CallCount);
 
+        var firstToken = Assert.Single(telemetry.FirstTokens);
+        Assert.Equal("mixtral:instruct", firstToken.Model);
+        Assert.Equal(BuiltInAgents.Historian.Id, firstToken.AgentId);
+        Assert.True(firstToken.TimeToFirstTokenMilliseconds >= 0);
+
         var started = Assert.Single(telemetry.Started);
         Assert.Equal("mixtral:instruct", started.Model);
         Assert.Equal(BuiltInAgents.Historian.Id, started.AgentId);
@@ -574,6 +579,8 @@ public sealed class OllamaAgentRuntimeTests
     private sealed class RecordingOllamaRuntimeTelemetry
         : IOllamaRuntimeTelemetry
     {
+        public List<OllamaGenerationFirstTokenObservation> FirstTokens { get; } = [];
+
         public List<OllamaGenerationStartedObservation> Started { get; } = [];
 
         public List<OllamaGenerationCompletedObservation> Completed { get; } = [];
@@ -581,6 +588,12 @@ public sealed class OllamaAgentRuntimeTests
         public List<OllamaGenerationRejectedObservation> Rejected { get; } = [];
 
         public List<OllamaHistoryMessageSkippedObservation> HistorySkipped { get; } = [];
+
+        public void GenerationFirstToken(
+            OllamaGenerationFirstTokenObservation observation)
+        {
+            FirstTokens.Add(observation);
+        }
 
         public void GenerationStarted(
             OllamaGenerationStartedObservation observation)

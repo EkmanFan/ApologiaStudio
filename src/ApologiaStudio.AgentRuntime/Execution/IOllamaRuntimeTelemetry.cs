@@ -2,6 +2,9 @@ namespace ApologiaStudio.AgentRuntime.Execution;
 
 public interface IOllamaRuntimeTelemetry
 {
+    void GenerationFirstToken(
+        OllamaGenerationFirstTokenObservation observation);
+
     void GenerationStarted(
         OllamaGenerationStartedObservation observation);
 
