@@ -13,6 +13,17 @@ The approved source snapshots and their archive hashes are recorded in the
 Approved snapshots are imported through the manifest-driven
 `ApologiaStudio.BibleCorpusImporter` command documented on that page.
 
+## Knowledge grounding and RAG architecture
+
+The accepted v1 architecture for documentary provenance, the dedicated
+PostgreSQL + pgvector Knowledge Store, retrieval projections, and citation
+grounding is recorded in
+[ADR 0002: Knowledge Store and RAG architecture](docs/adr/0002-knowledge-store-and-rag-architecture.md).
+
+The canonical Bible corpus remains deterministic reference data. RAG retrieval
+is a separate, derived knowledge path and must not replace exact Bible passage
+lookup.
+
 ## Bible corpus query API
 
 The web application exposes deterministic, read-only access to active and
