@@ -29,6 +29,7 @@ using ApologiaStudio.Application.Projects.CreateProject;
 using ApologiaStudio.Application.Projects.DeleteProject;
 using ApologiaStudio.Application.Projects.RenameProject;
 using ApologiaStudio.Infrastructure;
+using ApologiaStudio.Web;
 using ApologiaStudio.Web.Components;
 using ApologiaStudio.Web.Endpoints;
 using ApologiaStudio.Web.Identity;
@@ -40,182 +41,14 @@ builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddInfrastructure(
-    builder.Configuration);
-
-builder.Services.AddScoped<
-    ICurrentUser,
-    DemoCurrentUser>();
-
-builder.Services.AddSingleton<TimeProvider>(
-    TimeProvider.System);
-
-builder.Services.AddSingleton<
-    BiblePassageRequestParser>();
-
-builder.Services.AddScoped<
-    IAgentRoutingSnapshotProvider,
-    DatabaseAgentRoutingSnapshotProvider>();
-
-builder.Services.AddSingleton<
-    DeterministicAgentRouter>();
-
 // APOLOGIA-DATABASE-BACKED-AI-RUNTIME-SETTINGS
 var aiRuntimeDefaults =
     CreateAiRuntimeDefaults(
         builder.Configuration);
 
-builder.Services.AddSingleton(
+builder.Services.AddApologiaStudioWebServices(
+    builder.Configuration,
     aiRuntimeDefaults);
-
-builder.Services.AddHttpClient<
-    IOllamaModelCatalogClient,
-    OllamaModelCatalogClient>(
-    client =>
-        client.Timeout =
-            TimeSpan.FromSeconds(10));
-
-builder.Services.AddHttpClient(
-    "ApologiaStudio.Ollama.Dynamic");
-
-builder.Services.AddSingleton<
-    IOllamaHttpClientFactory,
-    OllamaHttpClientFactory>();
-
-builder.Services.AddSingleton(
-    new HybridRoutingOptions());
-
-builder.Services.AddSingleton<
-    SimulatedAgentResponseProvider>();
-
-builder.Services.AddSingleton<
-    SimulatedAgentRuntime>();
-
-builder.Services.AddScoped<
-    ISemanticRoutingClassifier,
-    DynamicOllamaSemanticRoutingClassifier>();
-
-builder.Services.AddScoped<
-    HybridAgentRouter>();
-
-builder.Services.AddSingleton<
-    IAgentRoutingTelemetry,
-    LoggingAgentRoutingTelemetry>();
-
-builder.Services.AddScoped<
-    IAgentRouter>(
-    serviceProvider =>
-        new TelemetryAgentRouter(
-            serviceProvider.GetRequiredService<
-                HybridAgentRouter>(),
-            serviceProvider.GetRequiredService<
-                IAgentRoutingTelemetry>()));
-
-builder.Services.AddSingleton<
-    AgentPromptCatalog>();
-builder.Services.AddSingleton<
-    BuiltInAgentSettingsCatalog>();
-
-builder.Services.AddSingleton<
-    IOllamaRuntimeTelemetry,
-    LoggingOllamaRuntimeTelemetry>();
-
-builder.Services.AddScoped<
-    OllamaAgentRuntime>();
-
-builder.Services.AddScoped<
-    IAgentRuntime>(
-    serviceProvider =>
-        new BiblePassageAgentRuntime(
-            serviceProvider.GetRequiredService<
-                IAgentRouter>(),
-            serviceProvider.GetRequiredService<
-                IBibleCorpusQueryRepository>(),
-            serviceProvider.GetRequiredService<
-                OllamaAgentRuntime>()));
-
-builder.Services.AddScoped<
-    CreateConversationHandler>();
-
-builder.Services.AddScoped<
-    GetBibleReaderHandler>();
-
-builder.Services.AddScoped<
-    PrepareBibleDiscussionDraftHandler>();
-
-builder.Services.AddScoped<
-    DeleteConversationHandler>();
-
-builder.Services.AddScoped<
-    GetConversationHandler>();
-
-builder.Services.AddScoped<
-    ListConversationsHandler>();
-
-builder.Services.AddScoped<
-    MoveConversationHandler>();
-
-builder.Services.AddScoped<
-    GetSidebarNavigationHandler>();
-
-builder.Services.AddScoped<
-    SetSidebarPinHandler>();
-
-builder.Services.AddScoped<
-    ReorderProjectsHandler>();
-
-builder.Services.AddScoped<
-    ReorderPinnedItemsHandler>();
-
-builder.Services.AddScoped<
-    RenameConversationHandler>();
-
-builder.Services.AddScoped<
-    RestoreConversationHandler>();
-
-builder.Services.AddScoped<
-    CreateProjectHandler>();
-
-builder.Services.AddScoped<
-    RenameProjectHandler>();
-
-builder.Services.AddScoped<
-    DeleteProjectHandler>();
-
-builder.Services.AddScoped<
-    SendMessageHandler>();
-
-builder.Services.AddScoped<
-    GetUserPreferencesHandler>();
-
-builder.Services.AddScoped<
-    UpdateUserPreferencesHandler>();
-
-builder.Services.AddScoped<
-    GetAiRuntimeSettingsHandler>();
-
-builder.Services.AddScoped<
-    InitializeAiRuntimeSettingsHandler>();
-
-builder.Services.AddScoped<
-    UpdateAiRuntimeSettingsHandler>();
-
-builder.Services.AddScoped<
-    GetAgentSettingsHandler>();
-builder.Services.AddScoped<
-    InitializeAgentSettingsHandler>();
-builder.Services.AddScoped<
-    UpdateAgentSettingsHandler>();
-builder.Services.AddScoped<
-    CreateAgentSettingsHandler>();
-builder.Services.AddScoped<
-    DeleteAgentSettingsHandler>();
-
-// APOLOGIA-NORMALIZE-SIMULATED-RUNTIME-LIFETIME
-// Remove every earlier descriptor so a later or duplicate singleton
-// cannot capture scoped routing and persistence services.
-builder.Services.RemoveAll<SimulatedAgentRuntime>();
-builder.Services.AddScoped<SimulatedAgentRuntime>();
 
 var app = builder.Build();
 
