@@ -28,6 +28,7 @@ public sealed class RoleFidelityEvaluationTests(
                 "33333333-3333-3333-3333-333333333333"));
 
     [Trait("Category", "LocalModel")]
+    [Trait("Benchmark", "ModelComparison")]
     [Fact]
     public async Task CustomAgent_ShouldRespectRoleCanary_AndExcludeOtherAgentHistory_WhenEnabled()
     {
@@ -110,6 +111,15 @@ public sealed class RoleFidelityEvaluationTests(
             $"{LocalModelEvaluationSupport.NanosecondsToMilliseconds(completedTelemetry.PromptEvaluationDurationNanoseconds):F1}, " +
             $"generationMs=" +
             $"{LocalModelEvaluationSupport.NanosecondsToMilliseconds(completedTelemetry.EvaluationDurationNanoseconds):F1}, " +
+            $"totalMs=" +
+            $"{LocalModelEvaluationSupport.NanosecondsToMilliseconds(completedTelemetry.TotalDurationNanoseconds):F1}");
+        output.WriteLine(
+            $"MODEL_ROLE_SUMMARY|" +
+            $"model={responseModel}|" +
+            "roleFidelity=true|" +
+            $"ttftMs={firstToken.TimeToFirstTokenMilliseconds:F1}|" +
+            $"promptTokens={completedTelemetry.PromptTokenCount}|" +
+            $"outputTokens={completedTelemetry.OutputTokenCount}|" +
             $"totalMs=" +
             $"{LocalModelEvaluationSupport.NanosecondsToMilliseconds(completedTelemetry.TotalDurationNanoseconds):F1}");
     }

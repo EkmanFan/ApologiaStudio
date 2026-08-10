@@ -165,6 +165,7 @@ public sealed class DynamicRoutingEvaluationTests(
     }
 
     [Trait("Category", "LocalModel")]
+    [Trait("Benchmark", "ModelComparison")]
     [Fact]
     public async Task OllamaDynamicRouter_ShouldMeetMinimumAccuracy_WhenEnabled()
     {
@@ -186,6 +187,8 @@ public sealed class DynamicRoutingEvaluationTests(
         var cases = LoadCases();
         var successfulCases = 0;
         var failures = new List<string>();
+        var routingDurations = new List<double>();
+        var semanticErrors = 0;
 
         foreach (var evaluationCase in cases)
         {
@@ -200,6 +203,11 @@ public sealed class DynamicRoutingEvaluationTests(
                 Stopwatch.GetElapsedTime(startedAt)
                     .TotalMilliseconds;
 
+            routingDurations.Add(duration);
+            if (classifier.LastException is not null)
+            {
+                semanticErrors++;
+            }
             var selected =
                 profiles.Single(
                     profile =>
@@ -242,6 +250,13 @@ public sealed class DynamicRoutingEvaluationTests(
 
         output.WriteLine(
             $"Dynamic routing accuracy: {accuracy:P0}");
+        output.WriteLine(
+            $"MODEL_ROUTING_SUMMARY|" +
+            $"model={LocalModelEvaluationSupport.GetRoutingModel()}|" +
+            $"cases={cases.Count}|" +
+            $"accuracy={accuracy:F3}|" +
+            $"semanticErrors={semanticErrors}|" +
+            $"avgRoutingMs={routingDurations.Average():F1}");
 
         Assert.True(
             accuracy >= 0.75,

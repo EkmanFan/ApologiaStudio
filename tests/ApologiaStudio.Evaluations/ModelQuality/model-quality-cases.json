@@ -1,0 +1,110 @@
+[
+  {
+    "id": "nicea-overview",
+    "agent": "historian",
+    "question": "Présente le concile de Nicée I : date, controverse principale, décision doctrinale centrale et portée historique. Réponds en 180 mots maximum et distingue ce qui appartient à 325 des formulations trinitaires plus tardives.",
+    "requiredGroups": [
+      ["325"],
+      ["arius", "arianisme", "arien"],
+      ["homoousios", "consubstantiel"],
+      ["plus tard", "ulterieur", "posterieurement", "381", "cappadoc"]
+    ],
+    "forbiddenPatterns": [
+      "nicee a affirme une seule ousia et trois hypostases",
+      "le concile a affirme qu il y a une seule ousia et trois hypostases"
+    ]
+  },
+  {
+    "id": "nicea-homoousios-origin",
+    "agent": "historian",
+    "question": "Qui a proposé le terme homoousios au concile de Nicée I ? Donne une réponse historiquement prudente en distinguant les sources certaines des reconstructions. Réponds en 160 mots maximum.",
+    "requiredGroups": [
+      ["incertain", "incertaine", "discute", "disput", "on ne sait pas", "difficile de savoir"],
+      ["constantin"],
+      ["eusebe", "eusebius", "osius", "osios"]
+    ],
+    "forbiddenPatterns": [
+      "eusebe de cesaree a propose le terme homoousios",
+      "le terme homoousios a ete propose par eusebe de cesaree"
+    ]
+  },
+  {
+    "id": "nicea-ousia-hypostasis",
+    "agent": "historian",
+    "question": "Le concile de Nicée I a-t-il défini la Trinité par la formule « une ousia, trois hypostases » ? Explique précisément la chronologie terminologique en 180 mots maximum.",
+    "requiredGroups": [
+      ["non", "pas exactement", "anachron"],
+      ["325"],
+      ["hypostasis", "hypostase"],
+      ["plus tard", "seconde moitie", "cappadoc", "381"]
+    ],
+    "forbiddenPatterns": [
+      "nicee a defini une ousia trois hypostases",
+      "nicee a affirme une ousia trois hypostases",
+      "le concile a affirme une seule ousia partagee par trois hypostases"
+    ]
+  },
+  {
+    "id": "nicea-easter-rule",
+    "agent": "historian",
+    "question": "Nicée I a-t-il explicitement fixé dans ses canons la règle « premier dimanche après la pleine lune suivant l’équinoxe » pour Pâques ? Réponds avec la nuance documentaire nécessaire en 180 mots maximum.",
+    "requiredGroups": [
+      ["uniform", "accord", "commune", "ensemble"],
+      ["canons", "canon"],
+      ["pas", "non", "ne figure", "n apparait", "n est pas conserve"],
+      ["calcul", "comput", "paques", "pascal"]
+    ],
+    "forbiddenPatterns": [
+      "nicee a etabli la regle du premier dimanche apres la pleine lune suivant l equinoxe",
+      "le concile a fixe dans ses canons le premier dimanche apres la pleine lune"
+    ]
+  },
+  {
+    "id": "nicea-authority-method",
+    "agent": "historian",
+    "question": "Sur quelles autorités et méthodes les évêques de Nicée se sont-ils appuyés pour condamner l’arianisme ? Distingue Écritures, règle de foi/tradition et autorité conciliaire, sans projeter directement Sola Scriptura sur 325. Réponds en 200 mots maximum.",
+    "requiredGroups": [
+      ["ecriture", "scriptur", "bible"],
+      ["regle de foi", "tradition", "foi apostolique"],
+      ["concile", "eveque"],
+      ["homoousios", "consubstantiel"]
+    ],
+    "forbiddenPatterns": [
+      "l ecriture etait insuffisante donc elle n etait pas la norme",
+      "les ecritures ne jouaient aucun role decisif"
+    ]
+  },
+  {
+    "id": "sola-vs-solo-scriptura",
+    "agent": "protestant-apologist",
+    "question": "Explique la différence entre Sola Scriptura classique et Solo Scriptura. Précise le statut des conciles, confessions et traditions, ainsi que la question de l’autorité qui lie la conscience. Réponds en 200 mots maximum.",
+    "requiredGroups": [
+      ["infaillible", "norme ultime", "autorite ultime", "norma normans"],
+      ["concile", "confession", "tradition"],
+      ["subordonne", "soumis", "secondaire", "norma normata"],
+      ["conscience", "lier"],
+      ["individual", "solo scriptura", "chacun son propre pape", "lecture privee"]
+    ],
+    "forbiddenPatterns": [
+      "chaque croyant est le juge ultime",
+      "l individu est le juge ultime",
+      "sola scriptura signifie rejeter toute tradition"
+    ]
+  },
+  {
+    "id": "peter-to-papacy",
+    "agent": "protestant-apologist",
+    "question": "Explique pourquoi un protestant peut reconnaître un rôle éminent de Pierre sans conclure à la juridiction universelle et à l’infaillibilité de l’évêque de Rome. Distingue clairement les étapes de l’inférence. Réponds en 200 mots maximum.",
+    "requiredGroups": [
+      ["pierre"],
+      ["succession", "successeur", "rome", "eveque de rome"],
+      ["juridiction", "universelle", "suprematie"],
+      ["infaillibil", "ex cathedra"],
+      ["inference", "deduit", "etape", "ne suffit pas", "ne decoule pas"]
+    ],
+    "forbiddenPatterns": [
+      "tous les protestants reconnaissent pierre comme premier pape",
+      "la bible enseigne explicitement la succession papale"
+    ]
+  }
+]
