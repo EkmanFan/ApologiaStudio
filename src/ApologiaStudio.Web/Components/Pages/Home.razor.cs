@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -46,6 +45,7 @@ using ApologiaStudio.Domain.Conversations;
 using ApologiaStudio.Domain.Navigation;
 using ApologiaStudio.Domain.Projects;
 using ApologiaStudio.Domain.Users;
+using ApologiaStudio.Web.Components.Conversations;
 using ApologiaStudio.Web.Components.Navigation;
 
 namespace ApologiaStudio.Web.Components.Pages;
@@ -62,8 +62,7 @@ public partial class Home
         Array.Empty<BibleEditionSummary>();
 
     private Conversation? _conversation;
-    private ElementReference _conversationThread;
-    private DotNetObjectReference<Home>? _dotNetReference;
+    private ConversationThread? _conversationThread;
     private string? _loadedRouteKey;
     private string? _preparedDraftRouteKey;
     private string _draft = string.Empty;
@@ -92,10 +91,6 @@ public partial class Home
     private bool _isRenaming;
     private bool _isManagingSidebar;
     private bool _isSidebarOpen;
-    private bool _isThreadNearBottom = true;
-    private bool _showJumpToLatest;
-    private bool _threadRegistered;
-    private bool _scrollThreadAfterRender;
     private bool _focusSidebarAfterRender;
     private bool _focusSidebarToggleAfterRender;
 
@@ -140,42 +135,12 @@ public partial class Home
                 "studio-sidebar-toggle");
         }
 
-        if (_conversation is null)
-        {
-            return;
-        }
-
-        if (!_threadRegistered)
-        {
-            _dotNetReference ??=
-                DotNetObjectReference.Create(this);
-
-            await JsRuntime.InvokeVoidAsync(
-                "apologiaStudio.registerConversationThread",
-                _conversationThread,
-                _dotNetReference);
-
-            _threadRegistered = true;
-        }
-
-        if (_scrollThreadAfterRender)
-        {
-            _scrollThreadAfterRender = false;
-
-            await JsRuntime.InvokeVoidAsync(
-                "apologiaStudio.scrollConversationToEnd",
-                _conversationThread,
-                "auto");
-        }
     }
 
     private async Task LoadRouteAsync()
     {
         _isLoading = true;
         _errorMessage = null;
-        _threadRegistered = false;
-        _scrollThreadAfterRender = false;
-
         try
         {
             await using var scope =
@@ -271,10 +236,6 @@ public partial class Home
             _renameDraft =
                 _conversation?.Title ?? string.Empty;
 
-            _isThreadNearBottom = true;
-            _showJumpToLatest = false;
-            _scrollThreadAfterRender =
-                _conversation is not null;
 
             await PrepareBibleDraftAsync(
                 scope.ServiceProvider,
@@ -795,8 +756,7 @@ public partial class Home
         _activeAgentName = null;
         _activeAgentId = null;
         _isSending = true;
-        _scrollThreadAfterRender =
-            _isThreadNearBottom;
+        _conversationThread?.RequestScrollToLatestIfFollowing();
 
         try
         {
@@ -845,7 +805,7 @@ public partial class Home
                             ?? throw new InvalidOperationException(
                                 "The conversation could not be reloaded.");
 
-                        RequestScrollToLatestIfFollowing();
+                        _conversationThread?.RequestScrollToLatestIfFollowing();
 
                         break;
 
@@ -853,7 +813,7 @@ public partial class Home
                         _streamingText +=
                             delta.Content;
 
-                        RequestScrollToLatestIfFollowing();
+                        _conversationThread?.RequestScrollToLatestIfFollowing();
 
                         break;
 
@@ -868,7 +828,7 @@ public partial class Home
                         _streamingText =
                             string.Empty;
 
-                        RequestScrollToLatestIfFollowing();
+                        _conversationThread?.RequestScrollToLatestIfFollowing();
 
                         break;
                 }
@@ -1082,44 +1042,6 @@ public partial class Home
         }
     }
 
-    private void RequestScrollToLatestIfFollowing()
-    {
-        if (_isThreadNearBottom)
-        {
-            _scrollThreadAfterRender = true;
-        }
-    }
-
-    private async Task JumpToLatestAsync()
-    {
-        _isThreadNearBottom = true;
-        _showJumpToLatest = false;
-
-        await JsRuntime.InvokeVoidAsync(
-            "apologiaStudio.scrollConversationToEnd",
-            _conversationThread,
-            "smooth");
-    }
-
-    [JSInvokable]
-    public async Task SetConversationThreadNearBottom(
-        bool isNearBottom)
-    {
-        if (_isThreadNearBottom == isNearBottom)
-        {
-            return;
-        }
-
-        _isThreadNearBottom = isNearBottom;
-        _showJumpToLatest =
-            !isNearBottom &&
-            (_conversation?.Messages.Count > 0 ||
-             !string.IsNullOrEmpty(_streamingText));
-
-        await InvokeAsync(
-            StateHasChanged);
-    }
-
     private AgentId? ResolveRequestedAgentId()
     {
         if (string.IsNullOrWhiteSpace(_selectedAgentSlug))
@@ -1147,35 +1069,6 @@ public partial class Home
                ?? fallback;
     }
 
-    private string GetAgentAvatar(AgentId? agentId)
-    {
-        if (agentId is null)
-        {
-            return "AI";
-        }
-
-        return GetAgentSettings(agentId.Value)?.Avatar
-               ?? "AI";
-    }
-
-    private string? GetAgentStyle(AgentId? agentId)
-    {
-        if (agentId is null)
-        {
-            return null;
-        }
-
-        var settings = GetAgentSettings(agentId.Value);
-        if (settings is null)
-        {
-            return null;
-        }
-
-        var textColor = GetContrastTextColor(settings.BubbleColor);
-        return $"--agent-bubble-color:{settings.BubbleColor};" +
-               $"--agent-text-color:{textColor};";
-    }
-
     private AgentSettingsSnapshot? GetAgentSettings(AgentId agentId)
     {
         return _agentSettings.TryGetValue(
@@ -1199,37 +1092,6 @@ public partial class Home
             item => item.AgentId);
     }
 
-    private static string GetContrastTextColor(string color)
-    {
-        if (color.Length != 7 ||
-            color[0] != '#' ||
-            !int.TryParse(
-                color.AsSpan(1, 2),
-                System.Globalization.NumberStyles.HexNumber,
-                null,
-                out var red) ||
-            !int.TryParse(
-                color.AsSpan(3, 2),
-                System.Globalization.NumberStyles.HexNumber,
-                null,
-                out var green) ||
-            !int.TryParse(
-                color.AsSpan(5, 2),
-                System.Globalization.NumberStyles.HexNumber,
-                null,
-                out var blue))
-        {
-            return "#252823";
-        }
-
-        var luminance =
-            (0.299 * red + 0.587 * green + 0.114 * blue) / 255.0;
-
-        return luminance > 0.58
-            ? "#252823"
-            : "#FFFFFF";
-    }
-
     private string Ui(
         string french,
         string english)
@@ -1240,26 +1102,4 @@ public partial class Home
             : french;
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        if (_threadRegistered)
-        {
-            try
-            {
-                await JsRuntime.InvokeVoidAsync(
-                    "apologiaStudio.unregisterConversationThread",
-                    _conversationThread);
-            }
-            catch (JSDisconnectedException)
-            {
-                // The browser has already disconnected.
-            }
-            catch (InvalidOperationException)
-            {
-                // JavaScript interop is unavailable during shutdown.
-            }
-        }
-
-        _dotNetReference?.Dispose();
-    }
 }

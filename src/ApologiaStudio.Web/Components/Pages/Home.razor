@@ -1,8 +1,6 @@
 @page "/"
 @page "/conversations/{ConversationIdValue:guid}"
 
-@implements IAsyncDisposable
-
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.Extensions.DependencyInjection
@@ -143,75 +141,18 @@ else
                     </div>
                 </header>
 
-                <div class="thread-stage">
-                    <main class="conversation-thread"
-                          @ref="_conversationThread">
-                        @if (_conversation.Messages.Count == 0 &&
-                             string.IsNullOrEmpty(_streamingText))
-                        {
-                            <div class="empty-state">
-                                <h2>
-                                    @Ui("Commencez directement", "Start right away")
-                                </h2>
-
-                                <p>@Ui("Exemples :", "Examples:")</p>
-
-                                <button type="button"
-                                        @onclick="UseHistoricalSuggestion">
-                                    @Ui("Question historique", "Historical question")
-                                </button>
-
-                                <button type="button"
-                                        @onclick="UseApologeticSuggestion">
-                                    @Ui("Question apologétique", "Apologetics question")
-                                </button>
-                            </div>
-                        }
-
-                        @foreach (var message in _conversation.Messages)
-                        {
-                            <ConversationMessage Message="@message"
-                                                 AgentSettings="@_agentSettings"
-                                                 IsEnglish="@(_interfaceLanguage == ApplicationLanguage.English)"
-                                                 DateFormat="@_messageDateFormat"
-                                                 TimeFormat="@_messageTimeFormat" />
-                        }
-
-                        @if (!string.IsNullOrEmpty(_streamingText))
-                        {
-                            <article class="message agent streaming"
-                                     style="@GetAgentStyle(_activeAgentId)">
-                                <div class="message-avatar"
-                                     aria-hidden="true">
-                                    @GetAgentAvatar(_activeAgentId)
-                                </div>
-
-                                <div class="message-body">
-                                    <div class="message-meta">
-                                        <div class="message-author">
-                                            @(_activeAgentName ?? "Agent")
-                                        </div>
-                                    </div>
-
-                                    <div class="message-content">
-                                        @_streamingText
-                                        <span class="cursor">▋</span>
-                                    </div>
-                                </div>
-                            </article>
-                        }
-                    </main>
-
-                    @if (_showJumpToLatest)
-                    {
-                        <button class="jump-to-latest"
-                                type="button"
-                                @onclick="JumpToLatestAsync">
-                            <span aria-hidden="true">↓</span>
-                            @Ui("Dernier message", "Latest message")
-                        </button>
-                    }
-                </div>
+                <ConversationThread @key="_conversation.Id"
+                                    @ref="_conversationThread"
+                                    Messages="@_conversation.Messages"
+                                    AgentSettings="@_agentSettings"
+                                    StreamingText="@_streamingText"
+                                    ActiveAgentName="@_activeAgentName"
+                                    ActiveAgentId="@_activeAgentId"
+                                    Language="@_interfaceLanguage"
+                                    DateFormat="@_messageDateFormat"
+                                    TimeFormat="@_messageTimeFormat"
+                                    OnHistoricalSuggestion="UseHistoricalSuggestion"
+                                    OnApologeticSuggestion="UseApologeticSuggestion" />
 
                 @if (!string.IsNullOrWhiteSpace(_routingReason) ||
                      !string.IsNullOrWhiteSpace(_errorMessage))

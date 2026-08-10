@@ -1,0 +1,68 @@
+@using ApologiaStudio.Domain.Conversations
+
+<div class="thread-stage">
+    <main class="conversation-thread"
+          @ref="_threadElement">
+        @if (Messages.Count == 0 &&
+             string.IsNullOrEmpty(StreamingText))
+        {
+            <div class="empty-state">
+                <h2>@Ui("Commencez directement", "Start right away")</h2>
+                <p>@Ui("Exemples :", "Examples:")</p>
+
+                <button type="button"
+                        @onclick="HandleHistoricalSuggestionAsync">
+                    @Ui("Question historique", "Historical question")
+                </button>
+
+                <button type="button"
+                        @onclick="HandleApologeticSuggestionAsync">
+                    @Ui("Question apologétique", "Apologetics question")
+                </button>
+            </div>
+        }
+
+        @foreach (var message in Messages)
+        {
+            <ConversationMessage Message="@message"
+                                 AgentSettings="@AgentSettings"
+                                 IsEnglish="@IsEnglish"
+                                 DateFormat="@DateFormat"
+                                 TimeFormat="@TimeFormat" />
+        }
+
+        @if (!string.IsNullOrEmpty(StreamingText))
+        {
+            <article class="message agent streaming"
+                     style="@ActiveAgentStyle">
+                <div class="message-avatar"
+                     aria-hidden="true">
+                    @ActiveAgentAvatar
+                </div>
+
+                <div class="message-body">
+                    <div class="message-meta">
+                        <div class="message-author">
+                            @(ActiveAgentName ?? "Agent")
+                        </div>
+                    </div>
+
+                    <div class="message-content">
+                        @StreamingText
+                        <span class="cursor">▋</span>
+                    </div>
+                </div>
+            </article>
+        }
+    </main>
+
+    @if (_showJumpToLatest)
+    {
+        <button class="jump-to-latest"
+                type="button"
+                @onclick="JumpToLatestAsync">
+            <span aria-hidden="true">↓</span>
+            @Ui("Dernier message", "Latest message")
+        </button>
+    }
+</div>
