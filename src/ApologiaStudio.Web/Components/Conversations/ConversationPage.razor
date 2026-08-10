@@ -1,0 +1,93 @@
+@if (Conversation is null)
+{
+    <div class="missing-conversation">
+        <h1>
+            @Ui("Conversation introuvable", "Conversation not found")
+        </h1>
+
+        <p>
+            @Ui(
+                "Cette conversation n’existe pas ou ne vous appartient pas.",
+                "This conversation does not exist or does not belong to you.")
+        </p>
+        <button type="button"
+                @onclick="HandleCreateConversationAsync">
+            @Ui("Créer une conversation", "Create a conversation")
+        </button>
+    </div>
+}
+else
+{
+    <header class="chat-header">
+        <div class="conversation-heading">
+            <div>
+                <h1>@Conversation.Title</h1>
+                <p>
+                    @Ui(
+                        "Posez une question. Le spécialiste le plus pertinent sera sélectionné automatiquement.",
+                        "Ask a question. The most relevant specialist will be selected automatically.")
+                </p>
+            </div>
+            <div class="runtime-badge">
+                @Ui("Runtime local", "Local runtime")
+            </div>
+        </div>
+
+        <div class="rename-controls">
+            <input type="text"
+                   maxlength="200"
+                   disabled="@(IsRenaming || IsSending)"
+                   value="@RenameDraft"
+                   @oninput="HandleRenameDraftChangedAsync"
+                   aria-label="@ConversationTitleLabel" />
+            <button type="button"
+                    disabled="@(!CanRename)"
+                    @onclick="HandleRenameConversationAsync">
+                @Ui("Renommer", "Rename")
+            </button>
+        </div>
+    </header>
+
+    <ConversationThread @key="Conversation.Id"
+                        @ref="_conversationThread"
+                        Messages="@Conversation.Messages"
+                        AgentSettings="@AgentSettings"
+                        StreamingText="@StreamingText"
+                        ActiveAgentName="@ActiveAgentName"
+                        ActiveAgentId="@ActiveAgentId"
+                        Language="@Language"
+                        DateFormat="@DateFormat"
+                        TimeFormat="@TimeFormat"
+                        OnHistoricalSuggestion="HandleHistoricalSuggestionAsync"
+                        OnApologeticSuggestion="HandleApologeticSuggestionAsync" />
+
+    @if (!string.IsNullOrWhiteSpace(RoutingReason) ||
+         !string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="chat-feedback">
+            @if (!string.IsNullOrWhiteSpace(RoutingReason))
+            {
+                <aside class="routing-information">
+                    <strong>@Ui("Routage :", "Routing:")</strong>
+                    @RoutingReason
+                </aside>
+            }
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <aside class="error-information">
+                    @ErrorMessage
+                </aside>
+            }
+        </div>
+    }
+
+    <ConversationComposer Agents="@AgentSettings.Values"
+                          Draft="@Draft"
+                          DraftChanged="HandleDraftChangedAsync"
+                          SelectedAgentSlug="@SelectedAgentSlug"
+                          SelectedAgentSlugChanged="HandleSelectedAgentSlugChangedAsync"
+                          IsSending="@IsSending"
+                          EnterBehavior="@EnterBehavior"
+                          Language="@Language"
+                          OnSend="HandleSendAsync" />
+}

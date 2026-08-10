@@ -83,106 +83,27 @@ else
                 <span aria-hidden="true">☰</span>
             </button>
 
-            @if (_conversation is null)
-            {
-                <div class="missing-conversation">
-                    <h1>
-                        @Ui("Conversation introuvable", "Conversation not found")
-                    </h1>
-
-                    <p>
-                        @Ui(
-                            "Cette conversation n’existe pas ou ne vous appartient pas.",
-                            "This conversation does not exist or does not belong to you.")
-                    </p>
-
-                    <button type="button"
-                            @onclick="CreateConversationAsync">
-                        @Ui("Créer une conversation", "Create a conversation")
-                    </button>
-                </div>
-            }
-            else
-            {
-                <header class="chat-header">
-                    <div class="conversation-heading">
-                        <div>
-                            <h1>@_conversation.Title</h1>
-
-                            <p>
-                                @Ui(
-                                    "Posez une question. Le spécialiste le plus pertinent sera sélectionné automatiquement.",
-                                    "Ask a question. The most relevant specialist will be selected automatically.")
-                            </p>
-                        </div>
-
-                        <div class="runtime-badge">
-                            @Ui("Runtime local", "Local runtime")
-                        </div>
-                    </div>
-
-                    <div class="rename-controls">
-                        <input type="text"
-                               maxlength="200"
-                               disabled="@(_isRenaming || _isSending)"
-                               @bind="_renameDraft"
-                               aria-label="@ConversationTitleLabel" />
-
-                        <button type="button"
-                                disabled="@(_isRenaming ||
-                                           _isSending ||
-                                           string.IsNullOrWhiteSpace(
-                                               _renameDraft) ||
-                                           _renameDraft.Trim() ==
-                                               _conversation.Title)"
-                                @onclick="RenameConversationAsync">
-                            @Ui("Renommer", "Rename")
-                        </button>
-                    </div>
-                </header>
-
-                <ConversationThread @key="_conversation.Id"
-                                    @ref="_conversationThread"
-                                    Messages="@_conversation.Messages"
-                                    AgentSettings="@_agentSettings"
-                                    StreamingText="@_streamingText"
-                                    ActiveAgentName="@_activeAgentName"
-                                    ActiveAgentId="@_activeAgentId"
-                                    Language="@_interfaceLanguage"
-                                    DateFormat="@_messageDateFormat"
-                                    TimeFormat="@_messageTimeFormat"
-                                    OnHistoricalSuggestion="UseHistoricalSuggestion"
-                                    OnApologeticSuggestion="UseApologeticSuggestion" />
-
-                @if (!string.IsNullOrWhiteSpace(_routingReason) ||
-                     !string.IsNullOrWhiteSpace(_errorMessage))
-                {
-                    <div class="chat-feedback">
-                        @if (!string.IsNullOrWhiteSpace(_routingReason))
-                        {
-                            <aside class="routing-information">
-                                <strong>@Ui("Routage :", "Routing:")</strong>
-                                @_routingReason
-                            </aside>
-                        }
-
-                        @if (!string.IsNullOrWhiteSpace(_errorMessage))
-                        {
-                            <aside class="error-information">
-                                @_errorMessage
-                            </aside>
-                        }
-                    </div>
-                }
-
-                <ConversationComposer Agents="@_agentSettings.Values"
-                                      @bind-Draft="_draft"
-                                      @bind-SelectedAgentSlug="_selectedAgentSlug"
-                                      IsSending="@_isSending"
-                                      EnterBehavior="@_composerEnterBehavior"
-                                      Language="@_interfaceLanguage"
-                                      OnSend="SendAsync" />
-            }
+            <ConversationPage @ref="_conversationPage"
+                              Conversation="@_conversation"
+                              AgentSettings="@_agentSettings"
+                              StreamingText="@_streamingText"
+                              ActiveAgentName="@_activeAgentName"
+                              ActiveAgentId="@_activeAgentId"
+                              Language="@_interfaceLanguage"
+                              TheologicalLanguage="@_theologicalLanguage"
+                              DateFormat="@_messageDateFormat"
+                              TimeFormat="@_messageTimeFormat"
+                              IsRenaming="@_isRenaming"
+                              IsSending="@_isSending"
+                              @bind-RenameDraft="_renameDraft"
+                              @bind-Draft="_draft"
+                              @bind-SelectedAgentSlug="_selectedAgentSlug"
+                              EnterBehavior="@_composerEnterBehavior"
+                              RoutingReason="@_routingReason"
+                              ErrorMessage="@_errorMessage"
+                              OnCreateConversation="CreateConversationAsync"
+                              OnRenameConversation="RenameConversationAsync"
+                              OnSend="SendAsync" />
             </section>
     </section>
 }

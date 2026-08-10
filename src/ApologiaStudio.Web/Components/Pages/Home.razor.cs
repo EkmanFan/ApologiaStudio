@@ -62,7 +62,7 @@ public partial class Home
         Array.Empty<BibleEditionSummary>();
 
     private Conversation? _conversation;
-    private ConversationThread? _conversationThread;
+    private ConversationPage? _conversationPage;
     private string? _loadedRouteKey;
     private string? _preparedDraftRouteKey;
     private string _draft = string.Empty;
@@ -94,10 +94,6 @@ public partial class Home
     private bool _focusSidebarAfterRender;
     private bool _focusSidebarToggleAfterRender;
 
-    private string ConversationTitleLabel =>
-        Ui(
-            "Titre de la conversation",
-            "Conversation title");
 
     protected override async Task OnParametersSetAsync()
     {
@@ -717,25 +713,6 @@ public partial class Home
         }
     }
 
-    private void UseHistoricalSuggestion()
-    {
-        _draft =
-            _theologicalLanguage == ApplicationLanguage.English
-                ? "When does the primacy of the Bishop of Rome " +
-                  "first appear historically?"
-                : "À quelle époque apparaît historiquement " +
-                  "la primauté de l’évêque de Rome ?";
-    }
-
-    private void UseApologeticSuggestion()
-    {
-        _draft =
-            _theologicalLanguage == ApplicationLanguage.English
-                ? "How can the resurrection be defended " +
-                  "against an atheist objection?"
-                : "Comment défendre la résurrection " +
-                  "face à une objection athée ?";
-    }
 
     private async Task SendAsync()
     {
@@ -756,7 +733,7 @@ public partial class Home
         _activeAgentName = null;
         _activeAgentId = null;
         _isSending = true;
-        _conversationThread?.RequestScrollToLatestIfFollowing();
+        _conversationPage?.RequestScrollToLatestIfFollowing();
 
         try
         {
@@ -805,7 +782,7 @@ public partial class Home
                             ?? throw new InvalidOperationException(
                                 "The conversation could not be reloaded.");
 
-                        _conversationThread?.RequestScrollToLatestIfFollowing();
+                        _conversationPage?.RequestScrollToLatestIfFollowing();
 
                         break;
 
@@ -813,7 +790,7 @@ public partial class Home
                         _streamingText +=
                             delta.Content;
 
-                        _conversationThread?.RequestScrollToLatestIfFollowing();
+                        _conversationPage?.RequestScrollToLatestIfFollowing();
 
                         break;
 
@@ -828,7 +805,7 @@ public partial class Home
                         _streamingText =
                             string.Empty;
 
-                        _conversationThread?.RequestScrollToLatestIfFollowing();
+                        _conversationPage?.RequestScrollToLatestIfFollowing();
 
                         break;
                 }

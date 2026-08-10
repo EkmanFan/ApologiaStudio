@@ -1,0 +1,151 @@
+.chat-header,
+.chat-feedback {
+    width: min(100%, 72rem);
+    min-width: 0;
+    margin: 0 auto;
+}
+
+.chat-header {
+    display: grid;
+    gap: 0.75rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid #dedbd4;
+}
+
+.conversation-heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.conversation-heading h1 {
+    margin: 0;
+    color: #252823;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.35rem, 2vw, 1.8rem);
+    line-height: 1.2;
+}
+
+.conversation-heading p {
+    max-width: 48rem;
+    margin: 0.35rem 0 0;
+    color: #697068;
+    font-size: 0.85rem;
+}
+
+.runtime-badge {
+    flex: 0 0 auto;
+    padding: 0.32rem 0.65rem;
+    border: 1px solid #cfd4ce;
+    border-radius: 999px;
+    background: #f3f5f2;
+    color: #5f675f;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.rename-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.rename-controls input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.48rem 0.65rem;
+    border: 1px solid #bdc3bc;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #252823;
+}
+
+.rename-controls button {
+    padding: 0.48rem 0.8rem;
+    border: 1px solid #aeb6ae;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #384039;
+}
+
+.chat-feedback {
+    display: grid;
+    gap: 0.4rem;
+    max-height: 8rem;
+    overflow-y: auto;
+}
+
+.routing-information,
+.error-information {
+    padding: 0.62rem 0.8rem;
+    border-radius: 0.5rem;
+    font-size: 0.82rem;
+}
+
+.routing-information {
+    background: #edf2ef;
+    color: #3f5147;
+}
+
+.error-information {
+    background: #ffe7e5;
+    color: #8b2721;
+}
+
+.missing-conversation {
+    display: grid;
+    grid-row: 1 / -1;
+    min-height: 0;
+    place-content: center;
+    padding: 3rem;
+    text-align: center;
+}
+
+.missing-conversation h1 {
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.missing-conversation button {
+    padding: 0.55rem 1.05rem;
+    border: 0;
+    border-radius: 0.55rem;
+    background: #315f4e;
+    color: #fff;
+    font-weight: 700;
+}
+
+button:focus-visible,
+input:focus-visible {
+    outline: 3px solid rgba(49, 95, 78, 0.25);
+    outline-offset: 2px;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+}
+
+@media (max-width: 700px) {
+    .conversation-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .runtime-badge {
+        align-self: start;
+    }
+
+    .rename-controls {
+        flex-direction: column;
+    }
+}
+
+@media (max-height: 720px) {
+    .conversation-heading p {
+        display: none;
+    }
+
+    .chat-header {
+        padding-block: 0.5rem;
+    }
+}
