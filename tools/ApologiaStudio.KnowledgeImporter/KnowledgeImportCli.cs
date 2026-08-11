@@ -16,6 +16,18 @@ public static class KnowledgeImportCli
 
         try
         {
+            if (string.Equals(args[0], "evaluate-reranker", StringComparison.Ordinal))
+            {
+                return await KnowledgeRerankerEvaluationCli.RunAsync(
+                    args.Skip(1).ToArray(),
+                    cancellationToken);
+            }
+            if (string.Equals(args[0], "rerank-retrieval", StringComparison.Ordinal))
+            {
+                return await KnowledgeRerankerSearchCli.RunAsync(
+                    args.Skip(1).ToArray(),
+                    cancellationToken);
+            }
             if (string.Equals(args[0], "evaluate-hybrid", StringComparison.Ordinal))
             {
                 return await KnowledgeHybridEvaluationCli.RunAsync(
@@ -253,12 +265,12 @@ public static class KnowledgeImportCli
     {
         Console.WriteLine(
             """
-            Validate, import, project/search/evaluate retrieval data, run lexical or hybrid search/evaluation, generate a grounded answer, or remove the curated De Decretis source profile.
+            Validate, import, project/search/evaluate retrieval data, run lexical, hybrid, or reranker experiments, generate a grounded answer, or remove the curated De Decretis source profile.
 
             The importer never downloads source material and never modifies the source PDF.
             It accepts only the reviewed NPNF2-04 PDF with the pinned SHA-256.
 
-            Required for import/project-retrieval/search-retrieval/evaluate-retrieval/search-lexical/evaluate-lexical/search-hybrid/evaluate-hybrid/answer-grounded/remove:
+            Required for import/project-retrieval/search-retrieval/evaluate-retrieval/search-lexical/evaluate-lexical/search-hybrid/evaluate-hybrid/rerank-retrieval/evaluate-reranker/answer-grounded/remove:
               APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION   Knowledge PostgreSQL connection string.
 
             Usage:
@@ -297,6 +309,14 @@ public static class KnowledgeImportCli
                 evaluate-hybrid \
                 --dataset evaluations/knowledge/de-decretis-retrieval-v1.json \
                 --mode exact --recall-k 5 --candidate-k 20
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                rerank-retrieval --query "Why did the Council use one in essence?" \
+                --mode exact --top-k 5 --candidate-segment-k 10
+
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                evaluate-reranker \
+                --dataset evaluations/knowledge/de-decretis-retrieval-v1.json \
+                --mode exact --recall-k 5 --candidate-segment-k 10
 
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 answer-grounded \
