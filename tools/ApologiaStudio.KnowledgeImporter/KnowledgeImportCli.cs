@@ -23,6 +23,20 @@ public static class KnowledgeImportCli
                     cancellationToken);
             }
 
+            if (string.Equals(args[0], "evaluate-lexical", StringComparison.Ordinal))
+            {
+                return await KnowledgeLexicalEvaluationCli.RunAsync(
+                    args.Skip(1).ToArray(),
+                    cancellationToken);
+            }
+
+            if (string.Equals(args[0], "search-lexical", StringComparison.Ordinal))
+            {
+                return await KnowledgeLexicalSearchCli.RunAsync(
+                    args.Skip(1).ToArray(),
+                    cancellationToken);
+            }
+
             if (string.Equals(args[0], "evaluate-retrieval", StringComparison.Ordinal))
             {
                 return await KnowledgeRetrievalEvaluationCli.RunAsync(
@@ -225,12 +239,12 @@ public static class KnowledgeImportCli
     {
         Console.WriteLine(
             """
-            Validate, import, project/search/evaluate retrieval data, generate a grounded answer, or remove the curated De Decretis source profile.
+            Validate, import, project/search/evaluate retrieval data, run lexical search/evaluation, generate a grounded answer, or remove the curated De Decretis source profile.
 
             The importer never downloads source material and never modifies the source PDF.
             It accepts only the reviewed NPNF2-04 PDF with the pinned SHA-256.
 
-            Required for import/project-retrieval/search-retrieval/evaluate-retrieval/answer-grounded/remove:
+            Required for import/project-retrieval/search-retrieval/evaluate-retrieval/search-lexical/evaluate-lexical/answer-grounded/remove:
               APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION   Knowledge PostgreSQL connection string.
 
             Usage:
@@ -252,6 +266,14 @@ public static class KnowledgeImportCli
                 evaluate-retrieval \
                 --dataset evaluations/knowledge/de-decretis-retrieval-v1.json \
                 --mode exact --recall-k 5 --candidate-k 20
+
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                search-lexical --query "Why did the Council use one in essence?" --top-k 5
+
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                evaluate-lexical \
+                --dataset evaluations/knowledge/de-decretis-lexical-retrieval-v1.json \
+                --recall-k 5 --candidate-k 20
 
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 answer-grounded \
