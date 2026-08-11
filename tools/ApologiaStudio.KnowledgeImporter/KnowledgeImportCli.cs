@@ -16,6 +16,13 @@ public static class KnowledgeImportCli
 
         try
         {
+            if (string.Equals(args[0], "search-retrieval", StringComparison.Ordinal))
+            {
+                return await KnowledgeSearchCli.RunAsync(
+                    args.Skip(1).ToArray(),
+                    cancellationToken);
+            }
+
             var options = ImportOptions.Parse(args);
             var prepared = DeDecretisDocument.Prepare(
                 options.SourcePath,
@@ -140,7 +147,7 @@ public static class KnowledgeImportCli
         }
         catch (OperationCanceledException)
         {
-            Console.Error.WriteLine("Knowledge import was cancelled.");
+            Console.Error.WriteLine("Knowledge command was cancelled.");
             return 130;
         }
         catch (Exception exception) when (
@@ -152,7 +159,7 @@ public static class KnowledgeImportCli
                 or HttpRequestException
                 or System.Text.Json.JsonException)
         {
-            Console.Error.WriteLine($"Knowledge import failed: {exception.Message}");
+            Console.Error.WriteLine($"Knowledge command failed: {exception.Message}");
             return 1;
         }
         catch (Exception exception)
@@ -204,12 +211,12 @@ public static class KnowledgeImportCli
     {
         Console.WriteLine(
             """
-            Validate, import, project retrieval data for, or remove the curated De Decretis source profile.
+            Validate, import, project/search retrieval data for, or remove the curated De Decretis source profile.
 
             The importer never downloads source material and never modifies the source PDF.
             It accepts only the reviewed NPNF2-04 PDF with the pinned SHA-256.
 
-            Required for import/project-retrieval/remove:
+            Required for import/project-retrieval/search-retrieval/remove:
               APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION   Knowledge PostgreSQL connection string.
 
             Usage:
@@ -222,6 +229,10 @@ public static class KnowledgeImportCli
 
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 project-retrieval --source /absolute/path/to/npnf204.pdf
+
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                search-retrieval --query "Why did the Council use one in essence?" \
+                --top-k 5 --mode exact
 
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 remove --source /absolute/path/to/npnf204.pdf \
