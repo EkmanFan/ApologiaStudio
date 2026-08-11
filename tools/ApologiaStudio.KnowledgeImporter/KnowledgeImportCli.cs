@@ -16,6 +16,13 @@ public static class KnowledgeImportCli
 
         try
         {
+            if (string.Equals(args[0], "evaluate-retrieval", StringComparison.Ordinal))
+            {
+                return await KnowledgeRetrievalEvaluationCli.RunAsync(
+                    args.Skip(1).ToArray(),
+                    cancellationToken);
+            }
+
             if (string.Equals(args[0], "search-retrieval", StringComparison.Ordinal))
             {
                 return await KnowledgeSearchCli.RunAsync(
@@ -211,12 +218,12 @@ public static class KnowledgeImportCli
     {
         Console.WriteLine(
             """
-            Validate, import, project/search retrieval data for, or remove the curated De Decretis source profile.
+            Validate, import, project/search/evaluate retrieval data for, or remove the curated De Decretis source profile.
 
             The importer never downloads source material and never modifies the source PDF.
             It accepts only the reviewed NPNF2-04 PDF with the pinned SHA-256.
 
-            Required for import/project-retrieval/search-retrieval/remove:
+            Required for import/project-retrieval/search-retrieval/evaluate-retrieval/remove:
               APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION   Knowledge PostgreSQL connection string.
 
             Usage:
@@ -233,6 +240,11 @@ public static class KnowledgeImportCli
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 search-retrieval --query "Why did the Council use one in essence?" \
                 --top-k 5 --mode exact
+
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                evaluate-retrieval \
+                --dataset evaluations/knowledge/de-decretis-retrieval-v1.json \
+                --mode exact --recall-k 5 --candidate-k 20
 
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 remove --source /absolute/path/to/npnf204.pdf \

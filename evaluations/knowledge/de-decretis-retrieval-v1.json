@@ -1,0 +1,89 @@
+{
+  "profile": "de-decretis-retrieval-evaluation-v1",
+  "sourceProfile": "de-decretis-npnf2-04-v1",
+  "searchProfile": "de-decretis-vector-search-v1",
+  "cases": [
+    {
+      "id": "council-subscription-en",
+      "language": "en",
+      "query": "What does Athanasius say happened after Eusebius and his allies subscribed to the Nicene definition?",
+      "relevantSegments": [
+        4
+      ]
+    },
+    {
+      "id": "council-subscription-fr",
+      "language": "fr",
+      "query": "Que dit Athanase du comportement d'Eusèbe et de ses alliés après avoir souscrit à la définition de Nicée ?",
+      "relevantSegments": [
+        4
+      ]
+    },
+    {
+      "id": "word-wisdom-power-en",
+      "language": "en",
+      "query": "How does Athanasius use the titles Word, Wisdom and Power to argue that the Son is eternal?",
+      "relevantSegments": [
+        15
+      ]
+    },
+    {
+      "id": "nicene-phrases-en",
+      "language": "en",
+      "query": "Why did the Council use the expressions from the essence and one in essence?",
+      "relevantSegments": [
+        20
+      ]
+    },
+    {
+      "id": "nicene-phrases-fr",
+      "language": "fr",
+      "query": "Pourquoi le concile a-t-il employé les expressions « de l'essence » et « un dans l'essence » ?",
+      "relevantSegments": [
+        20
+      ]
+    },
+    {
+      "id": "unscriptural-terms-en",
+      "language": "en",
+      "query": "How does Athanasius answer the objection that the Nicene expressions are not written verbatim in Scripture?",
+      "relevantSegments": [
+        21
+      ]
+    },
+    {
+      "id": "material-essence-en",
+      "language": "en",
+      "query": "Why does saying that the Son is from the Father's essence not imply that God is material or composite?",
+      "relevantSegments": [
+        22
+      ]
+    },
+    {
+      "id": "material-essence-fr",
+      "language": "fr",
+      "query": "Pourquoi dire que le Fils vient de l'essence du Père n'implique-t-il pas que Dieu soit corporel ou composé ?",
+      "relevantSegments": [
+        22
+      ]
+    },
+    {
+      "id": "earlier-authorities-en",
+      "language": "en",
+      "query": "Which earlier Christian writers does Athanasius cite as authorities in support of the Council's teaching?",
+      "relevantSegments": [
+        25,
+        26,
+        27
+      ]
+    },
+    {
+      "id": "unoriginate-meanings-en",
+      "language": "en",
+      "query": "What different meanings of the word unoriginate does Athanasius discuss before criticizing the Arian use of the term?",
+      "relevantSegments": [
+        28
+      ]
+    }
+  ]
+}
