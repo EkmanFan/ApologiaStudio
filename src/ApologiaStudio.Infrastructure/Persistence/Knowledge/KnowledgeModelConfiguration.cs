@@ -21,6 +21,7 @@ internal static class KnowledgeModelConfiguration
         ConfigureDocumentSegment(modelBuilder.Entity<KnowledgeDocumentSegmentEntity>());
         ConfigureRetrievalChunk(modelBuilder.Entity<KnowledgeRetrievalChunkEntity>());
         ConfigureChunkSegment(modelBuilder.Entity<KnowledgeRetrievalChunkSegmentEntity>());
+        ConfigureChunkEmbedding(modelBuilder.Entity<KnowledgeChunkEmbeddingEntity>());
         ConfigureMetadataAssertion(modelBuilder.Entity<KnowledgeMetadataAssertionEntity>());
         ConfigureSourceKind(modelBuilder.Entity<KnowledgeSourceKindEntity>());
         ConfigureSourceKindAssertion(modelBuilder.Entity<KnowledgeSourceKindAssertionEntity>());
@@ -706,6 +707,69 @@ internal static class KnowledgeModelConfiguration
         builder.HasIndex(x => new { x.ChunkId, x.Sequence })
             .IsUnique()
             .HasDatabaseName("ux_knowledge_chunk_segments_sequence");
+    }
+
+    private static void ConfigureChunkEmbedding(
+        EntityTypeBuilder<KnowledgeChunkEmbeddingEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_chunk_embeddings",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_chunk_embedding_dimensions",
+                    "dimensions BETWEEN 1 AND 16000 AND vector_dims(embedding) = dimensions");
+                table.HasCheckConstraint(
+                    "ck_knowledge_chunk_embedding_digest",
+                    "model_digest ~ '^[0-9a-f]{64}$'");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ChunkId)
+            .HasColumnName("chunk_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.EmbeddingProfile)
+            .HasColumnName("embedding_profile")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.Provider)
+            .HasColumnName("provider")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.Model)
+            .HasColumnName("model")
+            .HasMaxLength(255)
+            .IsRequired();
+        builder.Property(x => x.ModelDigest)
+            .HasColumnName("model_digest")
+            .HasMaxLength(64)
+            .IsFixedLength()
+            .IsRequired();
+        builder.Property(x => x.Dimensions)
+            .HasColumnName("dimensions")
+            .IsRequired();
+        builder.Property(x => x.Embedding)
+            .HasColumnName("embedding")
+            .HasColumnType("vector")
+            .IsRequired();
+        builder.Property(x => x.CreatedAt)
+            .HasColumnName("created_at")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+
+        builder.HasOne<KnowledgeRetrievalChunkEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ChunkId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.ChunkId, x.EmbeddingProfile })
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_chunk_embeddings_profile");
+        builder.HasIndex(x => new { x.EmbeddingProfile, x.ModelDigest })
+            .HasDatabaseName("ix_knowledge_chunk_embeddings_model");
     }
 
     private static void ConfigureMetadataAssertion(

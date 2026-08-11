@@ -34,7 +34,62 @@ public static class KnowledgeImportCli
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new KnowledgeImportException(
-                    "APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION must be defined for import or remove.");
+                    "APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION must be defined for import, project-retrieval, or remove.");
+            }
+
+            if (options.Command == ImportCommand.ProjectRetrieval)
+            {
+                var chunks = RetrievalChunkBuilder.Build(prepared);
+                WriteRetrievalSummary(chunks);
+
+                using var ollama = new OllamaEmbeddingClient(
+                    new Uri(DeDecretisRetrievalProfile.OllamaBaseAddress));
+                var modelDigest = await ollama.ResolveModelDigestAsync(
+                    DeDecretisRetrievalProfile.EmbeddingModel,
+                    cancellationToken);
+
+                if (await KnowledgeRetrievalProjectionWriter.ExistsAndMatchesAsync(
+                        connectionString,
+                        prepared,
+                        chunks,
+                        modelDigest,
+                        cancellationToken))
+                {
+                    WriteRetrievalResult(false, chunks.Count, modelDigest);
+                    return 0;
+                }
+
+                var embeddings = await ollama.EmbedAsync(
+                    DeDecretisRetrievalProfile.EmbeddingModel,
+                    DeDecretisRetrievalProfile.EmbeddingDimensions,
+                    chunks.Select(x => x.Text).ToArray(),
+                    cancellationToken);
+
+                var digestAfterEmbedding = await ollama.ResolveModelDigestAsync(
+                    DeDecretisRetrievalProfile.EmbeddingModel,
+                    cancellationToken);
+                if (!string.Equals(
+                        modelDigest,
+                        digestAfterEmbedding,
+                        StringComparison.Ordinal))
+                {
+                    throw new KnowledgeImportException(
+                        "The Ollama embedding model changed while the retrieval projection was being built.");
+                }
+
+                var projection = await KnowledgeRetrievalProjectionWriter.ProjectAsync(
+                    connectionString,
+                    prepared,
+                    chunks,
+                    modelDigest,
+                    embeddings,
+                    cancellationToken);
+
+                WriteRetrievalResult(
+                    projection.WasCreated,
+                    projection.ChunkCount,
+                    projection.ModelDigest);
+                return 0;
             }
 
             if (options.Command == ImportCommand.Remove)
@@ -93,7 +148,9 @@ public static class KnowledgeImportCli
                 or NpgsqlException
                 or IOException
                 or UnauthorizedAccessException
-                or InvalidOperationException)
+                or InvalidOperationException
+                or HttpRequestException
+                or System.Text.Json.JsonException)
         {
             Console.Error.WriteLine($"Knowledge import failed: {exception.Message}");
             return 1;
@@ -118,16 +175,41 @@ public static class KnowledgeImportCli
         Console.WriteLine($"Sections: {prepared.Segments.Count}");
     }
 
+    private static void WriteRetrievalSummary(
+        IReadOnlyList<PreparedRetrievalChunk> chunks)
+    {
+        Console.WriteLine($"Retrieval profile: {DeDecretisRetrievalProfile.ProfileId}");
+        Console.WriteLine($"Chunking: {DeDecretisRetrievalProfile.ChunkingStrategy}/{DeDecretisRetrievalProfile.ChunkingVersion}");
+        Console.WriteLine($"Max chunk characters: {DeDecretisRetrievalProfile.MaxChunkCharacters}");
+        Console.WriteLine($"Chunk overlap characters: {DeDecretisRetrievalProfile.OverlapCharacters}");
+        Console.WriteLine($"Chunks: {chunks.Count}");
+        Console.WriteLine($"Embedding provider: {DeDecretisRetrievalProfile.EmbeddingProvider}");
+        Console.WriteLine($"Embedding model: {DeDecretisRetrievalProfile.EmbeddingModel}");
+        Console.WriteLine($"Embedding dimensions: {DeDecretisRetrievalProfile.EmbeddingDimensions}");
+    }
+
+    private static void WriteRetrievalResult(
+        bool wasCreated,
+        int chunkCount,
+        string modelDigest)
+    {
+        Console.WriteLine(wasCreated ? "RESULT: PROJECTED" : "RESULT: ALREADY PROJECTED");
+        Console.WriteLine($"Normalized artifact: {StableKnowledgeIds.ForProfile("normalized-artifact")}");
+        Console.WriteLine($"Chunks: {chunkCount}");
+        Console.WriteLine($"Embeddings: {chunkCount}");
+        Console.WriteLine($"Model digest: {modelDigest}");
+    }
+
     private static void WriteUsage()
     {
         Console.WriteLine(
             """
-            Validate, import, or remove the curated De Decretis source profile.
+            Validate, import, project retrieval data for, or remove the curated De Decretis source profile.
 
             The importer never downloads source material and never modifies the source PDF.
             It accepts only the reviewed NPNF2-04 PDF with the pinned SHA-256.
 
-            Required for import/remove:
+            Required for import/project-retrieval/remove:
               APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION   Knowledge PostgreSQL connection string.
 
             Usage:
@@ -137,6 +219,9 @@ public static class KnowledgeImportCli
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 import --source /absolute/path/to/npnf204.pdf \
                 --artifact-root /absolute/path/to/managed/artifacts
+
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                project-retrieval --source /absolute/path/to/npnf204.pdf
 
               dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
                 remove --source /absolute/path/to/npnf204.pdf \
@@ -149,6 +234,7 @@ public static class KnowledgeImportCli
     {
         Validate,
         Import,
+        ProjectRetrieval,
         Remove
     }
 
@@ -164,9 +250,10 @@ public static class KnowledgeImportCli
             {
                 "validate" => ImportCommand.Validate,
                 "import" => ImportCommand.Import,
+                "project-retrieval" => ImportCommand.ProjectRetrieval,
                 "remove" => ImportCommand.Remove,
                 _ => throw new KnowledgeImportException(
-                    $"Unknown command '{args[0]}'. Expected validate, import, or remove.")
+                    $"Unknown command '{args[0]}'. Expected validate, import, project-retrieval, or remove.")
             };
 
             string? sourcePath = null;
@@ -197,7 +284,8 @@ public static class KnowledgeImportCli
                 throw new KnowledgeImportException("Missing required option --source.");
             }
 
-            if (command != ImportCommand.Validate && string.IsNullOrWhiteSpace(artifactRoot))
+            if (command is ImportCommand.Import or ImportCommand.Remove &&
+                string.IsNullOrWhiteSpace(artifactRoot))
             {
                 throw new KnowledgeImportException(
                     "Missing required option --artifact-root for import/remove.");

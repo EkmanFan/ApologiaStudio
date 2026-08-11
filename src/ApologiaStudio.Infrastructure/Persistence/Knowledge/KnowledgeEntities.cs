@@ -1,3 +1,5 @@
+using Pgvector;
+
 namespace ApologiaStudio.Infrastructure.Persistence.Knowledge;
 
 internal sealed class KnowledgeResourceEntity
@@ -140,6 +142,19 @@ internal sealed class KnowledgeRetrievalChunkSegmentEntity
     public int Sequence { get; set; }
     public int StartOffset { get; set; }
     public int EndOffset { get; set; }
+}
+
+internal sealed class KnowledgeChunkEmbeddingEntity
+{
+    public Guid Id { get; set; }
+    public Guid ChunkId { get; set; }
+    public string EmbeddingProfile { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public string ModelDigest { get; set; } = string.Empty;
+    public int Dimensions { get; set; }
+    public Vector Embedding { get; set; } = null!;
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 internal sealed class KnowledgeMetadataAssertionEntity

@@ -1,6 +1,7 @@
 using ApologiaStudio.Infrastructure.Persistence.Knowledge;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Pgvector.EntityFrameworkCore;
 
 namespace ApologiaStudio.IntegrationTests.KnowledgeStore;
 
@@ -9,6 +10,7 @@ public sealed class PostgreSqlKnowledgePersistenceTests
     private static readonly string[] ExpectedTables =
     [
         "knowledge_artifacts",
+        "knowledge_chunk_embeddings",
         "knowledge_chunk_segments",
         "knowledge_contributions",
         "knowledge_contributor_identifiers",
@@ -89,6 +91,7 @@ public sealed class PostgreSqlKnowledgePersistenceTests
         var segmentId = Guid.NewGuid();
         var contributorId = Guid.NewGuid();
         var chunkId = Guid.NewGuid();
+        var embeddingId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
 
         await using (var command = new NpgsqlCommand(
@@ -152,6 +155,15 @@ public sealed class PostgreSqlKnowledgePersistenceTests
                              (chunk_id, segment_id, sequence, start_offset, end_offset)
                          VALUES
                              (@chunk_id, @segment_id, 0, 0, 37);
+
+                         INSERT INTO knowledge_chunk_embeddings
+                             (id, chunk_id, embedding_profile, provider, model, model_digest,
+                              dimensions, embedding, created_at)
+                         VALUES
+                             (@embedding_id, @chunk_id, 'integration-test-v1', 'integration-test',
+                              'integration-test-model',
+                              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                              3, '[1,0,0]'::vector, @now);
                          """,
                          connection,
                          transaction))
@@ -163,6 +175,7 @@ public sealed class PostgreSqlKnowledgePersistenceTests
             command.Parameters.AddWithValue("segment_id", segmentId);
             command.Parameters.AddWithValue("contributor_id", contributorId);
             command.Parameters.AddWithValue("chunk_id", chunkId);
+            command.Parameters.AddWithValue("embedding_id", embeddingId);
             command.Parameters.AddWithValue("now", now);
 
             await command.ExecuteNonQueryAsync();
@@ -204,13 +217,36 @@ public sealed class PostgreSqlKnowledgePersistenceTests
             Assert.False(await reader.ReadAsync());
         }
 
+        await using (var command = new NpgsqlCommand(
+                         """
+                         SELECT dimensions, vector_dims(embedding), model_digest
+                         FROM knowledge_chunk_embeddings
+                         WHERE id = @embedding_id
+                         """,
+                         connection,
+                         transaction))
+        {
+            command.Parameters.AddWithValue("embedding_id", embeddingId);
+
+            await using var reader = await command.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(3, reader.GetInt32(0));
+            Assert.Equal(3, reader.GetInt32(1));
+            Assert.Equal(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                reader.GetString(2).Trim());
+            Assert.False(await reader.ReadAsync());
+        }
+
         await transaction.RollbackAsync();
     }
 
     private static KnowledgeDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<KnowledgeDbContext>()
-            .UseNpgsql(KnowledgeStoreTestConnection.Resolve())
+            .UseNpgsql(
+                KnowledgeStoreTestConnection.Resolve(),
+                options => options.UseVector())
             .Options;
 
         return new KnowledgeDbContext(options);

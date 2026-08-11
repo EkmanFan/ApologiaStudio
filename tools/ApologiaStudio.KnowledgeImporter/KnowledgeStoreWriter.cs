@@ -540,6 +540,15 @@ internal static class KnowledgeStoreWriter
             ("parsed_id", ParsedArtifactId),
             ("normalized_id", NormalizedArtifactId));
 
+        // Retrieval chunks are rebuildable projections over segments. Remove them first
+        // so their restrictive segment mappings cannot block deletion of citable segments.
+        await ExecuteAsync(
+            connection,
+            transaction,
+            "DELETE FROM knowledge_retrieval_chunks WHERE artifact_id = @normalized_id",
+            cancellationToken,
+            ("normalized_id", NormalizedArtifactId));
+
         foreach (var segmentId in segmentIds)
         {
             await ExecuteAsync(

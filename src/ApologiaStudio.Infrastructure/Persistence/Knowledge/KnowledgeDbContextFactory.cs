@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Pgvector.EntityFrameworkCore;
 
 namespace ApologiaStudio.Infrastructure.Persistence.Knowledge;
 
@@ -19,7 +20,7 @@ public sealed class KnowledgeDbContextFactory
         }
 
         var options = new DbContextOptionsBuilder<KnowledgeDbContext>()
-            .UseNpgsql(connectionString)
+            .UseNpgsql(connectionString, options => options.UseVector())
             .Options;
 
         return new KnowledgeDbContext(options);

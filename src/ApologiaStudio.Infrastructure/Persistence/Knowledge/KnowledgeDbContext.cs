@@ -27,6 +27,9 @@ public sealed class KnowledgeDbContext(
     internal DbSet<KnowledgeRetrievalChunkEntity> RetrievalChunks =>
         Set<KnowledgeRetrievalChunkEntity>();
 
+    internal DbSet<KnowledgeChunkEmbeddingEntity> ChunkEmbeddings =>
+        Set<KnowledgeChunkEmbeddingEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("vector");
