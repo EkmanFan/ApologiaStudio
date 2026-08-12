@@ -71,6 +71,14 @@ public static class DependencyInjection
             IPdfDocumentExtractor,
             PdfPigDocumentExtractor>();
 
+        services.AddSingleton<
+            IPdfDocumentNormalizer,
+            PdfDocumentNormalizer>();
+
+        services.AddSingleton<
+            IDocumentSegmenter,
+            HeuristicDocumentSegmenter>();
+
         services.TryAddSingleton(
             TimeProvider.System);
 
