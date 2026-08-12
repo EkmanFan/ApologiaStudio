@@ -27,6 +27,14 @@ internal static class KnowledgeModelConfiguration
         ConfigureSourceKindAssertion(modelBuilder.Entity<KnowledgeSourceKindAssertionEntity>());
         ConfigurePerspective(modelBuilder.Entity<KnowledgePerspectiveEntity>());
         ConfigurePerspectiveAssertion(modelBuilder.Entity<KnowledgePerspectiveAssertionEntity>());
+        ConfigureMethodologicalFramework(
+            modelBuilder.Entity<KnowledgeMethodologicalFrameworkEntity>());
+        ConfigureMethodologicalFrameworkAssertion(
+            modelBuilder.Entity<KnowledgeMethodologicalFrameworkAssertionEntity>());
+        ConfigureEpistemicFramework(
+            modelBuilder.Entity<KnowledgeEpistemicFrameworkEntity>());
+        ConfigureEpistemicFrameworkAssertion(
+            modelBuilder.Entity<KnowledgeEpistemicFrameworkAssertionEntity>());
         ConfigureEvidenceRole(modelBuilder.Entity<KnowledgeEvidenceRoleEntity>());
         ConfigureEvidenceRoleAssertion(modelBuilder.Entity<KnowledgeEvidenceRoleAssertionEntity>());
     }
@@ -554,6 +562,10 @@ internal static class KnowledgeModelConfiguration
                 table.HasCheckConstraint(
                     "ck_knowledge_segment_parent",
                     "parent_segment_id IS NULL OR parent_segment_id <> id");
+                table.HasCheckConstraint(
+                    "ck_knowledge_segment_kind",
+                    "segment_kind IN ('unknown', 'main_text', 'pedagogical_prompt', 'sidebar', " +
+                    "'bibliography', 'caption', 'glossary', 'index')");
             });
 
         builder.HasKey(x => x.Id);
@@ -569,6 +581,11 @@ internal static class KnowledgeModelConfiguration
         builder.Property(x => x.SegmentType)
             .HasColumnName("segment_type")
             .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.SegmentKind)
+            .HasColumnName("segment_kind")
+            .HasMaxLength(32)
+            .HasDefaultValue("unknown")
             .IsRequired();
         builder.Property(x => x.Ordinal)
             .HasColumnName("ordinal")
@@ -1038,6 +1055,196 @@ internal static class KnowledgeModelConfiguration
 
         builder.HasIndex(x => new { x.ResourceId, x.PerspectiveId, x.ReviewStatus })
             .HasDatabaseName("ix_knowledge_perspective_assertions");
+    }
+
+    private static void ConfigureMethodologicalFramework(
+        EntityTypeBuilder<KnowledgeMethodologicalFrameworkEntity> builder)
+    {
+        builder.ToTable("knowledge_methodological_frameworks");
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        ConfigureControlledTerm(
+            builder.Property(x => x.Code),
+            builder.Property(x => x.Label),
+            builder.Property(x => x.Description));
+        builder.HasIndex(x => x.Code)
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_methodological_frameworks_code");
+    }
+
+    private static void ConfigureMethodologicalFrameworkAssertion(
+        EntityTypeBuilder<KnowledgeMethodologicalFrameworkAssertionEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_methodological_framework_assertions",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_methodological_framework_origin",
+                    "assertion_origin IN ('imported', 'ai_proposed', 'editorial')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_methodological_framework_review",
+                    "review_status IN ('proposed', 'verified', 'rejected', 'disputed', 'superseded')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_methodological_framework_review_time",
+                    "reviewed_at IS NULL OR reviewed_at >= asserted_at");
+                table.HasCheckConstraint(
+                    "ck_knowledge_methodological_framework_type",
+                    "classification_type IN ('declared', 'analytical')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_methodological_framework_supersedes",
+                    "supersedes_assertion_id IS NULL OR supersedes_assertion_id <> id");
+            });
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ResourceId)
+            .HasColumnName("resource_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.MethodologicalFrameworkId)
+            .HasColumnName("methodological_framework_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ClassificationType)
+            .HasColumnName("classification_type")
+            .HasMaxLength(32)
+            .IsRequired();
+        ConfigureAssertionCommon(
+            builder.Property(x => x.AssertionOrigin),
+            builder.Property(x => x.AssertedBy),
+            builder.Property(x => x.AssertedAt),
+            builder.Property(x => x.ReviewStatus),
+            builder.Property(x => x.ReviewedBy),
+            builder.Property(x => x.ReviewedAt),
+            builder.Property(x => x.Justification),
+            builder.Property(x => x.SupportingSegmentId));
+        builder.Property(x => x.SupersedesAssertionId)
+            .HasColumnName("supersedes_assertion_id")
+            .HasColumnType("uuid");
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ResourceId)
+            .HasConstraintName("fk_method_framework_assertion_resource")
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeMethodologicalFrameworkEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.MethodologicalFrameworkId)
+            .HasConstraintName("fk_method_framework_assertion_framework")
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupportingSegmentId)
+            .HasConstraintName("fk_method_framework_assertion_support_segment")
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgeMethodologicalFrameworkAssertionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupersedesAssertionId)
+            .HasConstraintName("fk_method_framework_assertion_supersedes")
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => new
+            {
+                x.ResourceId,
+                x.MethodologicalFrameworkId,
+                x.ReviewStatus
+            })
+            .HasDatabaseName("ix_knowledge_methodological_framework_assertions");
+    }
+
+    private static void ConfigureEpistemicFramework(
+        EntityTypeBuilder<KnowledgeEpistemicFrameworkEntity> builder)
+    {
+        builder.ToTable("knowledge_epistemic_frameworks");
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        ConfigureControlledTerm(
+            builder.Property(x => x.Code),
+            builder.Property(x => x.Label),
+            builder.Property(x => x.Description));
+        builder.HasIndex(x => x.Code)
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_epistemic_frameworks_code");
+    }
+
+    private static void ConfigureEpistemicFrameworkAssertion(
+        EntityTypeBuilder<KnowledgeEpistemicFrameworkAssertionEntity> builder)
+    {
+        builder.ToTable(
+            "knowledge_epistemic_framework_assertions",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_knowledge_epistemic_framework_origin",
+                    "assertion_origin IN ('imported', 'ai_proposed', 'editorial')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_epistemic_framework_review",
+                    "review_status IN ('proposed', 'verified', 'rejected', 'disputed', 'superseded')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_epistemic_framework_review_time",
+                    "reviewed_at IS NULL OR reviewed_at >= asserted_at");
+                table.HasCheckConstraint(
+                    "ck_knowledge_epistemic_framework_type",
+                    "classification_type IN ('declared', 'analytical')");
+                table.HasCheckConstraint(
+                    "ck_knowledge_epistemic_framework_supersedes",
+                    "supersedes_assertion_id IS NULL OR supersedes_assertion_id <> id");
+            });
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.ResourceId)
+            .HasColumnName("resource_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.EpistemicFrameworkId)
+            .HasColumnName("epistemic_framework_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ClassificationType)
+            .HasColumnName("classification_type")
+            .HasMaxLength(32)
+            .IsRequired();
+        ConfigureAssertionCommon(
+            builder.Property(x => x.AssertionOrigin),
+            builder.Property(x => x.AssertedBy),
+            builder.Property(x => x.AssertedAt),
+            builder.Property(x => x.ReviewStatus),
+            builder.Property(x => x.ReviewedBy),
+            builder.Property(x => x.ReviewedAt),
+            builder.Property(x => x.Justification),
+            builder.Property(x => x.SupportingSegmentId));
+        builder.Property(x => x.SupersedesAssertionId)
+            .HasColumnName("supersedes_assertion_id")
+            .HasColumnType("uuid");
+        builder.HasOne<KnowledgeResourceEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ResourceId)
+            .HasConstraintName("fk_epistemic_framework_assertion_resource")
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne<KnowledgeEpistemicFrameworkEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.EpistemicFrameworkId)
+            .HasConstraintName("fk_epistemic_framework_assertion_framework")
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+        builder.HasOne<KnowledgeDocumentSegmentEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupportingSegmentId)
+            .HasConstraintName("fk_epistemic_framework_assertion_support_segment")
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<KnowledgeEpistemicFrameworkAssertionEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupersedesAssertionId)
+            .HasConstraintName("fk_epistemic_framework_assertion_supersedes")
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => new
+            {
+                x.ResourceId,
+                x.EpistemicFrameworkId,
+                x.ReviewStatus
+            })
+            .HasDatabaseName("ix_knowledge_epistemic_framework_assertions");
     }
 
     private static void ConfigureEvidenceRole(EntityTypeBuilder<KnowledgeEvidenceRoleEntity> builder)

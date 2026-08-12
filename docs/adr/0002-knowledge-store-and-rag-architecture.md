@@ -161,6 +161,24 @@ Examples include a book, chapter, section, numbered paragraph, canon, article,
 or other structurally meaningful passage. A segment records its artifact,
 hierarchy, order, text, and stable locator when available.
 
+`SegmentType` describes structural form, such as chapter or section.
+`SegmentKind` describes the segment's operational documentary function. The v1
+controlled values are:
+
+```text
+unknown
+main_text
+pedagogical_prompt
+sidebar
+bibliography
+caption
+glossary
+index
+```
+
+`unknown` is the fail-safe default. Retrieval policy must not silently treat
+unknown or explicitly non-evidential segment kinds as ordinary evidential text.
+
 `RetrievalChunk` is a technical and rebuildable search projection. Chunk size,
 overlap, grouping, and embedding strategy may change without changing citable
 segments or historical citations.
@@ -178,7 +196,10 @@ Technical facts such as SHA-256, byte size, media type, and acquisition timestam
 are direct properties.
 
 Metadata that can be interpretive, disputed, historically uncertain, or
-editorially classified is represented as a traceable `MetadataAssertion`.
+editorially classified is represented as a traceable assertion. High-value
+classification dimensions that require controlled vocabularies and direct
+filtering may use specialized assertion tables while preserving the same
+provenance and review semantics as `MetadataAssertion`.
 
 An assertion records at least:
 
@@ -195,14 +216,16 @@ An assertion records at least:
 Validated assertions are not silently overwritten. Competing assertions may
 coexist when the underlying scholarship or attribution is genuinely disputed.
 
-### 8. Keep source kind, perspective, and evidence role independent
+### 8. Keep documentary classification dimensions independent
 
-These dimensions answer different questions:
+Five v1 classification dimensions answer different questions:
 
 ```text
-SourceKind    = what the source is
-Perspective   = the standpoint from which it speaks
-EvidenceRole  = how it can function in an analysis
+SourceKind               = what the source is
+Perspective              = the standpoint from which it speaks
+MethodologicalFramework  = how inquiry or analysis is conducted
+EpistemicFramework       = what kinds of knowledge or explanation the source admits
+EvidenceRole             = how the source can function in an analysis
 ```
 
 Examples of `SourceKind` include primary source, academic secondary source,
@@ -213,13 +236,27 @@ perspective and analytical classification. Historical categories must be
 period-appropriate; modern confessional labels are not projected backwards
 without justification.
 
+`MethodologicalFramework` and `EpistemicFramework` use independent controlled
+vocabularies. Their assertions distinguish `declared` classifications from
+`analytical` classifications and retain assertion provenance, editorial review,
+justification, and a supporting segment when available. The v1 vocabularies are
+flat; hierarchy is deferred until a concrete retrieval or editorial requirement
+justifies it.
+
+Examples of `MethodologicalFramework` include historical-critical and
+comparative-historical analysis. An `EpistemicFramework` may record a documented
+constraint such as excluding supernatural causation from historical
+adjudication. Such a classification describes the source's operative
+epistemology; it does not infer an author's personal religious identity.
+
 Examples of `EvidenceRole` include doctrinal definition, historical witness,
 modern scholarship, textual commentary, confessional position, apologetic
-argument, counter-position, and reference material.
+argument, counter-position, and reference material. Context-dependent roles such
+as counter-position must not be treated as an intrinsic identity of the source.
 
-Perspective and evidence role are not credibility scores. Retrieval must not
-encode a rule that one confession or viewpoint is intrinsically more truthful
-than another.
+None of these dimensions is a truth or credibility score. Retrieval must not
+encode a rule that one confession, methodology, or worldview is intrinsically
+more truthful than another.
 
 ### 9. Separate technical, editorial, and metadata status
 

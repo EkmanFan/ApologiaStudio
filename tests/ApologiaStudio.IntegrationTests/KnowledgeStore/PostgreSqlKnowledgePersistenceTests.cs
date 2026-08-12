@@ -16,6 +16,8 @@ public sealed class PostgreSqlKnowledgePersistenceTests
         "knowledge_contributor_identifiers",
         "knowledge_contributors",
         "knowledge_document_segments",
+        "knowledge_epistemic_framework_assertions",
+        "knowledge_epistemic_frameworks",
         "knowledge_evidence_role_assertions",
         "knowledge_evidence_roles",
         "knowledge_expression_relations",
@@ -23,6 +25,8 @@ public sealed class PostgreSqlKnowledgePersistenceTests
         "knowledge_manifestation_identifiers",
         "knowledge_manifestations",
         "knowledge_metadata_assertions",
+        "knowledge_methodological_framework_assertions",
+        "knowledge_methodological_frameworks",
         "knowledge_perspective_assertions",
         "knowledge_perspectives",
         "knowledge_processing_activities",
@@ -140,10 +144,11 @@ public sealed class PostgreSqlKnowledgePersistenceTests
                               'text/plain', 128, 'https://example.invalid/de-decretis.txt', @now, 'active');
 
                          INSERT INTO knowledge_document_segments
-                             (id, artifact_id, parent_segment_id, segment_type, ordinal, title, text, locator)
+                             (id, artifact_id, parent_segment_id, segment_type, segment_kind,
+                              ordinal, title, text, locator)
                          VALUES
-                             (@segment_id, @artifact_id, NULL, 'section', 20, 'Section 20',
-                              'Representative integration-test text.', '§20');
+                             (@segment_id, @artifact_id, NULL, 'section', 'main_text',
+                              20, 'Section 20', 'Representative integration-test text.', '§20');
 
                          INSERT INTO knowledge_retrieval_chunks
                              (id, artifact_id, ordinal, text, chunking_strategy, chunking_version, created_at)
@@ -189,6 +194,7 @@ public sealed class PostgreSqlKnowledgePersistenceTests
                              m.citation_label,
                              a.sha256,
                              s.locator,
+                             s.segment_kind,
                              c.preferred_name
                          FROM knowledge_document_segments s
                          JOIN knowledge_artifacts a ON a.id = s.artifact_id
@@ -213,7 +219,8 @@ public sealed class PostgreSqlKnowledgePersistenceTests
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 reader.GetString(3).Trim());
             Assert.Equal("§20", reader.GetString(4));
-            Assert.Equal("Athanasius", reader.GetString(5));
+            Assert.Equal("main_text", reader.GetString(5));
+            Assert.Equal("Athanasius", reader.GetString(6));
             Assert.False(await reader.ReadAsync());
         }
 
@@ -235,6 +242,131 @@ public sealed class PostgreSqlKnowledgePersistenceTests
             Assert.Equal(
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 reader.GetString(2).Trim());
+            Assert.False(await reader.ReadAsync());
+        }
+
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task KnowledgeStore_ShouldPersistTraceableFrameworkClassifications()
+    {
+        await using (var context = CreateContext())
+        {
+            await context.Database.MigrateAsync();
+        }
+
+        await using var connection = new NpgsqlConnection(
+            KnowledgeStoreTestConnection.Resolve());
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var workId = Guid.NewGuid();
+        var methodologicalFrameworkId = Guid.NewGuid();
+        var epistemicFrameworkId = Guid.NewGuid();
+        var methodologicalAssertionId = Guid.NewGuid();
+        var epistemicAssertionId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        await using (var command = new NpgsqlCommand(
+                         """
+                         INSERT INTO knowledge_resources
+                             (id, editorial_review_status, created_at)
+                         VALUES
+                             (@work_id, 'approved', @now);
+
+                         INSERT INTO knowledge_works
+                             (id, title, original_language, description)
+                         VALUES
+                             (@work_id, 'Framework classification test', 'en', NULL);
+
+                         INSERT INTO knowledge_methodological_frameworks
+                             (id, code, label, description)
+                         VALUES
+                             (@methodological_framework_id, 'historical_critical',
+                              'Historical-critical', 'Integration-test methodology');
+
+                         INSERT INTO knowledge_epistemic_frameworks
+                             (id, code, label, description)
+                         VALUES
+                             (@epistemic_framework_id,
+                              'supernatural_causation_excluded_from_historical_adjudication',
+                              'Supernatural causation excluded from historical adjudication',
+                              'Integration-test epistemic constraint');
+
+                         INSERT INTO knowledge_methodological_framework_assertions
+                             (id, resource_id, methodological_framework_id, classification_type,
+                              assertion_origin, asserted_by, asserted_at, review_status,
+                              reviewed_by, reviewed_at, justification, supporting_segment_id,
+                              supersedes_assertion_id)
+                         VALUES
+                             (@methodological_assertion_id, @work_id, @methodological_framework_id,
+                              'analytical', 'editorial', 'integration-test', @now, 'verified',
+                              'integration-test', @now, 'Methodological test assertion', NULL, NULL);
+
+                         INSERT INTO knowledge_epistemic_framework_assertions
+                             (id, resource_id, epistemic_framework_id, classification_type,
+                              assertion_origin, asserted_by, asserted_at, review_status,
+                              reviewed_by, reviewed_at, justification, supporting_segment_id,
+                              supersedes_assertion_id)
+                         VALUES
+                             (@epistemic_assertion_id, @work_id, @epistemic_framework_id,
+                              'declared', 'editorial', 'integration-test', @now, 'verified',
+                              'integration-test', @now, 'Epistemic test assertion', NULL, NULL);
+                         """,
+                         connection,
+                         transaction))
+        {
+            command.Parameters.AddWithValue("work_id", workId);
+            command.Parameters.AddWithValue(
+                "methodological_framework_id",
+                methodologicalFrameworkId);
+            command.Parameters.AddWithValue(
+                "epistemic_framework_id",
+                epistemicFrameworkId);
+            command.Parameters.AddWithValue(
+                "methodological_assertion_id",
+                methodologicalAssertionId);
+            command.Parameters.AddWithValue(
+                "epistemic_assertion_id",
+                epistemicAssertionId);
+            command.Parameters.AddWithValue("now", now);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await using (var command = new NpgsqlCommand(
+                         """
+                         SELECT
+                             methodological.code,
+                             methodological_assertion.classification_type,
+                             methodological_assertion.review_status,
+                             epistemic.code,
+                             epistemic_assertion.classification_type,
+                             epistemic_assertion.review_status
+                         FROM knowledge_methodological_framework_assertions methodological_assertion
+                         JOIN knowledge_methodological_frameworks methodological
+                           ON methodological.id = methodological_assertion.methodological_framework_id
+                         JOIN knowledge_epistemic_framework_assertions epistemic_assertion
+                           ON epistemic_assertion.resource_id = methodological_assertion.resource_id
+                         JOIN knowledge_epistemic_frameworks epistemic
+                           ON epistemic.id = epistemic_assertion.epistemic_framework_id
+                         WHERE methodological_assertion.resource_id = @work_id
+                         """,
+                         connection,
+                         transaction))
+        {
+            command.Parameters.AddWithValue("work_id", workId);
+            await using var reader = await command.ExecuteReaderAsync();
+
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal("historical_critical", reader.GetString(0));
+            Assert.Equal("analytical", reader.GetString(1));
+            Assert.Equal("verified", reader.GetString(2));
+            Assert.Equal(
+                "supernatural_causation_excluded_from_historical_adjudication",
+                reader.GetString(3));
+            Assert.Equal("declared", reader.GetString(4));
+            Assert.Equal("verified", reader.GetString(5));
             Assert.False(await reader.ReadAsync());
         }
 

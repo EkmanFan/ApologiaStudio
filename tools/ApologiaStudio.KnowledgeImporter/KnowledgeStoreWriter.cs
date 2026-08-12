@@ -382,9 +382,9 @@ internal static class KnowledgeStoreWriter
                 transaction,
                 """
                 INSERT INTO knowledge_document_segments
-                    (id, artifact_id, parent_segment_id, segment_type, ordinal, title, text, locator)
+                    (id, artifact_id, parent_segment_id, segment_type, segment_kind, ordinal, title, text, locator)
                 VALUES
-                    (@id, @artifact_id, NULL, 'section', @ordinal, @title, @text, @locator)
+                    (@id, @artifact_id, NULL, 'section', 'main_text', @ordinal, @title, @text, @locator)
                 """,
                 cancellationToken,
                 ("id", segment.Id),

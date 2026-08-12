@@ -118,6 +118,7 @@ internal sealed class KnowledgeDocumentSegmentEntity
     public Guid ArtifactId { get; set; }
     public Guid? ParentSegmentId { get; set; }
     public string SegmentType { get; set; } = string.Empty;
+    public string SegmentKind { get; set; } = "unknown";
     public int Ordinal { get; set; }
     public string? Title { get; set; }
     public string Text { get; set; } = string.Empty;
@@ -215,6 +216,55 @@ internal sealed class KnowledgePerspectiveAssertionEntity
     public Guid ResourceId { get; set; }
     public Guid PerspectiveId { get; set; }
     public string PerspectiveType { get; set; } = string.Empty;
+    public string AssertionOrigin { get; set; } = string.Empty;
+    public string AssertedBy { get; set; } = string.Empty;
+    public DateTimeOffset AssertedAt { get; set; }
+    public string ReviewStatus { get; set; } = "proposed";
+    public string? ReviewedBy { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? Justification { get; set; }
+    public Guid? SupportingSegmentId { get; set; }
+    public Guid? SupersedesAssertionId { get; set; }
+}
+
+internal sealed class KnowledgeMethodologicalFrameworkEntity
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string? Description { get; set; }
+}
+internal sealed class KnowledgeMethodologicalFrameworkAssertionEntity
+{
+    public Guid Id { get; set; }
+    public Guid ResourceId { get; set; }
+    public Guid MethodologicalFrameworkId { get; set; }
+    public string ClassificationType { get; set; } = string.Empty;
+    public string AssertionOrigin { get; set; } = string.Empty;
+    public string AssertedBy { get; set; } = string.Empty;
+    public DateTimeOffset AssertedAt { get; set; }
+    public string ReviewStatus { get; set; } = "proposed";
+    public string? ReviewedBy { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? Justification { get; set; }
+    public Guid? SupportingSegmentId { get; set; }
+    public Guid? SupersedesAssertionId { get; set; }
+}
+
+internal sealed class KnowledgeEpistemicFrameworkEntity
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string? Description { get; set; }
+}
+
+internal sealed class KnowledgeEpistemicFrameworkAssertionEntity
+{
+    public Guid Id { get; set; }
+    public Guid ResourceId { get; set; }
+    public Guid EpistemicFrameworkId { get; set; }
+    public string ClassificationType { get; set; } = string.Empty;
     public string AssertionOrigin { get; set; } = string.Empty;
     public string AssertedBy { get; set; } = string.Empty;
     public DateTimeOffset AssertedAt { get; set; }
