@@ -7,7 +7,9 @@ using ApologiaStudio.Application.Abstractions.Preferences;
 using ApologiaStudio.Application.Abstractions.Navigation;
 using ApologiaStudio.Application.Abstractions.Projects;
 using ApologiaStudio.Application.BibleCorpora.Ingestion;
+using ApologiaStudio.Application.Knowledge.Ingestion;
 using ApologiaStudio.Infrastructure.BibleCorpora.Ingestion;
+using ApologiaStudio.Infrastructure.Knowledge.Ingestion;
 using ApologiaStudio.Infrastructure.Persistence;
 using ApologiaStudio.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +66,10 @@ public static class DependencyInjection
         services.AddSingleton<
             IBibleCorpusReader,
             SilMachineUsfmCorpusReader>();
+
+        services.AddSingleton<
+            IPdfDocumentExtractor,
+            PdfPigDocumentExtractor>();
 
         services.TryAddSingleton(
             TimeProvider.System);
