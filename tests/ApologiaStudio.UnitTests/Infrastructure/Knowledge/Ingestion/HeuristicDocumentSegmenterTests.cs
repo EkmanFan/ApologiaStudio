@@ -142,6 +142,224 @@ public sealed class HeuristicDocumentSegmenterTests
     }
 
     [Fact]
+    public void Segment_ShouldMatchDecoratedAndShortPrefixHeadingHints()
+    {
+        var document = CreateDocument(
+            CreateBlock(
+                0,
+                "■ SUGGESTIONS FOR FURTHER READING",
+                pointSize: 14,
+                wordCount: 5),
+            CreateBlock(
+                1,
+                "First bibliography entry.",
+                pointSize: 10,
+                wordCount: 3),
+            CreateBlock(
+                2,
+                "II TAKE A STAND",
+                pointSize: 14,
+                wordCount: 4),
+            CreateBlock(
+                3,
+                "Consider the evidence.",
+                pointSize: 10,
+                wordCount: 3));
+
+        var hints = new DocumentSegmentationHints(
+        [
+            new HeadingSegmentKindHint(
+                "SUGGESTIONS FOR FURTHER READING",
+                DocumentSegmentKind.Bibliography),
+            new HeadingSegmentKindHint(
+                "TAKE A STAND",
+                DocumentSegmentKind.PedagogicalPrompt)
+        ]);
+
+        var segmenter = new HeuristicDocumentSegmenter();
+
+        var result = segmenter.Segment(
+            document,
+            hints,
+            CancellationToken.None);
+
+        Assert.Equal(2, result.Segments.Count);
+        Assert.Equal(
+            DocumentSegmentKind.Bibliography,
+            result.Segments[0].Kind);
+        Assert.Equal(
+            DocumentSegmentKind.PedagogicalPrompt,
+            result.Segments[1].Kind);
+    }
+
+    [Fact]
+    public void Segment_ShouldMatchSplitLetterHintOnFirstSourceLine()
+    {
+        var document = CreateDocument(
+            CreateBlock(
+                0,
+                ", SUGG ESTIONS FOR FU RTH ER READING See also Suggestions for Further Reading in chapter 18.",
+                pointSize: 14,
+                wordCount: 12,
+                sourceText:
+                    ", SUGG ESTIONS FOR FU RTH ER READING\n" +
+                    "See also Suggestions for Further Reading in chapter 18."),
+            CreateBlock(
+                1,
+                "First bibliography entry.",
+                pointSize: 10,
+                wordCount: 3));
+
+        var hints = new DocumentSegmentationHints(
+        [
+            new HeadingSegmentKindHint(
+                "SUGGESTIONS FOR FURTHER READING",
+                DocumentSegmentKind.Bibliography)
+        ]);
+
+        var segmenter = new HeuristicDocumentSegmenter();
+
+        var result = segmenter.Segment(
+            document,
+            hints,
+            CancellationToken.None);
+
+        var segment = Assert.Single(result.Segments);
+        Assert.Equal(
+            DocumentSegmentKind.Bibliography,
+            segment.Kind);
+        Assert.Equal(
+            ", SUGG ESTIONS FOR FU RTH ER READING",
+            segment.Title);
+    }
+
+    [Fact]
+    public void Segment_ShouldNotTreatBodyReferenceAsHeadingHint()
+    {
+        var document = CreateDocument(
+            CreateBlock(
+                0,
+                "the \"Suggestions for Further Reading\"): apart from personal names, the vocabulary differs.",
+                pointSize: 14,
+                wordCount: 11));
+
+        var hints = new DocumentSegmentationHints(
+        [
+            new HeadingSegmentKindHint(
+                "SUGGESTIONS FOR FURTHER READING",
+                DocumentSegmentKind.Bibliography)
+        ]);
+
+        var segmenter = new HeuristicDocumentSegmenter();
+
+        var result = segmenter.Segment(
+            document,
+            hints,
+            CancellationToken.None);
+
+        var segment = Assert.Single(result.Segments);
+        Assert.Equal(
+            DocumentSegmentKind.MainText,
+            segment.Kind);
+        Assert.Equal(
+            DocumentSegmentType.ParagraphGroup,
+            segment.Type);
+        Assert.Null(segment.Title);
+    }
+
+    [Fact]
+    public void Segment_ShouldRejectLowQualityDecorativeGlyphAsHeading()
+    {
+        var document = CreateDocument(
+            CreateBlock(
+                0,
+                "Ordinary body paragraph.",
+                pointSize: 10,
+                wordCount: 3),
+            CreateBlock(
+                1,
+                "� ,:j,:\\lf",
+                pointSize: 18,
+                wordCount: 2),
+            CreateBlock(
+                2,
+                "Following body paragraph.",
+                pointSize: 10,
+                wordCount: 3));
+
+        var segmenter = new HeuristicDocumentSegmenter();
+
+        var result = segmenter.Segment(
+            document,
+            DocumentSegmentationHints.Empty,
+            CancellationToken.None);
+
+        var segment = Assert.Single(result.Segments);
+        Assert.Equal(
+            DocumentSegmentType.ParagraphGroup,
+            segment.Type);
+        Assert.Null(segment.Title);
+        Assert.Contains(
+            "Following body paragraph.",
+            segment.Text,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Segment_ShouldBoundUnheadedFallbackByPage()
+    {
+        var document = CreateDocument(
+            new NormalizedPdfPage(
+                1,
+                600,
+                800,
+                [
+                    CreateBlock(
+                        0,
+                        "First page body.",
+                        pointSize: 10,
+                        wordCount: 3)
+                ]),
+            new NormalizedPdfPage(
+                2,
+                600,
+                800,
+                [
+                    CreateBlock(
+                        0,
+                        "Second page body.",
+                        pointSize: 10,
+                        wordCount: 3)
+                ]));
+
+        var segmenter = new HeuristicDocumentSegmenter();
+
+        var result = segmenter.Segment(
+            document,
+            DocumentSegmentationHints.Empty,
+            CancellationToken.None);
+
+        Assert.Equal(2, result.Segments.Count);
+        Assert.All(
+            result.Segments,
+            segment =>
+            {
+                Assert.Equal(
+                    DocumentSegmentType.ParagraphGroup,
+                    segment.Type);
+                Assert.Equal(
+                    segment.StartPage,
+                    segment.EndPage);
+            });
+        Assert.Equal(
+            "First page body.",
+            result.Segments[0].Text);
+        Assert.Equal(
+            "Second page body.",
+            result.Segments[1].Text);
+    }
+
+    [Fact]
     public void Segment_ShouldRejectDuplicateHeadingHints()
     {
         var document = CreateDocument(
@@ -172,20 +390,23 @@ public sealed class HeuristicDocumentSegmenterTests
 
     private static NormalizedPdfDocument CreateDocument(
         params NormalizedPdfTextBlock[] blocks) =>
+        CreateDocument(
+            new NormalizedPdfPage(
+                1,
+                600,
+                800,
+                blocks));
+
+    private static NormalizedPdfDocument CreateDocument(
+        params NormalizedPdfPage[] pages) =>
         new(
             "fixture.pdf",
             new string('b', 64),
             1234,
             "fixture-extraction-v1",
             "fixture-normalization-v1",
-            1,
-            [
-                new NormalizedPdfPage(
-                    1,
-                    600,
-                    800,
-                    blocks)
-            ]);
+            pages.Length,
+            pages);
 
     private static NormalizedPdfTextBlock CreateBlock(
         int readingOrder,
@@ -193,10 +414,11 @@ public sealed class HeuristicDocumentSegmenterTests
         double pointSize,
         int wordCount,
         bool isExcluded = false,
-        PdfBlockExclusionReason? exclusionReason = null) =>
+        PdfBlockExclusionReason? exclusionReason = null,
+        string? sourceText = null) =>
         new(
             readingOrder,
-            text,
+            sourceText ?? text,
             text,
             new PdfBoundingBox(
                 50,

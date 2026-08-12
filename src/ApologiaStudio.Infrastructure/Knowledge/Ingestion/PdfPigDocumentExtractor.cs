@@ -13,7 +13,7 @@ namespace ApologiaStudio.Infrastructure.Knowledge.Ingestion;
 public sealed class PdfPigDocumentExtractor : IPdfDocumentExtractor
 {
     public const string ExtractionProfileId =
-        "pdfpig-0.1.15-nearest-neighbour-docstrum-unsupervised-v1";
+        "pdfpig-0.1.15-nearest-neighbour-docstrum-unsupervised-raster-metadata-v2";
 
     public async Task<ExtractedPdfDocument> ExtractAsync(
         string sourcePath,
@@ -132,14 +132,33 @@ public sealed class PdfPigDocumentExtractor : IPdfDocumentExtractor
             words[index] = ConvertWord(index, pdfWords[index]);
         }
 
+        var pageWidth = Convert.ToDouble(page.Width);
+        var pageHeight = Convert.ToDouble(page.Height);
+        var rasterImageBounds = page
+            .GetImages()
+            .Select(image =>
+                ToAxisAlignedBoundingBox(image.BoundingBox))
+            .ToArray();
+        var largestRasterImageAreaRatio =
+            GetLargestImageAreaRatio(
+                pageWidth,
+                pageHeight,
+                rasterImageBounds);
+
         if (pdfWords.Length == 0)
         {
             return new ExtractedPdfPage(
                 pageNumber,
-                Convert.ToDouble(page.Width),
-                Convert.ToDouble(page.Height),
+                pageWidth,
+                pageHeight,
                 words,
-                Array.Empty<ExtractedPdfTextBlock>());
+                Array.Empty<ExtractedPdfTextBlock>())
+            {
+                RasterImageCount =
+                    rasterImageBounds.Length,
+                LargestRasterImageAreaRatio =
+                    largestRasterImageAreaRatio
+            };
         }
 
         var segmentedBlocks =
@@ -157,10 +176,37 @@ public sealed class PdfPigDocumentExtractor : IPdfDocumentExtractor
 
         return new ExtractedPdfPage(
             pageNumber,
-            Convert.ToDouble(page.Width),
-            Convert.ToDouble(page.Height),
+            pageWidth,
+            pageHeight,
             words,
-            blocks);
+            blocks)
+        {
+            RasterImageCount =
+                rasterImageBounds.Length,
+            LargestRasterImageAreaRatio =
+                largestRasterImageAreaRatio
+        };
+    }
+
+    private static double GetLargestImageAreaRatio(
+        double pageWidth,
+        double pageHeight,
+        IReadOnlyCollection<PdfBoundingBox> imageBounds)
+    {
+        var pageArea = pageWidth * pageHeight;
+        if (pageArea <= 0 ||
+            imageBounds.Count == 0)
+        {
+            return 0;
+        }
+
+        return imageBounds
+            .Select(bounds =>
+                Math.Max(0, bounds.Width) *
+                Math.Max(0, bounds.Height) /
+                pageArea)
+            .DefaultIfEmpty(0)
+            .Max();
     }
 
     private static ExtractedPdfWord ConvertWord(

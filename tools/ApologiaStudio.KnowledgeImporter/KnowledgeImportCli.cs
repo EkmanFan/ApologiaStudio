@@ -18,6 +18,12 @@ public static class KnowledgeImportCli
 
         try
         {
+            if (string.Equals(args[0], "analyze-pdf", StringComparison.Ordinal))
+            {
+                return await KnowledgePdfAnalysisCli.RunAsync(
+                    args.Skip(1).ToArray(),
+                    cancellationToken);
+            }
             if (string.Equals(args[0], "evaluate-reranker", StringComparison.Ordinal))
             {
                 return await KnowledgeRerankerEvaluationCli.RunAsync(
@@ -223,6 +229,7 @@ public static class KnowledgeImportCli
         }
         catch (Exception exception) when (
             exception is KnowledgeImportException
+                or PdfDocumentExtractionException
                 or NpgsqlException
                 or IOException
                 or UnauthorizedAccessException
@@ -314,7 +321,12 @@ public static class KnowledgeImportCli
     {
         Console.WriteLine(
             """
-            Validate, import, project/search/evaluate retrieval data, run lexical, hybrid, or reranker experiments, generate a grounded answer, or remove the curated De Decretis source profile.
+            Analyze generic PDFs; validate, import, project/search/evaluate retrieval data, run lexical, hybrid, or reranker experiments, generate a grounded answer, or remove the curated De Decretis source profile.
+
+            Generic diagnostic command:
+              dotnet run --project tools/ApologiaStudio.KnowledgeImporter -- \
+                analyze-pdf --source /absolute/path/document.pdf \
+                --report /absolute/path/report.json
 
             The importer never downloads source material and never modifies the source PDF.
             It accepts only the reviewed NPNF2-04 PDF with the pinned SHA-256.

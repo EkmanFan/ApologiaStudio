@@ -5,4 +5,9 @@ public sealed record ExtractedPdfPage(
     double Width,
     double Height,
     IReadOnlyList<ExtractedPdfWord> Words,
-    IReadOnlyList<ExtractedPdfTextBlock> Blocks);
+    IReadOnlyList<ExtractedPdfTextBlock> Blocks)
+{
+    public int RasterImageCount { get; init; }
+
+    public double LargestRasterImageAreaRatio { get; init; }
+}

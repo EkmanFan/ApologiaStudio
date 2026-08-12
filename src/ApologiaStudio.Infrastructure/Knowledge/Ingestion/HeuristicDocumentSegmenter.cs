@@ -6,7 +6,7 @@ namespace ApologiaStudio.Infrastructure.Knowledge.Ingestion;
 public sealed class HeuristicDocumentSegmenter : IDocumentSegmenter
 {
     public const string SegmentationProfileId =
-        "font-hierarchy-exact-heading-hints-v1";
+        "font-hierarchy-source-line-compact-hints-page-fallback-v3";
 
     private const int MaximumHeadingCharacters = 180;
     private const int MaximumHeadingWords = 24;
@@ -58,17 +58,32 @@ public sealed class HeuristicDocumentSegmenter : IDocumentSegmenter
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var headingKey = NormalizeHeadingKey(
-                block.Block.Text);
-            var hasKindHint = headingKinds.TryGetValue(
-                headingKey,
-                out var hintedKind);
+            if (current is
+                {
+                    Type: DocumentSegmentType.ParagraphGroup
+                } &&
+                current.Blocks.Count > 0 &&
+                current.Blocks[^1].PageNumber !=
+                block.PageNumber)
+            {
+                FlushCurrent(
+                    segments,
+                    ref current);
+            }
+
+            var hasKindHint = TryResolveHeadingKind(
+                block.Block,
+                headingKinds,
+                out var hintedKind,
+                out var hintedTitle);
 
             var isHeading =
                 hasKindHint ||
-                IsHeadingCandidate(
-                    block.Block,
-                    bodyFontSize);
+                (HasMinimumHeadingTextQuality(
+                     block.Block.Text) &&
+                 IsHeadingCandidate(
+                     block.Block,
+                     bodyFontSize));
 
             if (isHeading)
             {
@@ -83,7 +98,9 @@ public sealed class HeuristicDocumentSegmenter : IDocumentSegmenter
                     hasKindHint
                         ? hintedKind
                         : DocumentSegmentKind.MainText,
-                    block.Block.Text);
+                    hasKindHint
+                        ? hintedTitle
+                        : block.Block.Text);
 
                 current.Add(block);
                 continue;
@@ -143,6 +160,151 @@ public sealed class HeuristicDocumentSegmenter : IDocumentSegmenter
         }
 
         return result;
+    }
+
+    private static bool TryResolveHeadingKind(
+        NormalizedPdfTextBlock block,
+        IReadOnlyDictionary<string, DocumentSegmentKind> headingKinds,
+        out DocumentSegmentKind kind,
+        out string title)
+    {
+        if (TryResolveHeadingKindFromText(
+                block.Text,
+                headingKinds,
+                out kind))
+        {
+            title = block.Text;
+            return true;
+        }
+
+        var firstSourceLine = GetFirstSourceLine(
+            block.SourceText);
+        if (firstSourceLine is not null &&
+            !string.Equals(
+                firstSourceLine,
+                block.Text,
+                StringComparison.Ordinal) &&
+            TryResolveHeadingKindFromText(
+                firstSourceLine,
+                headingKinds,
+                out kind))
+        {
+            title = firstSourceLine;
+            return true;
+        }
+
+        kind = default;
+        title = string.Empty;
+        return false;
+    }
+
+    private static bool TryResolveHeadingKindFromText(
+        string heading,
+        IReadOnlyDictionary<string, DocumentSegmentKind> headingKinds,
+        out DocumentSegmentKind kind)
+    {
+        var candidate = NormalizeHeadingKey(
+            heading);
+
+        if (headingKinds.TryGetValue(
+                candidate,
+                out kind))
+        {
+            return true;
+        }
+
+        foreach (var pair in headingKinds)
+        {
+            if (HasAllowedShortPrefix(
+                    candidate,
+                    pair.Key) ||
+                string.Equals(
+                    CompactHeadingKey(candidate),
+                    CompactHeadingKey(pair.Key),
+                    StringComparison.Ordinal))
+            {
+                kind = pair.Value;
+                return true;
+            }
+        }
+
+        kind = default;
+        return false;
+    }
+
+    private static bool HasAllowedShortPrefix(
+        string candidate,
+        string expected)
+    {
+        if (!candidate.EndsWith(
+                expected,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var prefixLength =
+            candidate.Length -
+            expected.Length;
+        if (prefixLength <= 0)
+        {
+            return false;
+        }
+
+        var prefix = candidate[
+            ..prefixLength].Trim();
+
+        return prefix.Length is > 0 and <= 3 &&
+               prefix.All(character =>
+                   !char.IsLetter(character) ||
+                   char.IsUpper(character));
+    }
+
+    private static string? GetFirstSourceLine(
+        string sourceText)
+    {
+        var firstLine = sourceText
+            .Split(
+                ['\r', '\n'],
+                StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries)
+            .FirstOrDefault();
+
+        return string.IsNullOrWhiteSpace(firstLine)
+            ? null
+            : firstLine;
+    }
+
+    private static string CompactHeadingKey(
+        string heading) =>
+        new string(heading
+            .Where(char.IsLetterOrDigit)
+            .ToArray());
+
+    private static bool HasMinimumHeadingTextQuality(
+        string text)
+    {
+        var nonWhitespaceCount = text.Count(
+            character =>
+                !char.IsWhiteSpace(character));
+        if (nonWhitespaceCount == 0)
+        {
+            return false;
+        }
+
+        var letterCount = text.Count(
+            char.IsLetter);
+        if (letterCount < 4)
+        {
+            return false;
+        }
+
+        var letterOrDigitCount = text.Count(
+            char.IsLetterOrDigit);
+
+        return letterOrDigitCount /
+               (double)nonWhitespaceCount >=
+               0.55;
     }
 
     private static bool IsHeadingCandidate(
@@ -251,11 +413,37 @@ public sealed class HeuristicDocumentSegmenter : IDocumentSegmenter
     }
 
     private static string NormalizeHeadingKey(
-        string heading) =>
-        WhitespaceRegex
+        string heading)
+    {
+        var normalized = WhitespaceRegex
             .Replace(heading, " ")
-            .Trim()
+            .Trim();
+
+        var start = 0;
+        while (start < normalized.Length &&
+               !char.IsLetterOrDigit(
+                   normalized[start]))
+        {
+            start++;
+        }
+
+        var end = normalized.Length - 1;
+        while (end >= start &&
+               !char.IsLetterOrDigit(
+                   normalized[end]))
+        {
+            end--;
+        }
+
+        if (start > end)
+        {
+            return string.Empty;
+        }
+
+        return normalized[
+                start..(end + 1)]
             .ToUpperInvariant();
+    }
 
     private static void FlushCurrent(
         ICollection<DocumentSegmentDraft> segments,

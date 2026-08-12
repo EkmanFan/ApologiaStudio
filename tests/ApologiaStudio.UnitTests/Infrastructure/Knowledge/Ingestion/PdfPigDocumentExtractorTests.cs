@@ -48,6 +48,8 @@ public sealed class PdfPigDocumentExtractorTests
             Assert.Equal(1, firstPage.PageNumber);
             Assert.True(firstPage.Width > 0);
             Assert.True(firstPage.Height > 0);
+            Assert.Equal(0, firstPage.RasterImageCount);
+            Assert.Equal(0, firstPage.LargestRasterImageAreaRatio);
             Assert.NotEmpty(firstPage.Words);
             Assert.NotEmpty(firstPage.Blocks);
 
