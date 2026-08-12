@@ -1,25 +1,27 @@
-using System.Security.Cryptography;
-using System.Text;
+using ApologiaStudio.Application.Knowledge.Ingestion;
 
 namespace ApologiaStudio.KnowledgeImporter;
 
 internal static class StableKnowledgeIds
 {
-    private const string Root = "apologia-knowledge/v1/";
-    private const string Profile = "source/de-decretis-npnf2-04/";
+    private const string LegacyProfileNamespace =
+        "de-decretis-npnf2-04";
 
     public static Guid ForProfile(string name) =>
-        For(Root + Profile + name);
+        KnowledgeStableIds.ForSourceProfile(
+            LegacyProfileNamespace,
+            name);
+
+    public static Guid ForSourceProfile(
+        string stableIdNamespace,
+        string name) =>
+        KnowledgeStableIds.ForSourceProfile(
+            stableIdNamespace,
+            name);
 
     public static Guid ForAuthority(string name) =>
-        For(Root + "authority/" + name);
+        KnowledgeStableIds.ForAuthority(name);
 
     public static Guid ForVocabulary(string name) =>
-        For(Root + "vocabulary/" + name);
-
-    private static Guid For(string value)
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-        return new Guid(hash.AsSpan(0, 16));
-    }
+        KnowledgeStableIds.ForVocabulary(name);
 }

@@ -12,4 +12,9 @@
     <PackageReference Include="PdfPig" Version="0.1.15" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ApologiaStudio.Application\ApologiaStudio.Application.csproj" />
+    <ProjectReference Include="..\..\src\ApologiaStudio.Infrastructure\ApologiaStudio.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>

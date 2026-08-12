@@ -1,3 +1,5 @@
+using ApologiaStudio.Application.Knowledge.Ingestion;
+using ApologiaStudio.Infrastructure.Knowledge.Ingestion;
 using Npgsql;
 
 namespace ApologiaStudio.KnowledgeImporter;
@@ -81,6 +83,10 @@ public static class KnowledgeImportCli
             var prepared = DeDecretisDocument.Prepare(
                 options.SourcePath,
                 cancellationToken);
+            var package =
+                DeDecretisImportPackageFactory.Create(prepared);
+            var retrievalProfile =
+                DeDecretisRetrievalProfile.Definition;
 
             WritePreparedSummary(prepared);
 
@@ -100,8 +106,12 @@ public static class KnowledgeImportCli
 
             if (options.Command == ImportCommand.ProjectRetrieval)
             {
-                var chunks = RetrievalChunkBuilder.Build(prepared);
-                WriteRetrievalSummary(chunks);
+                var chunks = KnowledgeRetrievalChunkBuilder.Build(
+                    package,
+                    retrievalProfile);
+                WriteRetrievalSummary(
+                    retrievalProfile,
+                    chunks);
 
                 using var ollama = new OllamaEmbeddingClient(
                     new Uri(DeDecretisRetrievalProfile.OllamaBaseAddress));
@@ -109,14 +119,19 @@ public static class KnowledgeImportCli
                     DeDecretisRetrievalProfile.EmbeddingModel,
                     cancellationToken);
 
-                if (await KnowledgeRetrievalProjectionWriter.ExistsAndMatchesAsync(
+                if (await PostgreSqlKnowledgeRetrievalProjectionStore.ExistsAndMatchesAsync(
                         connectionString,
-                        prepared,
+                        package,
+                        retrievalProfile,
                         chunks,
                         modelDigest,
                         cancellationToken))
                 {
-                    WriteRetrievalResult(false, chunks.Count, modelDigest);
+                    WriteRetrievalResult(
+                        false,
+                        package.NormalizedArtifactId,
+                        chunks.Count,
+                        modelDigest);
                     return 0;
                 }
 
@@ -138,9 +153,10 @@ public static class KnowledgeImportCli
                         "The Ollama embedding model changed while the retrieval projection was being built.");
                 }
 
-                var projection = await KnowledgeRetrievalProjectionWriter.ProjectAsync(
+                var projection = await PostgreSqlKnowledgeRetrievalProjectionStore.ProjectAsync(
                     connectionString,
-                    prepared,
+                    package,
+                    retrievalProfile,
                     chunks,
                     modelDigest,
                     embeddings,
@@ -148,6 +164,7 @@ public static class KnowledgeImportCli
 
                 WriteRetrievalResult(
                     projection.WasCreated,
+                    projection.NormalizedArtifactId,
                     projection.ChunkCount,
                     projection.ModelDigest);
                 return 0;
@@ -155,15 +172,15 @@ public static class KnowledgeImportCli
 
             if (options.Command == ImportCommand.Remove)
             {
-                var deletableHashes = await KnowledgeStoreWriter.RemoveAsync(
+                var deletableHashes = await PostgreSqlKnowledgeImportStore.RemoveAsync(
                     connectionString,
-                    prepared,
+                    package,
                     cancellationToken);
 
                 if (options.DeleteArtifacts)
                 {
-                    ManagedArtifactStore.DeleteArtifacts(
-                        prepared,
+                    ManagedKnowledgeArtifactStore.DeleteArtifacts(
+                        package,
                         options.ArtifactRoot,
                         deletableHashes);
                 }
@@ -172,30 +189,30 @@ public static class KnowledgeImportCli
                 return 0;
             }
 
-            var materialized = await ManagedArtifactStore.MaterializeAsync(
-                prepared,
+            var materialized = await ManagedKnowledgeArtifactStore.MaterializeAsync(
+                package,
                 options.ArtifactRoot,
                 cancellationToken);
 
             try
             {
-                var result = await KnowledgeStoreWriter.ImportAsync(
+                var result = await PostgreSqlKnowledgeImportStore.ImportAsync(
                     connectionString,
-                    prepared,
+                    package,
                     cancellationToken);
 
                 Console.WriteLine(result.WasCreated ? "RESULT: IMPORTED" : "RESULT: ALREADY IMPORTED");
                 Console.WriteLine($"Work: {result.WorkId}");
                 Console.WriteLine($"Normalized artifact: {result.NormalizedArtifactId}");
                 Console.WriteLine($"Segments: {result.SegmentCount}");
-                Console.WriteLine($"Managed raw: {materialized.RawPath}");
-                Console.WriteLine($"Managed parsed: {materialized.ParsedPath}");
-                Console.WriteLine($"Managed normalized: {materialized.NormalizedPath}");
+                WriteMaterializedSummary(
+                    package,
+                    materialized);
                 return 0;
             }
             catch
             {
-                ManagedArtifactStore.DeleteCreated(materialized.CreatedPaths);
+                ManagedKnowledgeArtifactStore.DeleteCreated(materialized.CreatedPaths);
                 throw;
             }
         }
@@ -237,25 +254,57 @@ public static class KnowledgeImportCli
     }
 
     private static void WriteRetrievalSummary(
-        IReadOnlyList<PreparedRetrievalChunk> chunks)
+        KnowledgeRetrievalProfile profile,
+        IReadOnlyList<KnowledgeRetrievalChunk> chunks)
     {
-        Console.WriteLine($"Retrieval profile: {DeDecretisRetrievalProfile.ProfileId}");
-        Console.WriteLine($"Chunking: {DeDecretisRetrievalProfile.ChunkingStrategy}/{DeDecretisRetrievalProfile.ChunkingVersion}");
-        Console.WriteLine($"Max chunk characters: {DeDecretisRetrievalProfile.MaxChunkCharacters}");
-        Console.WriteLine($"Chunk overlap characters: {DeDecretisRetrievalProfile.OverlapCharacters}");
+        Console.WriteLine(
+            $"Retrieval profile: {profile.ProfileId}");
+        Console.WriteLine(
+            $"Chunking: {profile.ChunkingStrategy}/{profile.ChunkingVersion}");
+        Console.WriteLine(
+            $"Max chunk characters: {profile.MaxChunkCharacters}");
+        Console.WriteLine(
+            $"Chunk overlap characters: {profile.OverlapCharacters}");
         Console.WriteLine($"Chunks: {chunks.Count}");
-        Console.WriteLine($"Embedding provider: {DeDecretisRetrievalProfile.EmbeddingProvider}");
-        Console.WriteLine($"Embedding model: {DeDecretisRetrievalProfile.EmbeddingModel}");
-        Console.WriteLine($"Embedding dimensions: {DeDecretisRetrievalProfile.EmbeddingDimensions}");
+        Console.WriteLine(
+            $"Embedding provider: {profile.EmbeddingProvider}");
+        Console.WriteLine(
+            $"Embedding model: {profile.EmbeddingModel}");
+        Console.WriteLine(
+            $"Embedding dimensions: {profile.EmbeddingDimensions}");
+    }
+
+    private static void WriteMaterializedSummary(
+        KnowledgeImportPackage package,
+        MaterializedKnowledgeArtifacts materialized)
+    {
+        foreach (var artifactType in
+                 new[] { "raw", "parsed", "normalized" })
+        {
+            var artifact = package.Artifacts.Single(
+                item => string.Equals(
+                    item.ArtifactType,
+                    artifactType,
+                    StringComparison.Ordinal));
+
+            Console.WriteLine(
+                $"Managed {artifactType}: " +
+                materialized.GetRequiredPath(artifact.Id));
+        }
     }
 
     private static void WriteRetrievalResult(
         bool wasCreated,
+        Guid normalizedArtifactId,
         int chunkCount,
         string modelDigest)
     {
-        Console.WriteLine(wasCreated ? "RESULT: PROJECTED" : "RESULT: ALREADY PROJECTED");
-        Console.WriteLine($"Normalized artifact: {StableKnowledgeIds.ForProfile("normalized-artifact")}");
+        Console.WriteLine(
+            wasCreated
+                ? "RESULT: PROJECTED"
+                : "RESULT: ALREADY PROJECTED");
+        Console.WriteLine(
+            $"Normalized artifact: {normalizedArtifactId}");
         Console.WriteLine($"Chunks: {chunkCount}");
         Console.WriteLine($"Embeddings: {chunkCount}");
         Console.WriteLine($"Model digest: {modelDigest}");
