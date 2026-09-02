@@ -10,6 +10,11 @@ ordered increments below.
 Document Manager processing and Apologia Studio knowledge publication are two
 separate workflows joined by a durable consumer contract.
 
+The workflows use hybrid coordination: a signed Manager callback wakes
+Apologia immediately, while startup and low-frequency reconciliation recover
+missed signals. The callback is not a delivery channel and carries no document
+data. Apologia always retrieves results through the durable claim/ack contract.
+
 The Manager produces format-neutral documentary evidence. Apologia preserves
 that evidence, assembles all results belonging to one submission, prepares an
 editorial draft, requires human approval, and only then makes the source
@@ -190,6 +195,13 @@ The Apologia UI presents the assembled draft as “To review”. The reviewer ca
   multiple Works;
 - reject the draft without destroying the immutable inbox evidence.
 
+An administrator may reopen a rejected draft. Reopening is itself an audited
+review event, so it restores editability without rewriting the rejection
+history. A distinct development-only permanent purge may erase the complete
+pre-publication submission from Apologia for repeatable acceptance tests. It is
+not an editorial decision, never runs implicitly, and does not affect the
+Manager's independent custody copy.
+
 Approval is allowed only when:
 
 - the finalized Manager manifest is complete;
@@ -284,6 +296,7 @@ AS-DM-02  finalized Manager submission manifest contract   DONE
 AS-DM-03  multi-unit assembly and completeness checks       DONE
 AS-DM-04  editable editorial draft persistence              DONE
 AS-DM-05  review and approval UI                             DONE
+AS-DM-ADMIN-01 administrative reopen + pre-publication purge DONE
 AS-DM-06  KnowledgeImportPackage adapter + atomic import    NEXT
 AS-DM-07  retrieval projection + embeddings
 AS-DM-08  real split-book end-to-end acceptance
@@ -295,9 +308,16 @@ the mandatory title, language and primary-contributor fields have been
 provided. Saving, approval and rejection are recorded as immutable review
 events with the acting user, time, record version and metadata snapshot.
 Approval and rejection require an explicit confirmation in the interface;
-rejection additionally requires a reason. In this first version, an approved or
-rejected decision is terminal. The review queue is available at
-`/editorial-review` in the Apologia Studio shell.
+rejection additionally requires a reason. Approved records remain terminal;
+an authorized administrator can reopen a rejected record while preserving the
+original rejection event. The review queue is available at `/editorial-review`
+in the Apologia Studio shell.
+
+`AS-DM-ADMIN-01` also provides a transactional purge for development tests. It
+removes the complete selected submission from Apologia's pre-publication inbox
+and editorial tables. The command is server-authorized, disabled by default and
+enabled by the local development launcher. Authenticated `Admin` role
+enforcement remains mandatory before production use.
 
 ## End-to-end acceptance scenarios
 

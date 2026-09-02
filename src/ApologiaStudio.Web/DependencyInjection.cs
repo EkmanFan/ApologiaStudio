@@ -28,6 +28,7 @@ using ApologiaStudio.Application.Projects.DeleteProject;
 using ApologiaStudio.Application.Projects.RenameProject;
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Infrastructure;
+using ApologiaStudio.Infrastructure.Knowledge.DocumentProcessing;
 using ApologiaStudio.Web.AiRuntime;
 using ApologiaStudio.Web.DocumentManager;
 using ApologiaStudio.Web.Identity;
@@ -50,6 +51,50 @@ public static class DependencyInjection
         services.AddSingleton(
             DocumentManagerUiOptions.FromConfiguration(
                 configuration));
+        services.AddSingleton(
+            DocumentManagerAdministrationOptions.FromConfiguration(
+                configuration));
+        var documentManagerConsumerOptions =
+            DocumentManagerConsumerOptions.FromConfiguration(
+                configuration);
+        services.AddSingleton(documentManagerConsumerOptions);
+        services.AddSingleton<DocumentManagerConsumptionSignal>();
+        services.AddSingleton<
+            IDocumentManagerAdministrationAuthorizer,
+            ConfiguredDocumentManagerAdministrationAuthorizer>();
+
+        if (documentManagerConsumerOptions.Enabled)
+        {
+            services.AddSingleton(
+                documentManagerConsumerOptions.Manager!);
+            services.AddHttpClient<
+                IDocumentManagerResultSource,
+                HttpDocumentManagerResultSource>(
+                client =>
+                {
+                    client.BaseAddress =
+                        documentManagerConsumerOptions.Manager!.BaseAddress;
+                    client.Timeout =
+                        documentManagerConsumerOptions.RequestTimeout;
+                });
+            if (documentManagerConsumerOptions.CanRequestReplay)
+            {
+                services.AddHttpClient<
+                    IDocumentManagerDeliveryReplayClient,
+                    HttpDocumentManagerDeliveryReplayClient>(
+                    client =>
+                    {
+                        client.BaseAddress =
+                            documentManagerConsumerOptions.Manager!.BaseAddress;
+                        client.Timeout =
+                            documentManagerConsumerOptions.RequestTimeout;
+                    });
+            }
+            services.AddHostedService<
+                DocumentManagerTriggeredConsumerHostedService>();
+            services.AddScoped<
+                ConsumeDocumentManagerResultHandler>();
+        }
 
         services.AddScoped<
             ICurrentUser,
@@ -194,6 +239,10 @@ public static class DependencyInjection
             GetDocumentManagerEditorialDraftHandler>();
         services.AddScoped<
             ReviewDocumentManagerEditorialDraftHandler>();
+        services.AddScoped<
+            ReopenDocumentManagerEditorialDraftHandler>();
+        services.AddScoped<
+            PurgeDocumentManagerSubmissionHandler>();
 
         return services;
     }

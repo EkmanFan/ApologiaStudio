@@ -415,13 +415,13 @@ internal static class KnowledgeModelConfiguration
                     "version > 0");
                 table.HasCheckConstraint(
                     "ck_document_manager_editorial_review_event_action",
-                    "action IN ('save', 'approve', 'reject')");
+                    "action IN ('save', 'approve', 'reject', 'reopen')");
                 table.HasCheckConstraint(
                     "ck_document_manager_editorial_review_event_from_status",
-                    "from_status IN ('pending_review', 'in_review')");
+                    "from_status IN ('pending_review', 'in_review', 'rejected')");
                 table.HasCheckConstraint(
                     "ck_document_manager_editorial_review_event_to_status",
-                    "to_status IN ('in_review', 'approved', 'rejected')");
+                    "to_status IN ('pending_review', 'in_review', 'approved', 'rejected')");
             });
 
         builder.HasKey(x => x.Id);

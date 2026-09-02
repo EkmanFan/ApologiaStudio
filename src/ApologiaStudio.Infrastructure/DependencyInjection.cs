@@ -64,6 +64,21 @@ public static class DependencyInjection
         services.AddScoped<
             IDocumentManagerEditorialReviewStore,
             PostgreSqlDocumentManagerEditorialReviewStore>();
+        services.AddScoped<
+            IDocumentManagerEditorialAdministrationStore,
+            PostgreSqlDocumentManagerEditorialAdministrationStore>();
+        services.AddScoped<
+            IDocumentManagerResultInbox,
+            PostgreSqlDocumentManagerResultInbox>();
+        services.AddScoped<
+            IDocumentManagerSubmissionAssemblyReader,
+            PostgreSqlDocumentManagerSubmissionAssemblyReader>();
+        services.AddScoped<
+            IDocumentManagerEditorialDraftStore,
+            PostgreSqlDocumentManagerEditorialDraftStore>();
+        services.AddScoped<
+            IDocumentManagerEditorialDraftPreparer,
+            PrepareDocumentManagerEditorialDraftHandler>();
 
         services.AddScoped<
             IConversationRepository,

@@ -91,10 +91,19 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
                 mutation.DraftId);
         }
 
-        if (entity.Status is "approved" or "rejected")
+        if (entity.Status == "approved" ||
+            (entity.Status == "rejected" &&
+             mutation.Action != DocumentManagerEditorialReviewAction.Reopen))
         {
             throw new DocumentManagerEditorialReviewValidationException(
                 "An approved or rejected editorial draft cannot be modified.");
+        }
+
+        if (entity.Status != "rejected" &&
+            mutation.Action == DocumentManagerEditorialReviewAction.Reopen)
+        {
+            throw new DocumentManagerEditorialReviewValidationException(
+                "Only a rejected editorial draft can be reopened.");
         }
 
         var fromStatus = entity.Status;
@@ -176,6 +185,7 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
             DocumentManagerEditorialReviewAction.Save => "save",
             DocumentManagerEditorialReviewAction.Approve => "approve",
             DocumentManagerEditorialReviewAction.Reject => "reject",
+            DocumentManagerEditorialReviewAction.Reopen => "reopen",
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
         };
 }

@@ -27,6 +27,10 @@ The inbox preserves raw results and visuals before acknowledging delivery; the
 subsequent editorial `KnowledgeImportPackage` adaptation remains a separate
 step. Its mandatory sequence and invariants are fixed by the
 [Document Manager to Knowledge workflow v1](docs/knowledge-ingestion/document-manager-to-knowledge-workflow-v1.md).
+The Manager now wakes Apologia with a signed callback when work becomes
+available. Apologia drains the durable consumer API immediately, then relies on
+a five-minute startup/periodic reconciliation only as a recovery mechanism;
+the normal runtime no longer needs a continuous polling process.
 
 Operators can open the standalone Manager UI inside the Apologia application
 shell at `/document-manager`. Its address is configured with
@@ -35,7 +39,19 @@ shell at `/document-manager`. Its address is configured with
 
 Completed provisional records are reviewed at `/editorial-review`. The editor
 can correct bibliographic metadata, inspect the immutable source parts, save a
-work in progress, or explicitly approve or reject it. The web application needs
+work in progress, or explicitly approve or reject it. Rejected records can be
+reopened by an administrator without erasing the rejection event. A separate
+administrative purge removes the selected submission, drafts, review events,
+raw results, visuals and manifests from Apologia in one transaction. The purge
+does not delete the Manager's independent custody copy. A second action,
+“Delete and reimport”, performs the same Apologia purge and asks the Manager to
+redeliver its unchanged results; DPEngine does not process the book again.
+
+Administrative editorial actions are disabled by default through
+`DocumentManagerAdministration:Enabled`. The local development launcher enables
+them for repeatable tests; a production deployment must leave the flag disabled
+until it is backed by authenticated `Admin` role authorization. The web
+application needs
 the same Knowledge Store connection as the consumer through
 `ConnectionStrings:Knowledge` or
 `APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION`.

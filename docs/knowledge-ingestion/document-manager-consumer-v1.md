@@ -57,14 +57,56 @@ Infrastructure owns the HTTP adapter and PostgreSQL inbox under:
 src/ApologiaStudio.Infrastructure/Knowledge/DocumentProcessing
 ```
 
-The executable composition adapter is:
+The primary executable composition adapter is the Apologia web host. It owns a
+signed notification endpoint and an internal background consumer using the
+same Application handler and infrastructure ports as the original command-line
+adapter.
+
+The diagnostic command-line adapter remains available at:
 
 ```text
 tools/ApologiaStudio.DocumentManagerConsumer
 ```
 
-It supports `consume-once` for an explicit delivery and `run` for continuous
-polling. Both modes use the same handler and idempotence boundary.
+It supports `consume-once` for an explicit diagnostic delivery. Its legacy
+`run` mode remains available for isolated troubleshooting, but it is not part
+of the normal application runtime.
+
+## Hybrid notification and reconciliation
+
+The normal local and deployed workflow does not continuously ask the Manager
+for work. Once a processing result is durably registered, the Manager sends a
+small signed callback to:
+
+```text
+POST /internal/document-manager/result-available
+```
+
+The callback contains only a notification identity, the intended consumer ID
+and a timestamp. It contains no book, result reference or custody data. Its
+HMAC-SHA256 signature covers the exact request bytes; Apologia rejects an
+altered body, the wrong consumer, an old timestamp or an invalid signature.
+
+An accepted callback wakes one in-process consumer. That consumer repeatedly
+uses the existing durable API until no result remains:
+
+```text
+signed wake-up
+    -> claim
+    -> download and verify
+    -> persist the immutable inbox transaction
+    -> prepare/update the editorial draft
+    -> acknowledge
+    -> claim the next result
+    -> stop when the Manager returns no result
+```
+
+The callback is only an optimization. Apologia also performs the same drain on
+startup and every five minutes by default. The Manager retries failed callbacks
+every ten seconds. This hybrid design gives prompt processing without a hot
+polling loop and still recovers from restarts, temporary outages and lost
+signals. Duplicate callbacks remain harmless because claims and inbox writes
+are idempotent.
 
 ## Persistence
 
@@ -110,32 +152,78 @@ overwriting newer editorial work. Approval requires a title, language and
 primary contributor; rejection requires a reason and both decisions require an
 explicit confirmation.
 
+### Administrative review controls
+
+Two exceptional controls are kept separate from the ordinary editorial flow:
+
+- reopening a rejected record returns it to `pending_review`, clears the active
+  rejection decision and appends a `reopen` review event; the earlier rejection
+  event and its reason remain immutable history;
+- permanently deleting a submission removes every Apologia inbox and editorial
+  row for that Manager `SubmissionId` in one database transaction, including
+  drafts, draft parts, review events, raw result payloads, visual payloads,
+  manifests and expected-unit rows;
+- deleting and reimporting first performs that complete Apologia purge, then
+  asks the Manager to reopen all acknowledged deliveries for the submission.
+  The Manager sends its normal signed notification and Apologia rebuilds the
+  inbox and provisional record from the unchanged results.
+
+Permanent deletion does not call the Manager and does not erase its independent
+custody copy. It is disabled by default through
+`DocumentManagerAdministration:Enabled`. The local launcher enables it solely
+for development tests. This feature flag is not a production authorization
+mechanism; production use remains forbidden until authenticated `Admin` role
+authorization replaces the configured authorizer.
+
+Delete-and-reimport also leaves Manager processing and custody untouched: it is
+a redelivery, not a DPEngine rerun. Because the Apologia purge and remote
+Manager request cannot share a database transaction, a failed replay request is
+reported explicitly after the local purge. The operator can then use “Send to
+Apologia again” on any completed part in the Manager UI; that action reopens the
+whole submission, not only the selected part. Manager replay requests are
+audited independently.
+
+The current purge boundary covers only the pre-publication workflow implemented
+through AS-DM-05. AS-DM-06 must either refuse deletion after Knowledge Store
+publication or extend the same transaction boundary to all published resources
+and derived projections.
+
 ## Local execution
 
-Start the Document Manager first, then run one delivery from Apologia Studio:
+Start the Document Manager, then start Apologia Studio:
+
+```bash
+./scripts/run-apologia-dev.sh
+```
+
+No separate continuously polling process is needed. To force one diagnostic
+delivery manually, use:
 
 ```bash
 ./scripts/run-document-manager-consumer.sh consume-once
 ```
 
-For continuous consumption:
+The application launcher starts the local databases, applies pending Knowledge
+Store migrations, starts the web application and enables the hybrid consumer
+with local-only development credentials.
 
-```bash
-./scripts/run-document-manager-consumer.sh run
-```
-
-The script starts the local Knowledge PostgreSQL container, applies pending
-Knowledge Store migrations through the consumer startup, and uses the local
-Document Manager development credential only for the default loopback URL.
-
-Production configuration must provide:
+The web-hosted consumer uses standard .NET configuration. Production must
+provide:
 
 ```text
 APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION
-APOLOGIASTUDIO_DOCUMENT_MANAGER_CONSUMER_KEY
-APOLOGIASTUDIO_DOCUMENT_MANAGER_CONSUMER_ID
-APOLOGIASTUDIO_DOCUMENT_MANAGER_URL
+DocumentManagerConsumer__Enabled=true
+DocumentManagerConsumer__ConsumerKey=<service credential>
+DocumentManagerConsumer__ConsumerId=<stable consumer identity>
+DocumentManagerConsumer__ManagerUrl=<HTTPS Manager URL>
+DocumentManagerConsumer__NotificationSecret=<distinct shared HMAC secret>
+DocumentManagerConsumer__DeliveryReplayApiKey=<distinct administration credential>
 ```
+
+The `APOLOGIASTUDIO_DOCUMENT_MANAGER_*` and
+`DPE_MANAGER_NOTIFICATION_SHARED_SECRET` and
+`DPE_MANAGER_DELIVERY_REPLAY_API_KEY` names are local-launcher conveniences that
+are mapped to these settings by `run-apologia-dev.sh`.
 
 Remote transport requires HTTPS. Plain HTTP is accepted only for a loopback
 endpoint. Result and visual downloads are bounded before allocation and every

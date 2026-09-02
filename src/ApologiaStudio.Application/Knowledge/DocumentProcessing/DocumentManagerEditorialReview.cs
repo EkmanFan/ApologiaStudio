@@ -6,7 +6,8 @@ public enum DocumentManagerEditorialReviewAction
 {
     Save = 0,
     Approve = 1,
-    Reject = 2
+    Reject = 2,
+    Reopen = 3
 }
 
 public sealed record DocumentManagerEditorialDraftSummary(
@@ -81,6 +82,87 @@ public sealed class GetDocumentManagerEditorialDraftHandler(
         CancellationToken cancellationToken) =>
         store.GetAsync(draftId, cancellationToken);
 }
+
+public interface IDocumentManagerAdministrationAuthorizer
+{
+    bool IsAuthorized { get; }
+}
+
+public sealed record ReopenDocumentManagerEditorialDraftCommand(
+    Guid DraftId,
+    int ExpectedVersion);
+
+public sealed class ReopenDocumentManagerEditorialDraftHandler(
+    IDocumentManagerEditorialReviewStore store,
+    IDocumentManagerAdministrationAuthorizer authorizer,
+    ICurrentUser currentUser,
+    TimeProvider timeProvider)
+{
+    public async Task<DocumentManagerEditorialDraft> HandleAsync(
+        ReopenDocumentManagerEditorialDraftCommand command,
+        CancellationToken cancellationToken)
+    {
+        EnsureAuthorized(authorizer);
+        ArgumentNullException.ThrowIfNull(command);
+
+        if (command.DraftId == Guid.Empty || command.ExpectedVersion < 0)
+        {
+            throw new ArgumentException(
+                "Draft identifier and expected version are invalid.",
+                nameof(command));
+        }
+
+        var draft = await store.GetAsync(
+            command.DraftId,
+            cancellationToken) ?? throw new KeyNotFoundException(
+            $"Editorial draft '{command.DraftId:D}' was not found.");
+
+        if (draft.Version != command.ExpectedVersion)
+        {
+            throw new DocumentManagerEditorialDraftConcurrencyException(
+                command.DraftId);
+        }
+
+        if (draft.Status != DocumentManagerEditorialDraftStatus.Rejected)
+        {
+            throw new DocumentManagerEditorialReviewValidationException(
+                "Only a rejected editorial draft can be reopened.");
+        }
+
+        return await store.ApplyAsync(
+            new DocumentManagerEditorialDraftMutation(
+                draft.Id,
+                draft.Version,
+                DocumentManagerEditorialReviewAction.Reopen,
+                draft.Title,
+                draft.TitleOrigin,
+                draft.PrimaryContributorName,
+                draft.PrimaryContributorRole,
+                draft.LanguageCode,
+                draft.EditionStatement,
+                draft.PublicationYear,
+                draft.PublicationPlace,
+                draft.Description,
+                DocumentManagerEditorialDraftStatus.PendingReview,
+                currentUser.UserId.Value,
+                timeProvider.GetUtcNow(),
+                null),
+            cancellationToken);
+    }
+
+    internal static void EnsureAuthorized(
+        IDocumentManagerAdministrationAuthorizer authorizer)
+    {
+        if (!authorizer.IsAuthorized)
+        {
+            throw new DocumentManagerAdministrationForbiddenException();
+        }
+    }
+}
+
+public sealed class DocumentManagerAdministrationForbiddenException()
+    : InvalidOperationException(
+        "Document Manager administrative actions are not authorized.");
 
 public sealed class ReviewDocumentManagerEditorialDraftHandler(
     IDocumentManagerEditorialReviewStore store,

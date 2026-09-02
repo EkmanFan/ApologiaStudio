@@ -39,6 +39,15 @@ fi
 
 export ConnectionStrings__ApologiaStudio="${ConnectionStrings__ApologiaStudio:-Host=127.0.0.1;Port=54329;Database=apologia_studio;Username=apologia;Password=${APOLOGIA_DB_PASSWORD}}"
 export APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION="${APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION:-Host=127.0.0.1;Port=54330;Database=apologia_knowledge;Username=apologia_knowledge;Password=${APOLOGIA_KNOWLEDGE_DB_PASSWORD};Pooling=false}"
+export DocumentManagerAdministration__Enabled="${DocumentManagerAdministration__Enabled:-true}"
+export DocumentManagerConsumer__Enabled="${DocumentManagerConsumer__Enabled:-true}"
+export DocumentManagerConsumer__ManagerUrl="${APOLOGIASTUDIO_DOCUMENT_MANAGER_URL:-http://127.0.0.1:5080/}"
+export DocumentManagerConsumer__ConsumerId="${APOLOGIASTUDIO_DOCUMENT_MANAGER_CONSUMER_ID:-apologia-studio}"
+export DocumentManagerConsumer__ConsumerKey="${APOLOGIASTUDIO_DOCUMENT_MANAGER_CONSUMER_KEY:-dpengine-consumer-local-development-key-2026}"
+export DocumentManagerConsumer__NotificationSecret="${DPE_MANAGER_NOTIFICATION_SHARED_SECRET:-dpengine-notification-local-development-key-2026}"
+export DocumentManagerConsumer__DeliveryReplayApiKey="${DPE_MANAGER_DELIVERY_REPLAY_API_KEY:-dpengine-delivery-replay-local-development-key-2026}"
+export DocumentManagerConsumer__ReconciliationSeconds="${DocumentManagerConsumer__ReconciliationSeconds:-300}"
+export DocumentManagerConsumer__RetrySeconds="${DocumentManagerConsumer__RetrySeconds:-10}"
 
 ./scripts/db-up.sh
 ./scripts/knowledge-db-up.sh

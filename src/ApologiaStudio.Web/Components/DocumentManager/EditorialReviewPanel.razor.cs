@@ -1,5 +1,6 @@
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Domain.Users;
+using ApologiaStudio.Web.DocumentManager;
 using Microsoft.AspNetCore.Components;
 
 namespace ApologiaStudio.Web.Components.DocumentManager;
@@ -8,6 +9,16 @@ public partial class EditorialReviewPanel
 {
     [Inject]
     private IServiceScopeFactory ServiceScopeFactory { get; set; } = null!;
+
+    [Inject]
+    private IDocumentManagerAdministrationAuthorizer AdministrationAuthorizer
+    {
+        get;
+        set;
+    } = null!;
+
+    [Inject]
+    private DocumentManagerConsumerOptions ConsumerOptions { get; set; } = null!;
 
     [Parameter]
     public ApplicationLanguage Language { get; set; } = ApplicationLanguage.French;
@@ -22,7 +33,7 @@ public partial class EditorialReviewPanel
         Array.Empty<DocumentManagerEditorialDraftSummary>();
     private DocumentManagerEditorialDraft? _selectedDraft;
     private EditorialForm _form = new();
-    private DocumentManagerEditorialReviewAction? _pendingAction;
+    private EditorialConfirmationAction? _pendingAction;
     private string _statusFilter = "all";
     private string? _loadError;
     private string? _message;
@@ -40,6 +51,11 @@ public partial class EditorialReviewPanel
         _selectedDraft?.Status is
             DocumentManagerEditorialDraftStatus.Approved or
             DocumentManagerEditorialDraftStatus.Rejected;
+
+    private bool CanAdminister => AdministrationAuthorizer.IsAuthorized;
+
+    private bool CanReplayDelivery =>
+        CanAdminister && ConsumerOptions.CanRequestReplay;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -123,7 +139,7 @@ public partial class EditorialReviewPanel
         _form.PrimaryContributorRole = eventArgs.Value?.ToString();
     }
 
-    private void AskConfirmation(DocumentManagerEditorialReviewAction action)
+    private void AskConfirmation(EditorialConfirmationAction action)
     {
         _message = null;
         _pendingAction = action;
@@ -135,8 +151,157 @@ public partial class EditorialReviewPanel
     {
         if (_pendingAction is { } action)
         {
-            await ExecuteAsync(action);
+            switch (action)
+            {
+                case EditorialConfirmationAction.Approve:
+                    await ExecuteAsync(
+                        DocumentManagerEditorialReviewAction.Approve);
+                    break;
+                case EditorialConfirmationAction.Reject:
+                    await ExecuteAsync(
+                        DocumentManagerEditorialReviewAction.Reject);
+                    break;
+                case EditorialConfirmationAction.Reopen:
+                    await ReopenAsync();
+                    break;
+                case EditorialConfirmationAction.Purge:
+                    await PurgeAsync(replayAfterPurge: false);
+                    break;
+                case EditorialConfirmationAction.PurgeAndReplay:
+                    await PurgeAsync(replayAfterPurge: true);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(action),
+                        action,
+                        null);
+            }
         }
+    }
+
+    private async Task ReopenAsync()
+    {
+        if (_selectedDraft is null || _isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _message = null;
+
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var handler = scope.ServiceProvider.GetRequiredService<
+                ReopenDocumentManagerEditorialDraftHandler>();
+            var reopened = await handler.HandleAsync(
+                new ReopenDocumentManagerEditorialDraftCommand(
+                    _selectedDraft.Id,
+                    _selectedDraft.Version),
+                CancellationToken.None);
+
+            _selectedDraft = reopened;
+            _form = EditorialForm.FromDraft(reopened);
+            _pendingAction = null;
+            await RefreshSummariesAsync(scope.ServiceProvider);
+            ShowSuccess(Text(
+                "La fiche a été rouverte pour révision.",
+                "The record was reopened for review."));
+        }
+        catch (Exception exception)
+        {
+            HandleAdministrativeException(exception);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task PurgeAsync(bool replayAfterPurge)
+    {
+        if (_selectedDraft is null || _isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _message = null;
+
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var handler = scope.ServiceProvider.GetRequiredService<
+                PurgeDocumentManagerSubmissionHandler>();
+            var purged = await handler.HandleAsync(
+                new PurgeDocumentManagerSubmissionCommand(
+                    _selectedDraft.Id,
+                    _selectedDraft.Version),
+                CancellationToken.None);
+
+            _selectedDraft = null;
+            _pendingAction = null;
+
+            if (replayAfterPurge)
+            {
+                try
+                {
+                    var replayClient = scope.ServiceProvider
+                        .GetRequiredService<IDocumentManagerDeliveryReplayClient>();
+                    await replayClient.ReplaySubmissionAsync(
+                        purged.SubmissionId,
+                        CancellationToken.None);
+                }
+                catch (Exception exception)
+                {
+                    await LoadAsync();
+                    ShowError(Text(
+                        $"La copie Apologia a été supprimée, mais le Manager n’a pas pu programmer la nouvelle livraison : {exception.Message}",
+                        $"The Apologia copy was deleted, but Manager could not schedule redelivery: {exception.Message}"));
+                    return;
+                }
+            }
+
+            await LoadAsync();
+            ShowSuccess(replayAfterPurge
+                ? Text(
+                    "La copie Apologia a été supprimée et la nouvelle livraison a été demandée au Manager.",
+                    "The Apologia copy was deleted and a new delivery was requested from Manager.")
+                : Text(
+                    "L’ouvrage a été supprimé définitivement d’Apologia.",
+                    "The work was permanently deleted from Apologia."));
+        }
+        catch (Exception exception)
+        {
+            HandleAdministrativeException(exception);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void HandleAdministrativeException(Exception exception)
+    {
+        _pendingAction = null;
+
+        if (exception is DocumentManagerEditorialDraftConcurrencyException)
+        {
+            ShowError(Text(
+                "Cette fiche a été modifiée ailleurs. Rechargez-la avant de recommencer.",
+                "This record changed elsewhere. Reload it before trying again."));
+            return;
+        }
+
+        if (exception is DocumentManagerAdministrationForbiddenException)
+        {
+            ShowError(Text(
+                "Cette action est réservée à l’administration.",
+                "This action is restricted to administration."));
+            return;
+        }
+
+        ShowError(exception.Message);
     }
 
     private async Task ExecuteAsync(DocumentManagerEditorialReviewAction action)
@@ -265,24 +430,62 @@ public partial class EditorialReviewPanel
             ? "dd/MM/yyyy HH:mm"
             : "MM/dd/yyyy h:mm tt");
 
-    private string ConfirmationTitle(DocumentManagerEditorialReviewAction action) =>
-        action == DocumentManagerEditorialReviewAction.Approve
-            ? Text("Approuver cette fiche ?", "Approve this record?")
-            : Text("Rejeter cette fiche ?", "Reject this record?");
+    private string ConfirmationTitle(EditorialConfirmationAction action) =>
+        action switch
+        {
+            EditorialConfirmationAction.Approve =>
+                Text("Approuver cette fiche ?", "Approve this record?"),
+            EditorialConfirmationAction.Reject =>
+                Text("Rejeter cette fiche ?", "Reject this record?"),
+            EditorialConfirmationAction.Reopen =>
+                Text("Rouvrir cette fiche ?", "Reopen this record?"),
+            EditorialConfirmationAction.Purge =>
+                Text(
+                    "Supprimer définitivement cet ouvrage d’Apologia ?",
+                    "Permanently delete this work from Apologia?"),
+            EditorialConfirmationAction.PurgeAndReplay =>
+                Text(
+                    "Supprimer puis réimporter cet ouvrage ?",
+                    "Delete and reimport this work?"),
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
+        };
 
-    private string ConfirmationText(DocumentManagerEditorialReviewAction action) =>
-        action == DocumentManagerEditorialReviewAction.Approve
-            ? Text(
+    private string ConfirmationText(EditorialConfirmationAction action) =>
+        action switch
+        {
+            EditorialConfirmationAction.Approve => Text(
                 "Elle sera prête pour la création de l’ouvrage dans la bibliothèque.",
-                "It will be ready for creation of the library work.")
-            : Text(
+                "It will be ready for creation of the library work."),
+            EditorialConfirmationAction.Reject => Text(
                 "Le motif du rejet sera conservé dans l’historique.",
-                "The rejection reason will be kept in the audit history.");
+                "The rejection reason will be kept in the audit history."),
+            EditorialConfirmationAction.Reopen => Text(
+                "Le rejet restera dans l’historique, mais la fiche redeviendra modifiable.",
+                "The rejection will remain in history, but the record will become editable again."),
+            EditorialConfirmationAction.Purge => Text(
+                "Cette action irréversible supprimera la fiche, ses parties, son historique, les résultats bruts, les visuels et le manifeste conservés par Apologia. Les données du Manager ne seront pas supprimées.",
+                "This irreversible action deletes the record, its parts, history, raw results, visuals, and manifest stored by Apologia. Manager data will not be deleted."),
+            EditorialConfirmationAction.PurgeAndReplay => Text(
+                "Apologia supprimera sa copie complète, puis demandera au Manager de remettre toutes les parties à disposition. DPEngine ne retraitera pas le document.",
+                "Apologia will delete its complete copy, then ask Manager to make every part available again. DPEngine will not process the document again."),
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
+        };
 
-    private string ConfirmationButton(DocumentManagerEditorialReviewAction action) =>
-        action == DocumentManagerEditorialReviewAction.Approve
-            ? Text("Confirmer l’approbation", "Confirm approval")
-            : Text("Confirmer le rejet", "Confirm rejection");
+    private string ConfirmationButton(EditorialConfirmationAction action) =>
+        action switch
+        {
+            EditorialConfirmationAction.Approve =>
+                Text("Confirmer l’approbation", "Confirm approval"),
+            EditorialConfirmationAction.Reject =>
+                Text("Confirmer le rejet", "Confirm rejection"),
+            EditorialConfirmationAction.Reopen =>
+                Text("Confirmer la réouverture", "Confirm reopening"),
+            EditorialConfirmationAction.Purge =>
+                Text("Supprimer définitivement", "Delete permanently"),
+            EditorialConfirmationAction.PurgeAndReplay =>
+                Text("Supprimer et réimporter", "Delete and reimport"),
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
+        };
 
     private string LocalizeValidation(string message)
     {
@@ -362,5 +565,14 @@ public partial class EditorialReviewPanel
                 PublicationPlace,
                 Description,
                 RejectionReason);
+    }
+
+    private enum EditorialConfirmationAction
+    {
+        Approve = 0,
+        Reject = 1,
+        Reopen = 2,
+        Purge = 3,
+        PurgeAndReplay = 4
     }
 }

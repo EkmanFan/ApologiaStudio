@@ -31,6 +31,7 @@ using ApologiaStudio.Application.Projects.RenameProject;
 using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web;
 using ApologiaStudio.Web.Components;
+using ApologiaStudio.Web.DocumentManager;
 using ApologiaStudio.Web.Endpoints;
 using ApologiaStudio.Web.Identity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -75,6 +76,7 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapBibleCorpusEndpoints();
+app.MapDocumentManagerNotificationEndpoint();
 
 app.Run();
 

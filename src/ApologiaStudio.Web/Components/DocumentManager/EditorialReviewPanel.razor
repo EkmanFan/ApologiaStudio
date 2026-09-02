@@ -195,7 +195,7 @@
                                 <button class="secondary-action" type="button" disabled="@_isSaving" @onclick="CancelConfirmation">
                                     @Text("Annuler", "Cancel")
                                 </button>
-                                <button class="@(_pendingAction == DocumentManagerEditorialReviewAction.Reject ? "danger-action" : "primary-action")"
+                                <button class="@(_pendingAction is EditorialConfirmationAction.Reject or EditorialConfirmationAction.Purge or EditorialConfirmationAction.PurgeAndReplay ? "danger-action" : "primary-action")"
                                         type="button"
                                         disabled="@_isSaving"
                                         @onclick="ConfirmActionAsync">
@@ -210,20 +210,49 @@
                             @if (IsReadOnly)
                             {
                                 <span>@Text(
-                                    "Cette décision est définitive dans cette première version.",
-                                    "This decision is final in this first version.")</span>
+                                    "Cette décision protège la fiche contre les modifications ordinaires.",
+                                    "This decision protects the record from ordinary changes.")</span>
                             }
                             else
                             {
                                 <button class="secondary-action" type="button" disabled="@_isSaving" @onclick="SaveAsync">
                                     @Text("Enregistrer", "Save")
                                 </button>
-                                <button class="danger-action" type="button" disabled="@_isSaving" @onclick="() => AskConfirmation(DocumentManagerEditorialReviewAction.Reject)">
+                                <button class="danger-action" type="button" disabled="@_isSaving" @onclick="() => AskConfirmation(EditorialConfirmationAction.Reject)">
                                     @Text("Rejeter", "Reject")
                                 </button>
-                                <button class="primary-action" type="button" disabled="@_isSaving" @onclick="() => AskConfirmation(DocumentManagerEditorialReviewAction.Approve)">
+                                <button class="primary-action" type="button" disabled="@_isSaving" @onclick="() => AskConfirmation(EditorialConfirmationAction.Approve)">
                                     @Text("Approuver", "Approve")
                                 </button>
+                            }
+
+                            @if (CanAdminister && _selectedDraft.Status == DocumentManagerEditorialDraftStatus.Rejected)
+                            {
+                                <button class="secondary-action"
+                                        type="button"
+                                        disabled="@_isSaving"
+                                        @onclick="() => AskConfirmation(EditorialConfirmationAction.Reopen)">
+                                    @Text("Rouvrir", "Reopen")
+                                </button>
+                            }
+
+                            @if (CanAdminister)
+                            {
+                                <button class="danger-action"
+                                        type="button"
+                                        disabled="@_isSaving"
+                                        @onclick="() => AskConfirmation(EditorialConfirmationAction.Purge)">
+                                    @Text("Supprimer définitivement", "Delete permanently")
+                                </button>
+                                @if (CanReplayDelivery)
+                                {
+                                    <button class="danger-action"
+                                            type="button"
+                                            disabled="@_isSaving"
+                                            @onclick="() => AskConfirmation(EditorialConfirmationAction.PurgeAndReplay)">
+                                        @Text("Supprimer et réimporter", "Delete and reimport")
+                                    </button>
+                                }
                             }
                         </footer>
                     }
