@@ -90,6 +90,32 @@
     background: #244a3d;
 }
 
+.document-manager-link {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.62rem 0.75rem;
+    border-radius: 0.6rem;
+    color: #374039;
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.document-manager-link:hover {
+    background: #eceae4;
+}
+
+.document-manager-link.active {
+    background: #dde7e1;
+    color: #214437;
+}
+
+.document-manager-icon {
+    color: #315f4e;
+    font-size: 1.05rem;
+}
+
 .new-chat-icon {
     font-size: 1.1rem;
     line-height: 1;

@@ -1,0 +1,234 @@
+@using ApologiaStudio.Application.Knowledge.DocumentProcessing
+@using ApologiaStudio.Domain.Users
+
+<main class="editorial-review-shell">
+    <header class="editorial-review-header">
+        <button id="studio-sidebar-toggle"
+                class="mobile-sidebar-toggle"
+                type="button"
+                aria-controls="studio-sidebar"
+                aria-expanded="@(SidebarIsOpen ? "true" : "false")"
+                aria-label="@Text("Ouvrir la navigation", "Open navigation")"
+                @onclick="OnOpenSidebar">
+            <span aria-hidden="true">☰</span>
+        </button>
+
+        <div>
+            <p>@Text("Bibliothèque", "Library")</p>
+            <h1>@Text("Revue éditoriale", "Editorial review")</h1>
+            <span>@Text(
+                "Vérifiez la fiche provisoire avant son entrée dans la bibliothèque.",
+                "Check the provisional record before it enters the library.")</span>
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="review-state" role="status">
+            @Text("Chargement des fiches…", "Loading records…")
+        </div>
+    }
+    else if (_loadError is not null)
+    {
+        <div class="review-state error" role="alert">
+            <strong>@Text("La file de revue est indisponible.", "The review queue is unavailable.")</strong>
+            <span>@_loadError</span>
+            <button type="button" @onclick="LoadAsync">
+                @Text("Réessayer", "Try again")
+            </button>
+        </div>
+    }
+    else if (_drafts.Count == 0)
+    {
+        <div class="review-state empty">
+            <span class="empty-icon" aria-hidden="true">✓</span>
+            <strong>@Text("Aucune fiche à vérifier", "No records to review")</strong>
+            <span>@Text(
+                "Une fiche apparaîtra ici dès que toutes les parties d’un ouvrage auront été regroupées.",
+                "A record will appear here once all parts of a work have been assembled.")</span>
+        </div>
+    }
+    else
+    {
+        <div class="editorial-review-workspace">
+            <aside class="draft-queue" aria-label="@Text("Fiches provisoires", "Provisional records")">
+                <div class="queue-heading">
+                    <div>
+                        <span>@Text("À traiter", "Queue")</span>
+                        <strong>@FilteredDrafts.Count</strong>
+                    </div>
+                    <select @bind="_statusFilter" aria-label="@Text("Filtrer par état", "Filter by status")">
+                        <option value="all">@Text("Toutes", "All")</option>
+                        <option value="pending">@Text("À vérifier", "Pending")</option>
+                        <option value="in-review">@Text("En cours", "In review")</option>
+                        <option value="approved">@Text("Approuvées", "Approved")</option>
+                        <option value="rejected">@Text("Rejetées", "Rejected")</option>
+                    </select>
+                </div>
+
+                <div class="draft-list">
+                    @foreach (var summary in FilteredDrafts)
+                    {
+                        <button class="draft-card @(summary.Id == _selectedDraft?.Id ? "selected" : null)"
+                                type="button"
+                                @onclick="() => SelectDraftAsync(summary.Id)">
+                            <span class="status-badge @StatusCss(summary.Status)">@StatusLabel(summary.Status)</span>
+                            <strong>@summary.Title</strong>
+                            <span>@summary.OriginalFileName</span>
+                            <small>@PartCountLabel(summary.PartCount)</small>
+                        </button>
+                    }
+                </div>
+            </aside>
+
+            <section class="record-editor">
+                @if (_isSelecting)
+                {
+                    <div class="review-state" role="status">
+                        @Text("Ouverture de la fiche…", "Opening record…")
+                    </div>
+                }
+                else if (_selectedDraft is not null)
+                {
+                    <header class="record-heading">
+                        <div>
+                            <span class="status-badge @StatusCss(_selectedDraft.Status)">@StatusLabel(_selectedDraft.Status)</span>
+                            <h2>@_selectedDraft.Title</h2>
+                            <p>@Text("Fiche provisoire", "Provisional record") · v@_selectedDraft.Version</p>
+                        </div>
+                        <span class="record-date">@FormatDate(_selectedDraft.UpdatedAtUtc)</span>
+                    </header>
+
+                    @if (_message is not null)
+                    {
+                        <div class="form-message @(_messageIsError ? "error" : "success")" role="@(_messageIsError ? "alert" : "status")">
+                            @_message
+                        </div>
+                    }
+
+                    <fieldset disabled="@IsReadOnly">
+                        <legend>@Text("Métadonnées éditoriales", "Editorial metadata")</legend>
+
+                        <label class="wide-field">
+                            <span>@Text("Titre", "Title") *</span>
+                            <input maxlength="1000" @bind="_form.Title" />
+                        </label>
+
+                        <div class="form-grid">
+                            <label>
+                                <span>@Text("Contributeur principal", "Primary contributor") *</span>
+                                <input maxlength="500" @bind="_form.PrimaryContributorName" />
+                            </label>
+
+                            <label>
+                                <span>@Text("Rôle", "Role") *</span>
+                                <select value="@_form.PrimaryContributorRole"
+                                        @onchange="HandleContributorRoleChanged">
+                                    <option value="">@Text("Choisir…", "Choose…")</option>
+                                    <option value="author">@Text("Auteur", "Author")</option>
+                                    <option value="compiler">@Text("Compilateur", "Compiler")</option>
+                                    <option value="translator">@Text("Traducteur", "Translator")</option>
+                                    <option value="textual_editor">@Text("Éditeur scientifique", "Textual editor")</option>
+                                </select>
+                            </label>
+
+                            <label>
+                                <span>@Text("Langue (BCP 47)", "Language (BCP 47)") *</span>
+                                <input maxlength="35" placeholder="fr, en, fr-CA…" @bind="_form.LanguageCode" />
+                            </label>
+
+                            <label>
+                                <span>@Text("Édition", "Edition")</span>
+                                <input maxlength="500" @bind="_form.EditionStatement" />
+                            </label>
+
+                            <label>
+                                <span>@Text("Année de publication", "Publication year")</span>
+                                <input type="number" min="1" max="9999" @bind="_form.PublicationYear" />
+                            </label>
+
+                            <label>
+                                <span>@Text("Lieu de publication", "Publication place")</span>
+                                <input maxlength="500" @bind="_form.PublicationPlace" />
+                            </label>
+                        </div>
+
+                        <label class="wide-field">
+                            <span>@Text("Description", "Description")</span>
+                            <textarea rows="5" maxlength="20000" @bind="_form.Description"></textarea>
+                        </label>
+
+                        <label class="wide-field rejection-field">
+                            <span>@Text("Motif du rejet", "Rejection reason")</span>
+                            <textarea rows="3" maxlength="4000" @bind="_form.RejectionReason"></textarea>
+                            <small>@Text(
+                                "Obligatoire uniquement pour rejeter la fiche.",
+                                "Required only when rejecting the record.")</small>
+                        </label>
+                    </fieldset>
+
+                    <details class="provenance-panel">
+                        <summary>@Text("Document source et parties regroupées", "Source document and assembled parts")</summary>
+                        <dl>
+                            <div><dt>@Text("Fichier", "File")</dt><dd>@_selectedDraft.OriginalFileName</dd></div>
+                            <div><dt>SHA-256</dt><dd class="hash">@_selectedDraft.SourceSha256</dd></div>
+                            <div><dt>@Text("Révision du manifeste", "Manifest revision")</dt><dd>@_selectedDraft.ManifestRevision</dd></div>
+                        </dl>
+                        <ol class="part-list">
+                            @foreach (var part in _selectedDraft.Parts.OrderBy(part => part.Ordinal))
+                            {
+                                <li>
+                                    <strong>@Text("Partie", "Part") @part.Ordinal</strong>
+                                    <span>@ScopeLabel(part.Scope)</span>
+                                    <small>@part.ResultReference</small>
+                                </li>
+                            }
+                        </ol>
+                    </details>
+
+                    @if (_pendingAction is not null)
+                    {
+                        <div class="confirmation-panel" role="alert">
+                            <strong>@ConfirmationTitle(_pendingAction.Value)</strong>
+                            <span>@ConfirmationText(_pendingAction.Value)</span>
+                            <div>
+                                <button class="secondary-action" type="button" disabled="@_isSaving" @onclick="CancelConfirmation">
+                                    @Text("Annuler", "Cancel")
+                                </button>
+                                <button class="@(_pendingAction == DocumentManagerEditorialReviewAction.Reject ? "danger-action" : "primary-action")"
+                                        type="button"
+                                        disabled="@_isSaving"
+                                        @onclick="ConfirmActionAsync">
+                                    @(_isSaving ? Text("Traitement…", "Working…") : ConfirmationButton(_pendingAction.Value))
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <footer class="record-actions">
+                            @if (IsReadOnly)
+                            {
+                                <span>@Text(
+                                    "Cette décision est définitive dans cette première version.",
+                                    "This decision is final in this first version.")</span>
+                            }
+                            else
+                            {
+                                <button class="secondary-action" type="button" disabled="@_isSaving" @onclick="SaveAsync">
+                                    @Text("Enregistrer", "Save")
+                                </button>
+                                <button class="danger-action" type="button" disabled="@_isSaving" @onclick="() => AskConfirmation(DocumentManagerEditorialReviewAction.Reject)">
+                                    @Text("Rejeter", "Reject")
+                                </button>
+                                <button class="primary-action" type="button" disabled="@_isSaving" @onclick="() => AskConfirmation(DocumentManagerEditorialReviewAction.Approve)">
+                                    @Text("Approuver", "Approve")
+                                </button>
+                            }
+                        </footer>
+                    }
+                }
+            </section>
+        </div>
+    }
+</main>

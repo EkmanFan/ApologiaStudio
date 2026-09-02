@@ -26,8 +26,10 @@ using ApologiaStudio.Application.Preferences;
 using ApologiaStudio.Application.Projects.CreateProject;
 using ApologiaStudio.Application.Projects.DeleteProject;
 using ApologiaStudio.Application.Projects.RenameProject;
+using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Infrastructure;
 using ApologiaStudio.Web.AiRuntime;
+using ApologiaStudio.Web.DocumentManager;
 using ApologiaStudio.Web.Identity;
 
 namespace ApologiaStudio.Web;
@@ -44,6 +46,10 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(aiRuntimeDefaults);
 
         services.AddInfrastructure(configuration);
+
+        services.AddSingleton(
+            DocumentManagerUiOptions.FromConfiguration(
+                configuration));
 
         services.AddScoped<
             ICurrentUser,
@@ -182,6 +188,12 @@ public static class DependencyInjection
             CreateAgentSettingsHandler>();
         services.AddScoped<
             DeleteAgentSettingsHandler>();
+        services.AddScoped<
+            ListDocumentManagerEditorialDraftsHandler>();
+        services.AddScoped<
+            GetDocumentManagerEditorialDraftHandler>();
+        services.AddScoped<
+            ReviewDocumentManagerEditorialDraftHandler>();
 
         return services;
     }

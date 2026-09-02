@@ -183,6 +183,12 @@ public partial class Home
                 await navigationHandler.HandleAsync(
                     CancellationToken.None);
 
+            if (IsWorkspaceRoute())
+            {
+                _conversation = null;
+                return;
+            }
+
             if (string.IsNullOrEmpty(GetRelativePath()))
             {
                 if (_sidebarNavigation.DefaultConversationId is { }
@@ -860,6 +866,37 @@ public partial class Home
             .ToBaseRelativePath(NavigationManager.Uri)
             .Split('?', 2)[0]
             .Trim('/');
+    }
+
+    private bool IsDocumentManagerRoute()
+    {
+        return GetRelativePath().Equals(
+            "document-manager",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsEditorialReviewRoute()
+    {
+        return GetRelativePath().Equals(
+            "editorial-review",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsWorkspaceRoute()
+    {
+        return IsDocumentManagerRoute() || IsEditorialReviewRoute();
+    }
+
+    private string GetPageTitle()
+    {
+        if (IsDocumentManagerRoute())
+        {
+            return "Document Manager · Apologia Studio";
+        }
+
+        return IsEditorialReviewRoute()
+            ? Ui("Revue éditoriale · Apologia Studio", "Editorial review · Apologia Studio")
+            : "Apologia Studio";
     }
 
     private IReadOnlyList<StudioSidebarBibleEdition>

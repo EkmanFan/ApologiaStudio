@@ -60,6 +60,12 @@ public partial class StudioSidebar
     public bool IsBusy { get; set; }
 
     [Parameter]
+    public bool IsDocumentManagerActive { get; set; }
+
+    [Parameter]
+    public bool IsEditorialReviewActive { get; set; }
+
+    [Parameter]
     public EventCallback OnClose { get; set; }
 
     [Parameter]

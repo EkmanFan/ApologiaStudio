@@ -35,6 +35,22 @@
             <span class="new-chat-icon" aria-hidden="true">＋</span>
             <span>@Text("Nouvelle discussion", "New chat")</span>
         </button>
+
+        <a class="document-manager-link @(IsDocumentManagerActive ? "active" : null)"
+           href="/document-manager"
+           aria-current="@(IsDocumentManagerActive ? "page" : null)"
+           @onclick="CloseAsync">
+            <span class="document-manager-icon" aria-hidden="true">▤</span>
+            <span>@Text("Gestion des documents", "Document Manager")</span>
+        </a>
+
+        <a class="document-manager-link @(IsEditorialReviewActive ? "active" : null)"
+           href="/editorial-review"
+           aria-current="@(IsEditorialReviewActive ? "page" : null)"
+           @onclick="CloseAsync">
+            <span class="document-manager-icon" aria-hidden="true">✓</span>
+            <span>@Text("Revue éditoriale", "Editorial review")</span>
+        </a>
     </header>
 
     <div class="sidebar-navigation">

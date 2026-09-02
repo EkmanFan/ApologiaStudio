@@ -20,6 +20,33 @@ PostgreSQL + pgvector Knowledge Store, retrieval projections, and citation
 grounding is recorded in
 [ADR 0002: Knowledge Store and RAG architecture](docs/adr/0002-knowledge-store-and-rag-architecture.md).
 
+Completed DPEngine results enter Apologia Studio through the durable,
+hash-verified Document Manager inbox described in
+[Document Manager consumer v1](docs/knowledge-ingestion/document-manager-consumer-v1.md).
+The inbox preserves raw results and visuals before acknowledging delivery; the
+subsequent editorial `KnowledgeImportPackage` adaptation remains a separate
+step. Its mandatory sequence and invariants are fixed by the
+[Document Manager to Knowledge workflow v1](docs/knowledge-ingestion/document-manager-to-knowledge-workflow-v1.md).
+
+Operators can open the standalone Manager UI inside the Apologia application
+shell at `/document-manager`. Its address is configured with
+`DocumentManager:UiUrl`; local development expects the Manager launcher on
+`http://localhost:5092`.
+
+Completed provisional records are reviewed at `/editorial-review`. The editor
+can correct bibliographic metadata, inspect the immutable source parts, save a
+work in progress, or explicitly approve or reject it. The web application needs
+the same Knowledge Store connection as the consumer through
+`ConnectionStrings:Knowledge` or
+`APOLOGIASTUDIO_KNOWLEDGE_DB_CONNECTION`.
+
+For local development, the launcher starts both PostgreSQL containers, applies
+pending Knowledge Store migrations and starts the web application:
+
+```bash
+./scripts/run-apologia-dev.sh
+```
+
 The canonical Bible corpus remains deterministic reference data. RAG retrieval
 is a separate, derived knowledge path and must not replace exact Bible passage
 lookup.

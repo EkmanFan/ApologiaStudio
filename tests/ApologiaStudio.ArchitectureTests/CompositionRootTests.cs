@@ -5,6 +5,7 @@ using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.AiRuntime.Settings;
 using ApologiaStudio.Web;
+using ApologiaStudio.Web.DocumentManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -42,6 +43,9 @@ public sealed class CompositionRootTests
             services,
             ServiceLifetime.Singleton);
         AssertLifetime<TimeProvider>(
+            services,
+            ServiceLifetime.Singleton);
+        AssertLifetime<DocumentManagerUiOptions>(
             services,
             ServiceLifetime.Singleton);
     }
@@ -89,7 +93,13 @@ public sealed class CompositionRootTests
                         ["ConnectionStrings:ApologiaStudio"] =
                             "Host=127.0.0.1;Port=54329;" +
                             "Database=apologia_architecture_test;" +
-                            "Username=apologia;Password=not-used"
+                            "Username=apologia;Password=not-used",
+                        ["ConnectionStrings:Knowledge"] =
+                            "Host=127.0.0.1;Port=54330;" +
+                            "Database=apologia_knowledge_architecture_test;" +
+                            "Username=apologia;Password=not-used",
+                        ["DocumentManager:UiUrl"] =
+                            "http://localhost:5092/"
                     })
                 .Build();
 

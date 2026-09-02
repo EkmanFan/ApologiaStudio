@@ -30,6 +30,33 @@ public sealed class KnowledgeDbContext(
     internal DbSet<KnowledgeChunkEmbeddingEntity> ChunkEmbeddings =>
         Set<KnowledgeChunkEmbeddingEntity>();
 
+    internal DbSet<DocumentManagerResultInboxEntity> DocumentManagerResults =>
+        Set<DocumentManagerResultInboxEntity>();
+
+    internal DbSet<DocumentManagerVisualAssetInboxEntity>
+        DocumentManagerVisualAssets =>
+            Set<DocumentManagerVisualAssetInboxEntity>();
+
+    internal DbSet<DocumentManagerSubmissionManifestInboxEntity>
+        DocumentManagerSubmissionManifests =>
+            Set<DocumentManagerSubmissionManifestInboxEntity>();
+
+    internal DbSet<DocumentManagerExpectedUnitInboxEntity>
+        DocumentManagerExpectedUnits =>
+            Set<DocumentManagerExpectedUnitInboxEntity>();
+
+    internal DbSet<DocumentManagerEditorialDraftEntity>
+        DocumentManagerEditorialDrafts =>
+            Set<DocumentManagerEditorialDraftEntity>();
+
+    internal DbSet<DocumentManagerEditorialDraftPartEntity>
+        DocumentManagerEditorialDraftParts =>
+            Set<DocumentManagerEditorialDraftPartEntity>();
+
+    internal DbSet<DocumentManagerEditorialReviewEventEntity>
+        DocumentManagerEditorialReviewEvents =>
+            Set<DocumentManagerEditorialReviewEventEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("vector");

@@ -1,0 +1,57 @@
+@using ApologiaStudio.Domain.Users
+
+<main class="document-manager-shell">
+    <header class="document-manager-header">
+        <button id="studio-sidebar-toggle"
+                class="mobile-sidebar-toggle"
+                type="button"
+                aria-controls="studio-sidebar"
+                aria-expanded="@(SidebarIsOpen ? "true" : "false")"
+                aria-label="@Text("Ouvrir la navigation", "Open navigation")"
+                @onclick="OnOpenSidebar">
+            <span aria-hidden="true">☰</span>
+        </button>
+
+        <div>
+            <p>@Text("Atelier documentaire", "Document workspace")</p>
+            <h1>Document Manager</h1>
+        </div>
+
+        <a href="@ManagerUrl"
+           target="_blank"
+           rel="noopener noreferrer">
+            @Text("Ouvrir en plein écran", "Open full screen")
+            <span aria-hidden="true">↗</span>
+        </a>
+    </header>
+
+    <div class="document-manager-frame">
+        <iframe src="@ManagerUrl"
+                title="Document Manager"
+                loading="eager"
+                referrerpolicy="no-referrer">
+        </iframe>
+    </div>
+</main>
+
+@code {
+    [Parameter, EditorRequired]
+    public Uri ManagerUrl { get; set; } = null!;
+
+    [Parameter]
+    public ApplicationLanguage Language { get; set; } =
+        ApplicationLanguage.French;
+
+    [Parameter]
+    public bool SidebarIsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenSidebar { get; set; }
+
+    private string Text(string french, string english)
+    {
+        return Language == ApplicationLanguage.French
+            ? french
+            : english;
+    }
+}

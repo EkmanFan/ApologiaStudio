@@ -158,6 +158,132 @@ internal sealed class KnowledgeChunkEmbeddingEntity
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+internal sealed class DocumentManagerResultInboxEntity
+{
+    public string ResultReference { get; set; } = string.Empty;
+    public Guid SubmissionId { get; set; }
+    public Guid ProcessingUnitId { get; set; }
+    public string ScopeKind { get; set; } = string.Empty;
+    public int? StartPhysicalPageNumber { get; set; }
+    public int? EndPhysicalPageNumber { get; set; }
+    public string? ScopeTitle { get; set; }
+    public int? StartContentUnitIndex { get; set; }
+    public string? StartContentUnitId { get; set; }
+    public int? EndContentUnitIndex { get; set; }
+    public string? EndContentUnitId { get; set; }
+    public string SchemaVersion { get; set; } = string.Empty;
+    public string MediaType { get; set; } = string.Empty;
+    public long ByteLength { get; set; }
+    public string Sha256 { get; set; } = string.Empty;
+    public DateTimeOffset AvailableAtUtc { get; set; }
+    public DateTimeOffset ReceivedAtUtc { get; set; }
+    public byte[] Payload { get; set; } = [];
+    public ICollection<DocumentManagerVisualAssetInboxEntity> VisualAssets { get; set; } =
+        new List<DocumentManagerVisualAssetInboxEntity>();
+}
+
+internal sealed class DocumentManagerSubmissionManifestInboxEntity
+{
+    public Guid SubmissionId { get; set; }
+    public int Revision { get; set; }
+    public string SourceSha256 { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
+    public DateTimeOffset FinalizedAtUtc { get; set; }
+    public ICollection<DocumentManagerExpectedUnitInboxEntity> ExpectedUnits { get; set; } =
+        new List<DocumentManagerExpectedUnitInboxEntity>();
+}
+
+internal sealed class DocumentManagerExpectedUnitInboxEntity
+{
+    public Guid SubmissionId { get; set; }
+    public int ManifestRevision { get; set; }
+    public Guid ProcessingUnitId { get; set; }
+    public int Ordinal { get; set; }
+    public string ScopeKind { get; set; } = string.Empty;
+    public int? StartPhysicalPageNumber { get; set; }
+    public int? EndPhysicalPageNumber { get; set; }
+    public string? ScopeTitle { get; set; }
+    public int? StartContentUnitIndex { get; set; }
+    public string? StartContentUnitId { get; set; }
+    public int? EndContentUnitIndex { get; set; }
+    public string? EndContentUnitId { get; set; }
+    public DocumentManagerSubmissionManifestInboxEntity Manifest { get; set; } = null!;
+}
+
+internal sealed class DocumentManagerEditorialDraftEntity
+{
+    public Guid Id { get; set; }
+    public Guid SubmissionId { get; set; }
+    public int ManifestRevision { get; set; }
+    public string SourceSha256 { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string TitleOrigin { get; set; } = "original_filename";
+    public string? PrimaryContributorName { get; set; }
+    public string? PrimaryContributorRole { get; set; }
+    public string? LanguageCode { get; set; }
+    public string? EditionStatement { get; set; }
+    public int? PublicationYear { get; set; }
+    public string? PublicationPlace { get; set; }
+    public string? Description { get; set; }
+    public string Status { get; set; } = "pending_review";
+    public int Version { get; set; }
+    public Guid? LastEditedByUserId { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAtUtc { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+    public DocumentManagerSubmissionManifestInboxEntity Manifest { get; set; } = null!;
+    public ICollection<DocumentManagerEditorialDraftPartEntity> Parts { get; set; } =
+        new List<DocumentManagerEditorialDraftPartEntity>();
+    public ICollection<DocumentManagerEditorialReviewEventEntity> ReviewEvents { get; set; } =
+        new List<DocumentManagerEditorialReviewEventEntity>();
+}
+
+internal sealed class DocumentManagerEditorialDraftPartEntity
+{
+    public Guid DraftId { get; set; }
+    public Guid ProcessingUnitId { get; set; }
+    public int Ordinal { get; set; }
+    public string ResultReference { get; set; } = string.Empty;
+    public string ScopeKind { get; set; } = string.Empty;
+    public int? StartPhysicalPageNumber { get; set; }
+    public int? EndPhysicalPageNumber { get; set; }
+    public string? ScopeTitle { get; set; }
+    public int? StartContentUnitIndex { get; set; }
+    public string? StartContentUnitId { get; set; }
+    public int? EndContentUnitIndex { get; set; }
+    public string? EndContentUnitId { get; set; }
+    public DocumentManagerEditorialDraftEntity Draft { get; set; } = null!;
+    public DocumentManagerResultInboxEntity Result { get; set; } = null!;
+}
+
+internal sealed class DocumentManagerEditorialReviewEventEntity
+{
+    public long Id { get; set; }
+    public Guid DraftId { get; set; }
+    public int Version { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public string FromStatus { get; set; } = string.Empty;
+    public string ToStatus { get; set; } = string.Empty;
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset OccurredAtUtc { get; set; }
+    public string SnapshotJson { get; set; } = string.Empty;
+    public DocumentManagerEditorialDraftEntity Draft { get; set; } = null!;
+}
+
+internal sealed class DocumentManagerVisualAssetInboxEntity
+{
+    public string ResultReference { get; set; } = string.Empty;
+    public string AssetId { get; set; } = string.Empty;
+    public string MediaType { get; set; } = string.Empty;
+    public long ByteLength { get; set; }
+    public string Sha256 { get; set; } = string.Empty;
+    public byte[] Payload { get; set; } = [];
+    public DocumentManagerResultInboxEntity Result { get; set; } = null!;
+}
+
 internal sealed class KnowledgeMetadataAssertionEntity
 {
     public Guid Id { get; set; }

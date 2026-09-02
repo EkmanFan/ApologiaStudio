@@ -22,6 +22,20 @@ internal static class KnowledgeModelConfiguration
         ConfigureRetrievalChunk(modelBuilder.Entity<KnowledgeRetrievalChunkEntity>());
         ConfigureChunkSegment(modelBuilder.Entity<KnowledgeRetrievalChunkSegmentEntity>());
         ConfigureChunkEmbedding(modelBuilder.Entity<KnowledgeChunkEmbeddingEntity>());
+        ConfigureDocumentManagerResult(
+            modelBuilder.Entity<DocumentManagerResultInboxEntity>());
+        ConfigureDocumentManagerVisualAsset(
+            modelBuilder.Entity<DocumentManagerVisualAssetInboxEntity>());
+        ConfigureDocumentManagerSubmissionManifest(
+            modelBuilder.Entity<DocumentManagerSubmissionManifestInboxEntity>());
+        ConfigureDocumentManagerExpectedUnit(
+            modelBuilder.Entity<DocumentManagerExpectedUnitInboxEntity>());
+        ConfigureDocumentManagerEditorialDraft(
+            modelBuilder.Entity<DocumentManagerEditorialDraftEntity>());
+        ConfigureDocumentManagerEditorialDraftPart(
+            modelBuilder.Entity<DocumentManagerEditorialDraftPartEntity>());
+        ConfigureDocumentManagerEditorialReviewEvent(
+            modelBuilder.Entity<DocumentManagerEditorialReviewEventEntity>());
         ConfigureMetadataAssertion(modelBuilder.Entity<KnowledgeMetadataAssertionEntity>());
         ConfigureSourceKind(modelBuilder.Entity<KnowledgeSourceKindEntity>());
         ConfigureSourceKindAssertion(modelBuilder.Entity<KnowledgeSourceKindAssertionEntity>());
@@ -37,6 +51,486 @@ internal static class KnowledgeModelConfiguration
             modelBuilder.Entity<KnowledgeEpistemicFrameworkAssertionEntity>());
         ConfigureEvidenceRole(modelBuilder.Entity<KnowledgeEvidenceRoleEntity>());
         ConfigureEvidenceRoleAssertion(modelBuilder.Entity<KnowledgeEvidenceRoleAssertionEntity>());
+    }
+
+    private static void ConfigureDocumentManagerResult(
+        EntityTypeBuilder<DocumentManagerResultInboxEntity> builder)
+    {
+        builder.ToTable(
+            "document_manager_result_inbox",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_document_manager_result_inbox_length",
+                    "byte_length > 0");
+                table.HasCheckConstraint(
+                    "ck_document_manager_result_inbox_sha256",
+                    "sha256 ~ '^[0-9a-f]{64}$'");
+            });
+
+        builder.HasKey(x => x.ResultReference);
+        builder.Property(x => x.ResultReference)
+            .HasColumnName("result_reference")
+            .HasMaxLength(255);
+        builder.Property(x => x.SubmissionId)
+            .HasColumnName("submission_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ProcessingUnitId)
+            .HasColumnName("processing_unit_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ScopeKind)
+            .HasColumnName("scope_kind")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.StartPhysicalPageNumber)
+            .HasColumnName("start_physical_page_number");
+        builder.Property(x => x.EndPhysicalPageNumber)
+            .HasColumnName("end_physical_page_number");
+        builder.Property(x => x.ScopeTitle)
+            .HasColumnName("scope_title")
+            .HasMaxLength(500);
+        builder.Property(x => x.StartContentUnitIndex)
+            .HasColumnName("start_content_unit_index");
+        builder.Property(x => x.StartContentUnitId)
+            .HasColumnName("start_content_unit_id")
+            .HasMaxLength(1024);
+        builder.Property(x => x.EndContentUnitIndex)
+            .HasColumnName("end_content_unit_index");
+        builder.Property(x => x.EndContentUnitId)
+            .HasColumnName("end_content_unit_id")
+            .HasMaxLength(1024);
+        builder.Property(x => x.SchemaVersion)
+            .HasColumnName("schema_version")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.MediaType)
+            .HasColumnName("media_type")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.ByteLength)
+            .HasColumnName("byte_length")
+            .IsRequired();
+        builder.Property(x => x.Sha256)
+            .HasColumnName("sha256")
+            .HasColumnType("character(64)")
+            .IsRequired();
+        builder.Property(x => x.AvailableAtUtc)
+            .HasColumnName("available_at_utc")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+        builder.Property(x => x.ReceivedAtUtc)
+            .HasColumnName("received_at_utc")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+        builder.Property(x => x.Payload)
+            .HasColumnName("payload")
+            .HasColumnType("bytea")
+            .IsRequired();
+
+        builder.HasIndex(x => x.ReceivedAtUtc)
+            .HasDatabaseName("ix_document_manager_result_inbox_received");
+        builder.HasIndex(x => x.ProcessingUnitId)
+            .HasDatabaseName("ix_document_manager_result_inbox_processing_unit");
+    }
+
+    private static void ConfigureDocumentManagerVisualAsset(
+        EntityTypeBuilder<DocumentManagerVisualAssetInboxEntity> builder)
+    {
+        builder.ToTable(
+            "document_manager_visual_asset_inbox",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_document_manager_visual_asset_inbox_length",
+                    "byte_length > 0");
+                table.HasCheckConstraint(
+                    "ck_document_manager_visual_asset_inbox_sha256",
+                    "sha256 ~ '^[0-9a-f]{64}$'");
+            });
+
+        builder.HasKey(x => new { x.ResultReference, x.AssetId });
+        builder.Property(x => x.ResultReference)
+            .HasColumnName("result_reference")
+            .HasMaxLength(255);
+        builder.Property(x => x.AssetId)
+            .HasColumnName("asset_id")
+            .HasMaxLength(512);
+        builder.Property(x => x.MediaType)
+            .HasColumnName("media_type")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.ByteLength)
+            .HasColumnName("byte_length")
+            .IsRequired();
+        builder.Property(x => x.Sha256)
+            .HasColumnName("sha256")
+            .HasColumnType("character(64)")
+            .IsRequired();
+        builder.Property(x => x.Payload)
+            .HasColumnName("payload")
+            .HasColumnType("bytea")
+            .IsRequired();
+
+        builder.HasOne(x => x.Result)
+            .WithMany(x => x.VisualAssets)
+            .HasForeignKey(x => x.ResultReference)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+    }
+
+    private static void ConfigureDocumentManagerSubmissionManifest(
+        EntityTypeBuilder<DocumentManagerSubmissionManifestInboxEntity> builder)
+    {
+        builder.ToTable(
+            "document_manager_submission_manifest_inbox",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_document_manager_submission_manifest_revision",
+                    "revision > 0");
+                table.HasCheckConstraint(
+                    "ck_document_manager_submission_manifest_sha256",
+                    "source_sha256 ~ '^[0-9a-f]{64}$'");
+            });
+
+        builder.HasKey(x => new { x.SubmissionId, x.Revision });
+        builder.Property(x => x.SubmissionId)
+            .HasColumnName("submission_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.Revision)
+            .HasColumnName("revision");
+        builder.Property(x => x.SourceSha256)
+            .HasColumnName("source_sha256")
+            .HasColumnType("character(64)")
+            .IsRequired();
+        builder.Property(x => x.OriginalFileName)
+            .HasColumnName("original_file_name")
+            .HasMaxLength(1024)
+            .IsRequired();
+        builder.Property(x => x.FinalizedAtUtc)
+            .HasColumnName("finalized_at_utc")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.SubmissionId, x.Revision })
+            .IsDescending(false, true)
+            .HasDatabaseName("ix_document_manager_submission_manifest_latest");
+    }
+
+    private static void ConfigureDocumentManagerExpectedUnit(
+        EntityTypeBuilder<DocumentManagerExpectedUnitInboxEntity> builder)
+    {
+        builder.ToTable(
+            "document_manager_expected_unit_inbox",
+            table => table.HasCheckConstraint(
+                "ck_document_manager_expected_unit_ordinal",
+                "ordinal > 0"));
+
+        builder.HasKey(
+            x => new
+            {
+                x.SubmissionId,
+                x.ManifestRevision,
+                x.ProcessingUnitId
+            });
+        builder.Property(x => x.SubmissionId)
+            .HasColumnName("submission_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ManifestRevision)
+            .HasColumnName("manifest_revision");
+        builder.Property(x => x.ProcessingUnitId)
+            .HasColumnName("processing_unit_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.Ordinal)
+            .HasColumnName("ordinal");
+        builder.Property(x => x.ScopeKind)
+            .HasColumnName("scope_kind")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.StartPhysicalPageNumber)
+            .HasColumnName("start_physical_page_number");
+        builder.Property(x => x.EndPhysicalPageNumber)
+            .HasColumnName("end_physical_page_number");
+        builder.Property(x => x.ScopeTitle)
+            .HasColumnName("scope_title")
+            .HasMaxLength(500);
+        builder.Property(x => x.StartContentUnitIndex)
+            .HasColumnName("start_content_unit_index");
+        builder.Property(x => x.StartContentUnitId)
+            .HasColumnName("start_content_unit_id")
+            .HasMaxLength(1024);
+        builder.Property(x => x.EndContentUnitIndex)
+            .HasColumnName("end_content_unit_index");
+        builder.Property(x => x.EndContentUnitId)
+            .HasColumnName("end_content_unit_id")
+            .HasMaxLength(1024);
+
+        builder.HasIndex(x => new { x.SubmissionId, x.ManifestRevision, x.Ordinal })
+            .IsUnique()
+            .HasDatabaseName("ux_document_manager_expected_unit_ordinal");
+
+        builder.HasOne(x => x.Manifest)
+            .WithMany(x => x.ExpectedUnits)
+            .HasForeignKey(x => new { x.SubmissionId, x.ManifestRevision })
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+    }
+
+    private static void ConfigureDocumentManagerEditorialDraft(
+        EntityTypeBuilder<DocumentManagerEditorialDraftEntity> builder)
+    {
+        builder.ToTable(
+            "document_manager_editorial_drafts",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_revision",
+                    "manifest_revision > 0");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_sha256",
+                    "source_sha256 ~ '^[0-9a-f]{64}$'");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_status",
+                    "status IN ('pending_review', 'in_review', 'approved', 'rejected')");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_title_origin",
+                    "title_origin IN ('original_filename', 'imported', 'ai_proposed', 'editorial')");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_publication_year",
+                    "publication_year IS NULL OR publication_year BETWEEN 1 AND 9999");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_version",
+                    "version >= 0");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_update_time",
+                    "updated_at_utc >= created_at_utc");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_contributor",
+                    "(primary_contributor_name IS NULL) = (primary_contributor_role IS NULL)");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_review_decision",
+                    "((status IN ('approved', 'rejected')) AND reviewed_by_user_id IS NOT NULL AND reviewed_at_utc IS NOT NULL) OR ((status IN ('pending_review', 'in_review')) AND reviewed_by_user_id IS NULL AND reviewed_at_utc IS NULL)");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_draft_rejection",
+                    "(status = 'rejected' AND rejection_reason IS NOT NULL) OR (status <> 'rejected' AND rejection_reason IS NULL)");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+        builder.Property(x => x.SubmissionId)
+            .HasColumnName("submission_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.ManifestRevision)
+            .HasColumnName("manifest_revision")
+            .IsRequired();
+        builder.Property(x => x.SourceSha256)
+            .HasColumnName("source_sha256")
+            .HasColumnType("character(64)")
+            .IsRequired();
+        builder.Property(x => x.OriginalFileName)
+            .HasColumnName("original_file_name")
+            .HasMaxLength(1024)
+            .IsRequired();
+        builder.Property(x => x.Title)
+            .HasColumnName("title")
+            .HasMaxLength(1000)
+            .IsRequired();
+        builder.Property(x => x.TitleOrigin)
+            .HasColumnName("title_origin")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.PrimaryContributorName)
+            .HasColumnName("primary_contributor_name")
+            .HasMaxLength(500);
+        builder.Property(x => x.PrimaryContributorRole)
+            .HasColumnName("primary_contributor_role")
+            .HasMaxLength(64);
+        builder.Property(x => x.LanguageCode)
+            .HasColumnName("language_code")
+            .HasMaxLength(35);
+        builder.Property(x => x.EditionStatement)
+            .HasColumnName("edition_statement")
+            .HasMaxLength(500);
+        builder.Property(x => x.PublicationYear)
+            .HasColumnName("publication_year");
+        builder.Property(x => x.PublicationPlace)
+            .HasColumnName("publication_place")
+            .HasMaxLength(500);
+        builder.Property(x => x.Description)
+            .HasColumnName("description")
+            .HasColumnType("text");
+        builder.Property(x => x.Status)
+            .HasColumnName("status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.Version)
+            .HasColumnName("version")
+            .IsConcurrencyToken();
+        builder.Property(x => x.LastEditedByUserId)
+            .HasColumnName("last_edited_by_user_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ReviewedByUserId)
+            .HasColumnName("reviewed_by_user_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ReviewedAtUtc)
+            .HasColumnName("reviewed_at_utc")
+            .HasColumnType("timestamp with time zone");
+        builder.Property(x => x.RejectionReason)
+            .HasColumnName("rejection_reason")
+            .HasMaxLength(4000);
+        builder.Property(x => x.CreatedAtUtc)
+            .HasColumnName("created_at_utc")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+        builder.Property(x => x.UpdatedAtUtc)
+            .HasColumnName("updated_at_utc")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.SubmissionId, x.ManifestRevision })
+            .IsUnique()
+            .HasDatabaseName("ux_document_manager_editorial_draft_manifest");
+        builder.HasIndex(x => new { x.Status, x.CreatedAtUtc })
+            .HasDatabaseName("ix_document_manager_editorial_draft_review_queue");
+
+        builder.HasOne(x => x.Manifest)
+            .WithMany()
+            .HasForeignKey(x => new { x.SubmissionId, x.ManifestRevision })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+    }
+
+    private static void ConfigureDocumentManagerEditorialReviewEvent(
+        EntityTypeBuilder<DocumentManagerEditorialReviewEventEntity> builder)
+    {
+        builder.ToTable(
+            "document_manager_editorial_review_events",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_review_event_version",
+                    "version > 0");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_review_event_action",
+                    "action IN ('save', 'approve', 'reject')");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_review_event_from_status",
+                    "from_status IN ('pending_review', 'in_review')");
+                table.HasCheckConstraint(
+                    "ck_document_manager_editorial_review_event_to_status",
+                    "to_status IN ('in_review', 'approved', 'rejected')");
+            });
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .ValueGeneratedOnAdd();
+        builder.Property(x => x.DraftId)
+            .HasColumnName("draft_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.Version)
+            .HasColumnName("version")
+            .IsRequired();
+        builder.Property(x => x.Action)
+            .HasColumnName("action")
+            .HasMaxLength(16)
+            .IsRequired();
+        builder.Property(x => x.FromStatus)
+            .HasColumnName("from_status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.ToStatus)
+            .HasColumnName("to_status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.ActorUserId)
+            .HasColumnName("actor_user_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.OccurredAtUtc)
+            .HasColumnName("occurred_at_utc")
+            .HasColumnType("timestamp with time zone")
+            .IsRequired();
+        builder.Property(x => x.SnapshotJson)
+            .HasColumnName("snapshot_json")
+            .HasColumnType("jsonb")
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.DraftId, x.Version })
+            .IsUnique()
+            .HasDatabaseName("ux_document_manager_editorial_review_event_version");
+
+        builder.HasOne(x => x.Draft)
+            .WithMany(x => x.ReviewEvents)
+            .HasForeignKey(x => x.DraftId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+    }
+
+    private static void ConfigureDocumentManagerEditorialDraftPart(
+        EntityTypeBuilder<DocumentManagerEditorialDraftPartEntity> builder)
+    {
+        builder.ToTable(
+            "document_manager_editorial_draft_parts",
+            table => table.HasCheckConstraint(
+                "ck_document_manager_editorial_draft_part_ordinal",
+                "ordinal > 0"));
+
+        builder.HasKey(x => new { x.DraftId, x.ProcessingUnitId });
+        builder.Property(x => x.DraftId)
+            .HasColumnName("draft_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ProcessingUnitId)
+            .HasColumnName("processing_unit_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.Ordinal)
+            .HasColumnName("ordinal");
+        builder.Property(x => x.ResultReference)
+            .HasColumnName("result_reference")
+            .HasMaxLength(255)
+            .IsRequired();
+        builder.Property(x => x.ScopeKind)
+            .HasColumnName("scope_kind")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.StartPhysicalPageNumber)
+            .HasColumnName("start_physical_page_number");
+        builder.Property(x => x.EndPhysicalPageNumber)
+            .HasColumnName("end_physical_page_number");
+        builder.Property(x => x.ScopeTitle)
+            .HasColumnName("scope_title")
+            .HasMaxLength(500);
+        builder.Property(x => x.StartContentUnitIndex)
+            .HasColumnName("start_content_unit_index");
+        builder.Property(x => x.StartContentUnitId)
+            .HasColumnName("start_content_unit_id")
+            .HasMaxLength(1024);
+        builder.Property(x => x.EndContentUnitIndex)
+            .HasColumnName("end_content_unit_index");
+        builder.Property(x => x.EndContentUnitId)
+            .HasColumnName("end_content_unit_id")
+            .HasMaxLength(1024);
+
+        builder.HasIndex(x => new { x.DraftId, x.Ordinal })
+            .IsUnique()
+            .HasDatabaseName("ux_document_manager_editorial_draft_part_ordinal");
+        builder.HasIndex(x => x.ResultReference)
+            .HasDatabaseName("ix_document_manager_editorial_draft_part_result");
+
+        builder.HasOne(x => x.Draft)
+            .WithMany(x => x.Parts)
+            .HasForeignKey(x => x.DraftId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+        builder.HasOne(x => x.Result)
+            .WithMany()
+            .HasForeignKey(x => x.ResultReference)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
     }
 
     private static void ConfigureResource(EntityTypeBuilder<KnowledgeResourceEntity> builder)

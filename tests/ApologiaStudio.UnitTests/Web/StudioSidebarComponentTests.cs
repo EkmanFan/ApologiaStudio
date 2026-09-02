@@ -288,6 +288,22 @@ public sealed class StudioSidebarComponentTests
         Assert.DoesNotContain("Log out", markup);
     }
 
+    [Fact]
+    public async Task Sidebar_ShouldRenderDocumentManagerWorkspace()
+    {
+        var markup = await RenderAsync(
+            Array.Empty<StudioSidebarBibleEdition>(),
+            Array.Empty<StudioSidebarConversation>(),
+            ApplicationLanguage.French);
+
+        Assert.Contains("href=\"/document-manager\"", markup);
+        Assert.Contains("Gestion des documents", markup);
+        Assert.Contains("href=\"/editorial-review\"", markup);
+        Assert.Contains(
+            "Revue éditoriale",
+            System.Net.WebUtility.HtmlDecode(markup));
+    }
+
     private static async Task<string> RenderAsync(
         IReadOnlyList<StudioSidebarBibleEdition> bibleEditions,
         IReadOnlyList<StudioSidebarConversation> conversations,

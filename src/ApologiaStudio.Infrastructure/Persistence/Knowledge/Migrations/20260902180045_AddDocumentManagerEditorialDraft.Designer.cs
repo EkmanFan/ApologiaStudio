@@ -3,6 +3,7 @@ using System;
 using ApologiaStudio.Infrastructure.Persistence.Knowledge;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
 {
     [DbContext(typeof(KnowledgeDbContext))]
-    partial class KnowledgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902180045_AddDocumentManagerEditorialDraft")]
+    partial class AddDocumentManagerEditorialDraft
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,10 +51,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
                         .HasColumnType("character varying(35)")
                         .HasColumnName("language_code");
 
-                    b.Property<Guid?>("LastEditedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("last_edited_by_user_id");
-
                     b.Property<int>("ManifestRevision")
                         .HasColumnType("integer")
                         .HasColumnName("manifest_revision");
@@ -62,16 +61,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
                         .HasColumnType("character varying(1024)")
                         .HasColumnName("original_file_name");
 
-                    b.Property<string>("PrimaryContributorName")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("primary_contributor_name");
-
-                    b.Property<string>("PrimaryContributorRole")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("primary_contributor_role");
-
                     b.Property<string>("PublicationPlace")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -80,19 +69,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
                     b.Property<int?>("PublicationYear")
                         .HasColumnType("integer")
                         .HasColumnName("publication_year");
-
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("rejection_reason");
-
-                    b.Property<DateTimeOffset?>("ReviewedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reviewed_at_utc");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("reviewed_by_user_id");
 
                     b.Property<string>("SourceSha256")
                         .IsRequired()
@@ -141,13 +117,7 @@ namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
 
                     b.ToTable("document_manager_editorial_drafts", null, t =>
                         {
-                            t.HasCheckConstraint("ck_document_manager_editorial_draft_contributor", "(primary_contributor_name IS NULL) = (primary_contributor_role IS NULL)");
-
                             t.HasCheckConstraint("ck_document_manager_editorial_draft_publication_year", "publication_year IS NULL OR publication_year BETWEEN 1 AND 9999");
-
-                            t.HasCheckConstraint("ck_document_manager_editorial_draft_rejection", "(status = 'rejected' AND rejection_reason IS NOT NULL) OR (status <> 'rejected' AND rejection_reason IS NULL)");
-
-                            t.HasCheckConstraint("ck_document_manager_editorial_draft_review_decision", "((status IN ('approved', 'rejected')) AND reviewed_by_user_id IS NOT NULL AND reviewed_at_utc IS NOT NULL) OR ((status IN ('pending_review', 'in_review')) AND reviewed_by_user_id IS NULL AND reviewed_at_utc IS NULL)");
 
                             t.HasCheckConstraint("ck_document_manager_editorial_draft_revision", "manifest_revision > 0");
 
@@ -232,72 +202,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
                     b.ToTable("document_manager_editorial_draft_parts", null, t =>
                         {
                             t.HasCheckConstraint("ck_document_manager_editorial_draft_part_ordinal", "ordinal > 0");
-                        });
-                });
-
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Knowledge.DocumentManagerEditorialReviewEventEntity", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
-                        .HasColumnName("action");
-
-                    b.Property<Guid>("ActorUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("actor_user_id");
-
-                    b.Property<Guid>("DraftId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("draft_id");
-
-                    b.Property<string>("FromStatus")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("from_status");
-
-                    b.Property<DateTimeOffset>("OccurredAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at_utc");
-
-                    b.Property<string>("SnapshotJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("snapshot_json");
-
-                    b.Property<string>("ToStatus")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("to_status");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("integer")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DraftId", "Version")
-                        .IsUnique()
-                        .HasDatabaseName("ux_document_manager_editorial_review_event_version");
-
-                    b.ToTable("document_manager_editorial_review_events", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_document_manager_editorial_review_event_action", "action IN ('save', 'approve', 'reject')");
-
-                            t.HasCheckConstraint("ck_document_manager_editorial_review_event_from_status", "from_status IN ('pending_review', 'in_review')");
-
-                            t.HasCheckConstraint("ck_document_manager_editorial_review_event_to_status", "to_status IN ('in_review', 'approved', 'rejected')");
-
-                            t.HasCheckConstraint("ck_document_manager_editorial_review_event_version", "version > 0");
                         });
                 });
 
@@ -1979,17 +1883,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
                     b.Navigation("Result");
                 });
 
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Knowledge.DocumentManagerEditorialReviewEventEntity", b =>
-                {
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Knowledge.DocumentManagerEditorialDraftEntity", "Draft")
-                        .WithMany("ReviewEvents")
-                        .HasForeignKey("DraftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Draft");
-                });
-
             modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Knowledge.DocumentManagerExpectedUnitInboxEntity", b =>
                 {
                     b.HasOne("ApologiaStudio.Infrastructure.Persistence.Knowledge.DocumentManagerSubmissionManifestInboxEntity", "Manifest")
@@ -2367,8 +2260,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Knowledge.Migrations
             modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Knowledge.DocumentManagerEditorialDraftEntity", b =>
                 {
                     b.Navigation("Parts");
-
-                    b.Navigation("ReviewEvents");
                 });
 
             modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Knowledge.DocumentManagerResultInboxEntity", b =>
