@@ -8,6 +8,8 @@ using ApologiaStudio.Application.Abstractions.Navigation;
 using ApologiaStudio.Application.Abstractions.Projects;
 using ApologiaStudio.Application.BibleCorpora.Ingestion;
 using ApologiaStudio.Application.Knowledge.GenreForms;
+using ApologiaStudio.Application.Knowledge.MetadataReview;
+using ApologiaStudio.Infrastructure.Knowledge.MetadataReview;
 using ApologiaStudio.Application.Knowledge.Ingestion;
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Infrastructure.BibleCorpora.Ingestion;
@@ -84,6 +86,12 @@ public static class DependencyInjection
         services.AddScoped<
             IGenreFormAssignmentStore,
             PostgreSqlGenreFormAssignmentStore>();
+        services.AddScoped<
+            IGenreFormPolicyProvider,
+            KnowledgeStoreGenreFormPolicyProvider>();
+        services.AddSingleton<
+            IGenreFormClassificationValidator,
+            GenreFormClassificationValidator>();
         services.AddScoped<
             IDocumentManagerSubmissionAssemblyReader,
             PostgreSqlDocumentManagerSubmissionAssemblyReader>();
