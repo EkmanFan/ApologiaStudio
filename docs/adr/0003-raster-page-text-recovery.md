@@ -11,7 +11,7 @@ The generic PDF extraction boundary established in Increment 2A
 deliberately scoped to born-digital PDF files with an extractable text layer.
 `PdfPigDocumentExtractor` reads the text layer; it does not render pages and
 does not attempt character recognition. A scanned or image-only page therefore
-yields zero words rather than an error.
+yields zero words.
 
 [Docling spike v1](../knowledge-ingestion/docling-spike-v1.md) tested whether
 Docling — a Python document-understanding library with an OCR pipeline —
@@ -20,39 +20,43 @@ executed and reported its measurements, but deliberately stopped short of a
 decision: *"This report is intentionally empirical. It does not decide that
 Docling should replace the current pipeline."* This ADR takes that decision.
 
-The decisive context is not in this repository. Per the accepted
+### Character recognition already exists upstream
+
+Per the accepted
 [Document Manager to Knowledge workflow](../knowledge-ingestion/document-manager-to-knowledge-workflow-v1.md),
-Document Manager produces format-neutral documentary evidence and Apologia
-Studio preserves, reviews and publishes it. Character recognition is document
-processing, and DocumentProcessingEngine **already implements it**:
+DocumentProcessingEngine produces format-neutral documentary evidence and
+Apologia Studio preserves, reviews and publishes it. Recognition is document
+processing, and DPEngine implements it:
 
 - `IDocumentPreflightAnalyzer` classifies a source as `HealthyBornDigital`,
   `Hybrid`, `RasterOrScanned` or `Problematic`;
-- `NativeTextStatus` distinguishes native text that is `Missing`, `Healthy`,
-  or deterministically corrupt, and drives whether OCR verification is needed;
-- OCR runs through a PaddleOCR adapter and serving client
-  (`DocumentProcessing.Ocr.Adapters/PaddleOCR`);
-- `TargetedHybridTextExecutor`, `MissingNativeHybridPageExecutor` and
-  `NativePresentHybridPageExecutor` apply it per page, wired into
-  `DocumentProcessingEngine`, with a dual-run harness for comparison.
+- `NativeTextStatus` (`Missing`, `Healthy`, `Suspicious`, `Unverified`) drives
+  whether recognition is needed for a page;
+- three closed page routes exist — `NativeOnly`,
+  `LayoutWithTargetedOcrRecovery` and `LayoutWithTargetedOcrReconciliation`;
+- recognition runs through a PaddleOCR adapter and serving client, planned by
+  the Engine rather than applied unconditionally.
 
-So targeted OCR is not future work. It exists, is evidence-driven rather than
-unconditional, and is already the upstream owner of this concern.
+Targeted OCR is therefore not future work in this system. It exists, is
+evidence-driven, and is already owned upstream.
 
-What is missing is on the Apologia Studio side of the contract. The Knowledge
-Store model reserves an `ocr` value in both `artifact_type`
+### What is missing is on the Apologia Studio side
+
+The Knowledge Store model reserves an `ocr` value in both `artifact_type`
 (`'raw', 'ocr', 'parsed', 'normalized'`) and `activity_type`
 (`'download', 'ocr', 'parse', 'normalize', 'correct'`), and
-`KnowledgeImportPackageValidator` accepts them, but **nothing produces an
-artifact of that type**. The provenance slot exists and is empty.
+`KnowledgeImportPackageValidator` accepts them. **Nothing produces an artifact
+or activity of that type.** The provenance slot exists and is empty, because
+the import path that would populate it — `AS-DM-06`, atomic
+`KnowledgeImportPackage` persistence — is the next unstarted increment.
 
 ## Decision drivers
 
 - Respecting the responsibility boundary already accepted between the two systems
-- Not duplicating a capability that already exists upstream
+- Not duplicating a capability that already exists and works upstream
 - Keeping the Apologia Studio runtime free of a Python dependency
-- Citation-grade provenance: ADR 0002 requires explaining exactly which source
-  supports a generated answer
+- ADR 0002's provenance model: artifacts are immutable and every material
+  transformation is an auditable `ProcessingActivity`
 - Evidence before popularity: adopt the richer tool only on demonstrated need
 
 ## Evidence
@@ -87,86 +91,97 @@ Three readings matter:
    Docling's advantage there is structural, not textual.
 2. **On raster pages, OCR is the whole difference.** Docling without OCR
    recovers exactly zero characters — the same result as the current pipeline.
-   The gain is attributable to OCR, not to Docling's document model.
-3. **OCR is expensive.** 4.4 s without OCR against 41.0 s with it on the same
-   7 pages, roughly 5.9 s per page on CPU — about an hour for a 617-page book.
-   This forbids running OCR unconditionally, and matches the evidence-driven
-   targeting DocumentProcessingEngine already implements.
+   The gain is attributable to recognition, not to Docling's document model.
+3. **Recognition is expensive.** 4.4 s without OCR against 41.0 s with it on
+   the same 7 pages, roughly 5.9 s per page on CPU — about an hour for a
+   617-page book. This matches the evidence-driven targeting DPEngine already
+   implements, and rules out unconditional recognition.
 
-### Provenance actually crossing the boundary
+### What crosses the publication boundary
 
-`DocumentProcessingManifest` (namespace `Provenance`) is part of the published
-result and carries document-level recognition provenance:
-`NativeExtraction`, `Rasterization`, `LayoutAnalysis`, `Ocr` (a list of
-component identities), `Reconciliation`, plus assembly, normalization and
-segmentation profile identifiers.
+The Manager publishes `DocumentProcessingResult`, schema
+`document-processing-result-v4`. Its `ProcessingManifest`
+(`DocumentProcessingManifest`, namespace `Provenance`) carries document-level
+recognition provenance: `NativeExtraction`, `Rasterization`, `LayoutAnalysis`,
+`Ocr` (a list of component identities), `Reconciliation`, plus assembly,
+normalization and segmentation profile identifiers.
 
-`DocumentElement` — the unit that actually carries text — carries
-`ElementId`, `Ordinal`, `Kind`, `Location`, `SegmentId`, `Text` and
-`TextSha256`. **It has no origin marker.**
+Per-element origin also exists upstream. `DocumentElementProvenance` carries
+`TextOrigin` (`TextSelectionOrigin`: `None`, `Native`, `Ocr`), `OcrBackendId`,
+`OcrProfileId`, `ReconciliationDecision` and `HasReconciliationDivergence`, and
+it is serialized — but in `paged-document-processing-model-v1`, which is not
+the published contract.
 
-The consequence is precise: a consumer can establish that OCR participated in
-producing a document, but cannot attribute any individual passage to a text
-layer rather than to character recognition. For a system whose grounding
-contract is per-citation, document-level attribution is not sufficient.
+The published `DocumentElement` carries `ElementId`, `Ordinal`, `Kind`,
+`Location`, `SegmentId`, `Text` and `TextSha256`, and states the omission
+explicitly:
 
-On the Apologia Studio side, `DocumentManagerResultClaim` carries identity,
-scope, integrity (`SchemaVersion`, `MediaType`, `ByteLength`, `Sha256`) and an
-opaque `Payload`. The manifest travels inside that payload; nothing at the
-claim level exposes it, and the inbox stores the payload without interpreting it.
+> *Processing-specific custody evidence is intentionally not copied into this
+> first structural contract. It remains in the proven V1 provenance model until
+> the later evidence migration.*
+
+This is a sequenced migration owned by DPEngine, not an oversight.
 
 ## Decision
 
 **Do not adopt Docling in Apologia Studio.** The measured advantage on the
-corpus is attributable to OCR, which does not require Docling, and character
-recognition already exists upstream with a different engine. Adoption would add
-a Python runtime, a model-licensing review, and a second document model
-competing with both the accepted extraction boundary here and the accepted
-recognition pipeline there.
+corpus is attributable to OCR, which does not require Docling, and recognition
+already exists upstream with a different engine. Adoption would add a Python
+runtime, a model-licensing review, and a second document model competing with
+both the accepted extraction boundary here and the accepted recognition
+pipeline there.
 
 **Character recognition stays a DocumentProcessingEngine responsibility.**
 Apologia Studio does not grow an OCR capability. `PdfPigDocumentExtractor`
 keeps its born-digital scope unchanged.
 
-**Populate the reserved `ocr` artifact type from the published manifest.**
-`DocumentProcessingManifest.Ocr` and `Reconciliation` are sufficient to record,
-at document level, that recognition participated and which components ran. That
-closes the empty-producer gap for the `ocr` artifact and `ocr` activity types.
+**Populate the reserved `ocr` artifact and activity from the published
+manifest, as part of `AS-DM-06`.** `DocumentProcessingManifest.Ocr` and
+`Reconciliation` identify the recognition components that participated and
+their profiles. That is sufficient to record an immutable derived artifact and
+its `ProcessingActivity` under ADR 0002's provenance model, whose citation
+chain resolves `DocumentSegment → Artifact → Manifestation → Expression →
+Work`. Artifact-level recognition provenance therefore satisfies the accepted
+citation contract; it is not a stopgap.
 
-**Treat recognized text as untrusted and separately attributed.** OCR output
-carries recognition errors. It must never be merged into a `parsed` artifact as
-if it had been read from a text layer.
+**Treat recognized text as untrusted and never merge it into a `parsed`
+artifact.** Recognition carries errors. A derived artifact produced with OCR
+participation is recorded as `ocr`, so a reader can always tell that a source
+involved recognition rather than pure text-layer extraction.
 
-**Element-level recognition attribution is required for citation grounding,
-and is a contract gap to close upstream.** Until `DocumentElement` — or an
-adjacent per-element provenance structure — states whether its text came from
-native extraction or from recognition, Apologia Studio cannot honour ADR 0002's
-citation contract for hybrid documents. Apologia Studio must not infer it
-heuristically from page ranges or confidence scores.
+**Adopt element-level origin when DPEngine's evidence migration delivers it,
+and not before.** Per-element `TextOrigin` would let a reader know whether a
+specific quoted passage was recognized rather than read — a genuine
+improvement in auditability, beyond what ADR 0002 requires today. Apologia
+Studio must not anticipate it by inferring origin locally.
 
 ## Rejected alternatives
 
 **Adopt Docling as the extraction pipeline.** Rejected: parity on born-digital
-pages, and the raster advantage comes from OCR rather than from Docling itself.
-Adoption would introduce a Python runtime into a .NET solution, a second
-document model, and an unreviewed model-licensing question — substantial
+pages, and the raster advantage comes from recognition rather than from Docling
+itself. Adoption would introduce a Python runtime into a .NET solution, a
+second document model, and an unreviewed model-licensing question — substantial
 operational complexity for a benefit already obtained upstream by other means.
 
 **Add OCR inside Apologia Studio, next to PdfPig.** Rejected: it contradicts
 the accepted responsibility boundary and would duplicate a working capability
 in a second repository, with a second engine and a second quality baseline.
 
-**Run OCR unconditionally on every ingested page.** Rejected on measured cost,
-and contrary to the evidence-driven targeting already implemented upstream.
+**Run recognition unconditionally on every ingested page.** Rejected on
+measured cost, and contrary to the evidence-driven targeting already
+implemented upstream.
 
-**Infer element origin from the preflight classification or page range.**
-Rejected: a `Hybrid` document mixes both origins within the same page range, so
-any inference would silently mislabel provenance in exactly the case that
-motivates the distinction.
+**Infer element origin locally from the preflight classification, page range
+or confidence.** Rejected: a `Hybrid` document mixes both origins within the
+same page range, so any local inference would mislabel provenance in exactly
+the case that motivates the distinction. Waiting for the upstream migration is
+correct.
 
-**Do nothing and accept document-level attribution only.** Rejected: it
-degrades ADR 0002's citation contract from "which passage supports this answer"
-to "this book involved OCR somewhere", which is not auditable.
+**Request an immediate contract change to carry element origin in v4.**
+Rejected as premature: the omission is deliberate and sequenced upstream, and
+artifact-level provenance already satisfies the citation model. Reopening the
+published contract now would trade a working boundary for an improvement that
+is already planned.
 
 ## Consequences
 
@@ -176,43 +191,40 @@ Positive:
   model-licensing exposure.
 - The responsibility boundary between the two systems stays intact, and no
   capability is duplicated.
-- The `ocr` artifact and activity types finally get a producer, so recognition
-  participation becomes auditable rather than invisible.
+- The `ocr` artifact and activity types get a producer, so recognition
+  participation becomes auditable instead of invisible.
 - Recognition errors stay attributable, because OCR-derived artifacts are never
   confused with text-layer artifacts.
 
 Negative and accepted:
 
-- Provenance is only document-level until the element-level contract gap is
-  closed. Citations from hybrid documents cannot yet state their origin, and
-  this ADR creates a cross-repository dependency on that change.
-- Consuming the manifest requires interpreting the payload the inbox currently
-  stores opaquely, which extends the consumer beyond pure preservation.
-- Documents already ingested are not retroactively re-attributed; they will
-  need re-submission once element-level provenance exists.
+- Provenance stays artifact-level until DPEngine's evidence migration lands.
+  A citation can state that its source involved recognition, but not that a
+  particular sentence was recognized.
+- Populating the `ocr` artifact requires interpreting the manifest inside the
+  payload that the inbox currently stores opaquely, which extends the import
+  adapter beyond pure preservation.
+- Sources imported before this decision takes effect carry no recognition
+  provenance and will need re-import to gain it.
 - Docling remains unadopted but not disproven for other purposes. Its
   structural heading recovery was measurably better on one sample, which may
   matter later for segmentation and is not addressed here.
 
-## Open questions
-
-The element-level provenance representation belongs to
-DocumentProcessingEngine and should get its own record there: whether origin
-lives on `DocumentElement` or in an adjacent structure, whether confidence is
-reported per element, and how a partially recognized element is represented.
-
-Whether the published payload schema should expose recognition provenance at
-the claim level, rather than only inside the payload, is a joint contract
-question between the two systems.
-
 ## Implementation sequence
 
-1. Interpret `DocumentProcessingManifest` from the stored payload during
-   submission assembly, without altering the preservation guarantee of the inbox.
-2. Emit an `ocr` artifact and `ocr` activity when the manifest reports
-   recognition components, distinct from `parsed` artifacts.
-3. Surface recognition participation in the editorial review draft, so a human
-   approving a submission knows the source involved OCR.
-4. Agree the element-level provenance contract with DocumentProcessingEngine.
-5. Carry element origin through to retrieval projection and citation rendering
-   once that contract exists.
+This decision carries no increment of its own. It constrains `AS-DM-06` and
+`AS-DM-07` in
+[Document Manager to Knowledge workflow](../knowledge-ingestion/document-manager-to-knowledge-workflow-v1.md).
+
+1. In `AS-DM-06`, read `ProcessingManifest` from the stored payload while
+   building the `KnowledgeImportPackage`, without weakening the inbox
+   preservation guarantee.
+2. Emit a derived `ocr` artifact and an `ocr` `ProcessingActivity` when the
+   manifest reports recognition components, recording backend and profile
+   identity, distinct from `parsed` artifacts.
+3. Surface recognition participation in the editorial review draft, so a
+   reviewer approving a source knows it involved OCR.
+4. In `AS-DM-07`, carry the distinction into retrieval projections so a
+   recognized source can be identified at citation rendering.
+5. Revisit element-level origin only when DPEngine's evidence migration
+   publishes it; at that point this ADR is superseded rather than amended.

@@ -6,6 +6,62 @@ d'apprentissage en ingénierie d'agents IA (RAG, MCP, évaluations).
 
 Dépôt : https://github.com/EkmanFan/ApologiaStudio
 
+## Ce que fait le système, aujourd'hui
+
+Deux dépôts, deux contextes bornés, joints par un contrat durable.
+
+**DocumentProcessingEngine** (`~/RiderProjects/DocumentProcessingEngine`, .NET 10)
+transforme un PDF ou un EPUB en `DocumentProcessingResult` portable. Son cycle :
+acquérir la preuve native → évaluer → planifier l'enrichissement → acquérir la
+preuve supplémentaire → réconcilier → assembler → contrôle qualité. Extraction
+native par PdfPig ; rasterisation `pdftoppm`, layout PP-StructureV3 et OCR
+PaddleOCR sont des enrichissements **optionnels et planifiés**, pas l'algorithme
+universel. Trois routes fermées par page : `NativeOnly`,
+`LayoutWithTargetedOcrRecovery`, `LayoutWithTargetedOcrReconciliation`, choisies
+à partir d'un `NativeTextStatus` (`Missing`, `Healthy`, `Suspicious`,
+`Unverified`). Le Manager, contexte borné distinct, possède l'orchestration
+durable : PostgreSQL, file globale clôturée, custody adressée par SHA-256,
+atelier Blazor sur le port 5092. Le moteur **exclut délibérément** RAG,
+embeddings, chunking, vecteurs et LLM.
+
+**ApologiaStudio** consomme ces résultats et possède tout l'aval : identité et
+droits, conversations avec agents, corpus biblique canonique, Knowledge Store.
+Frontière : claim/ack durable et authentifié, at-least-once, groupé par
+`SubmissionId`, idempotent par `ResultReference`, chaque hachage revérifié.
+
+### État réel, vérifié le 2026-09-03
+
+Fonctionnel : conversations avec routage d'agents (déterministe et sémantique
+via Ollama), lecteur biblique sur corpus canonique approuvé, comptes/rôles/droits
+administrables, réception Manager jusqu'à la revue éditoriale humaine,
+préférences dont le thème.
+
+Construit mais **non branché sur le produit** :
+
+- le **RAG n'est pas dans la boucle de conversation**. `SendMessageHandler` ne
+  référence ni retrieval, ni evidence, ni citation. Le retrieval lexical,
+  vectoriel et hybride existe et est mesuré, mais hors runtime, par les scripts
+  `scripts/evaluate-de-decretis-*.sh`. C'est l'étape 7 de la séquence d'ADR 0002,
+  non franchie ;
+- la persistance atomique du `KnowledgeImportPackage` est marquée `PLANNED` dans
+  `document-manager-to-knowledge-workflow-v1.md` ;
+- `ApologiaStudio.Mcp.KnowledgeServer` est un squelette de 6 lignes, volontairement
+  (ADR 0002 §14 garde MCP hors du chemin chaud).
+
+Deux observations structurelles, sans jugement de valeur ici : le modèle
+Knowledge d'ADR 0002 n'existe pas dans la couche `Domain` (il vit dans
+`Application` et `Infrastructure/Persistence/Knowledge`) ; et les deux dépôts
+extraient du PDF avec PdfPig chacun de leur côté.
+
+### Pièges de lecture de la documentation DPEngine
+
+`docs/README.md` de DPEngine fixe un ordre d'autorité : `current-architecture.md`,
+puis le code et les tests, puis les enregistrements datés. Beaucoup de documents
+sont **historiques** et conservent volontairement d'anciens noms. En particulier
+`DocumentIngestionResult` est un nom abandonné, remplacé par
+`DocumentProcessingResult` ; un document qui l'emploie décrit un état passé.
+Ne jamais conclure d'un document de phase sans vérifier le code.
+
 ## Architecture
 
 Architecture en couches, **vérifiée par des tests** (`tests/ApologiaStudio.ArchitectureTests`) :
