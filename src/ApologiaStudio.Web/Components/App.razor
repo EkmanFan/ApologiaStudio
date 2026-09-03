@@ -10,12 +10,14 @@
     <link rel="stylesheet" href="@Assets["ApologiaStudio.Web.styles.css"]"/>
     <ImportMap/>
     <HeadOutlet/>
+    <!-- Loaded in the head so the saved theme paints with the first frame
+         instead of flashing the light palette before the script runs. -->
+    <script src="@Assets["app.js"]"></script>
 </head>
 
 <body>
 <Routes/>
 <ReconnectModal/>
-<script src="@Assets["app.js"]"></script>
 <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

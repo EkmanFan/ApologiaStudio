@@ -1,15 +1,64 @@
+﻿:root {
+    --apologia-page: #fbfaf7;
+    --apologia-surface: #ffffff;
+    --apologia-surface-muted: #f3f2ee;
+    --apologia-surface-hover: #eceae4;
+    --apologia-border: #dedbd4;
+    --apologia-border-strong: #c8cdc7;
+    --apologia-text: #252823;
+    --apologia-heading: #203331;
+    --apologia-text-muted: #687068;
+    --apologia-text-subtle: #77817c;
+    --apologia-accent: #2d766e;
+    --apologia-accent-strong: #255f59;
+    --apologia-accent-soft: #e8f3f0;
+    --apologia-accent-border: #8ab5ae;
+    --apologia-accent-text: #2d766e;
+    --apologia-on-accent: #ffffff;
+    --bs-body-bg: var(--apologia-surface);
+    --bs-body-color: var(--apologia-text);
+    color-scheme: light;
+}
+
+/* The dark palette below matches the default #242424 screen and #303030
+   presentation shades. Both are user configurable: app.js overrides the
+   background tokens from the saved preference before the first paint. */
+:root[data-theme="dark"] {
+    --apologia-page: #242424;
+    --apologia-surface: #303030;
+    --apologia-surface-muted: #3c3c3c;
+    --apologia-surface-hover: #494949;
+    --apologia-border: #555555;
+    --apologia-border-strong: #727272;
+    --apologia-text: #ececec;
+    --apologia-heading: #f7f7f7;
+    --apologia-text-muted: #b4b4b4;
+    --apologia-text-subtle: #949494;
+    --bs-body-bg: var(--apologia-surface);
+    --bs-body-color: var(--apologia-text);
+    color-scheme: dark;
+}
+
 html {
     min-width: 20rem;
     min-height: 100%;
-    background: #fbfaf7;
+    background: var(--apologia-page);
 }
 
 body {
     min-height: 100%;
     margin: 0;
-    background: #fbfaf7;
-    color: #252823;
+    background: var(--apologia-page);
+    color: var(--apologia-text);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+    transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 
 *,
@@ -53,6 +102,16 @@ h1:focus {
 
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body,
+    button,
+    input,
+    select,
+    textarea {
+        transition: none;
+    }
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {

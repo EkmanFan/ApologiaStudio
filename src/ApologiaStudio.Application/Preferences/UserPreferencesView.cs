@@ -10,7 +10,11 @@ public sealed record UserPreferencesView(
     string MessageDateFormat =
         UserPreferences.DefaultMessageDateFormat,
     string MessageTimeFormat =
-        UserPreferences.DefaultMessageTimeFormat)
+        UserPreferences.DefaultMessageTimeFormat,
+    ThemeMode ThemeMode = UserPreferences.DefaultThemeMode,
+    string ThemeColor = UserPreferences.DefaultThemeColor,
+    string DarkPageColor = UserPreferences.DefaultDarkPageColor,
+    string DarkSurfaceColor = UserPreferences.DefaultDarkSurfaceColor)
 {
     public ApplicationLanguage EffectiveTheologicalLanguage =>
         TheologicalLanguage ?? InterfaceLanguage;
@@ -21,7 +25,11 @@ public sealed record UserPreferencesView(
             TheologicalLanguage: null,
             EnterBehavior: UserPreferences.DefaultEnterBehavior,
             MessageDateFormat: UserPreferences.DefaultMessageDateFormat,
-            MessageTimeFormat: UserPreferences.DefaultMessageTimeFormat);
+            MessageTimeFormat: UserPreferences.DefaultMessageTimeFormat,
+            ThemeMode: UserPreferences.DefaultThemeMode,
+            ThemeColor: UserPreferences.DefaultThemeColor,
+            DarkPageColor: UserPreferences.DefaultDarkPageColor,
+            DarkSurfaceColor: UserPreferences.DefaultDarkSurfaceColor);
 
     public static UserPreferencesView From(
         UserPreferences preferences)
@@ -33,6 +41,10 @@ public sealed record UserPreferencesView(
             preferences.TheologicalLanguage,
             preferences.EnterBehavior,
             preferences.MessageDateFormat,
-            preferences.MessageTimeFormat);
+            preferences.MessageTimeFormat,
+            preferences.ThemeMode,
+            preferences.ThemeColor,
+            preferences.DarkPageColor,
+            preferences.DarkSurfaceColor);
     }
 }

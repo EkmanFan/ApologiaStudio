@@ -6,8 +6,8 @@
     min-height: 100dvh;
     margin: 0 auto;
     padding: clamp(1.25rem, 4vw, 3rem);
-    background: #fbfaf7;
-    color: #203331;
+    background: var(--apologia-page);
+    color: var(--apologia-heading);
 }
 
 .access-panel > header,
@@ -23,12 +23,12 @@
 .access-admin-header { margin-bottom: 1.5rem; align-items: flex-end; }
 .access-admin-header p,
 .access-panel > header p,
-.access-dialog header p { margin: 0; color: #337e76; font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.access-dialog header p { margin: 0; color: var(--apologia-accent-text); font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .access-admin-header h1 { margin: .2rem 0; font-family: Georgia, serif; font-size: clamp(2rem, 4vw, 3.4rem); }
-.access-admin-header span { color: #647672; }
+.access-admin-header span { color: var(--apologia-text-muted); }
 .access-admin-header-actions { display: flex; align-items: center; gap: .65rem; }
-.access-admin-header a.admin-section-link { padding: .65rem .9rem; border: 1px solid #cdd8d4; border-radius: .75rem; color: #255f59; text-decoration: none; font-weight: 700; background: #fff; }
-.access-admin-header a.admin-close { display: grid; place-items: center; width: 2.65rem; height: 2.65rem; border: 1px solid #cdd8d4; border-radius: .75rem; color: #255f59; text-decoration: none; font-size: 1.65rem; line-height: 1; background: #fff; }
+.access-admin-header a.admin-section-link { padding: .65rem .9rem; border: 1px solid var(--apologia-border); border-radius: .75rem; color: var(--apologia-accent-text); text-decoration: none; font-weight: 700; background: var(--apologia-surface); }
+.access-admin-header a.admin-close { display: grid; place-items: center; width: 2.65rem; height: 2.65rem; border: 1px solid var(--apologia-border); border-radius: .75rem; color: var(--apologia-accent-text); text-decoration: none; font-size: 1.65rem; line-height: 1; background: var(--apologia-surface); }
 
 .access-message { padding: .8rem 1rem; border-radius: .75rem; background: #e1f3ee; color: #176258; }
 .access-message.error { background: #fae7e3; color: #9c392c; }
@@ -37,37 +37,37 @@
 .access-panel { padding: 1.25rem; border: 1px solid #e0e3dc; border-radius: 1.25rem; background: rgba(255,255,255,.92); box-shadow: 0 16px 38px rgba(37, 63, 59, .08); }
 .access-panel > header { padding-bottom: 1rem; border-bottom: 1px solid #e6e8e3; }
 .access-panel h2 { margin: .15rem 0 0; font-family: Georgia, serif; font-size: 1.8rem; }
-.access-panel > header > strong { min-width: 2.4rem; padding: .55rem; border-radius: 999px; text-align: center; background: #e4f2ef; color: #267168; }
+.access-panel > header > strong { min-width: 2.4rem; padding: .55rem; border-radius: 999px; text-align: center; background: var(--apologia-accent-soft); color: var(--apologia-accent-text); }
 
-.create-access-item { display: grid; gap: .55rem; padding: 1rem; margin: 1rem 0; border-radius: 1rem; background: #f2f6f4; }
+.create-access-item { display: grid; gap: .55rem; padding: 1rem; margin: 1rem 0; border-radius: 1rem; background: var(--apologia-surface-muted); }
 .create-access-item label { font-weight: 800; }
 .create-access-item input,
 .create-access-item textarea,
 .access-dialog input,
-.access-dialog textarea { width: 100%; padding: .7rem .8rem; border: 1px solid #ccd7d3; border-radius: .65rem; background: #fff; color: inherit; }
+.access-dialog textarea { width: 100%; padding: .7rem .8rem; border: 1px solid #ccd7d3; border-radius: .65rem; background: var(--apologia-surface); color: inherit; }
 .inline-create input { flex: 1; }
 
-button { border: 1px solid #cbd7d3; border-radius: .65rem; padding: .62rem .82rem; color: #244742; background: #fff; font-weight: 750; cursor: pointer; }
-button.primary { border-color: #277d72; color: #fff; background: #277d72; }
+button { border: 1px solid #cbd7d3; border-radius: .65rem; padding: .62rem .82rem; color: #244742; background: var(--apologia-surface); font-weight: 750; cursor: pointer; }
+button.primary { border-color: var(--apologia-accent); color: var(--apologia-on-accent); background: var(--apologia-accent); }
 button.danger { border-color: #e5b9b1; color: #a23e31; background: #fff4f1; }
 button.danger-link { padding: .35rem; border: 0; color: #a23e31; background: transparent; }
 button:disabled { opacity: .55; cursor: not-allowed; }
 
 .access-item-list,
 .role-list { display: grid; gap: .8rem; }
-.access-item { padding: .9rem; border: 1px solid #e2e6e0; border-radius: .9rem; background: #fff; }
+.access-item { padding: .9rem; border: 1px solid var(--apologia-border); border-radius: .9rem; background: var(--apologia-surface); }
 .access-item { align-items: flex-start; }
-.access-item p { margin: .35rem 0; color: #667772; }
+.access-item p { margin: .35rem 0; color: var(--apologia-text-muted); }
 .access-item small,
-.role-card small { display: block; color: #73827e; }
+.role-card small { display: block; color: var(--apologia-text-muted); }
 .item-actions { display: flex; flex-direction: column; gap: .4rem; }
-.system-badge { display: inline-block; margin-left: .4rem; padding: .15rem .42rem; border-radius: 999px; background: #e4f2ef; color: #267168; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.system-badge { display: inline-block; margin-left: .4rem; padding: .15rem .42rem; border-radius: 999px; background: var(--apologia-accent-soft); color: var(--apologia-accent-text); font-size: .68rem; font-weight: 800; text-transform: uppercase; }
 
 .role-card {
     overflow: hidden;
-    border: 1px solid #e2e6e0;
+    border: 1px solid var(--apologia-border);
     border-radius: .9rem;
-    background: #fff;
+    background: var(--apologia-surface);
 }
 .role-card-summary {
     display: flex;
@@ -89,31 +89,31 @@ button:disabled { opacity: .55; cursor: not-allowed; }
     transition: transform .16s ease;
 }
 .role-card[open] .role-card-chevron { transform: rotate(225deg); }
-.role-card-body { padding: 0 .9rem .9rem; border-top: 1px solid #e2e6e0; }
+.role-card-body { padding: 0 .9rem .9rem; border-top: 1px solid var(--apologia-border); }
 .role-card-actions { display: flex; justify-content: flex-end; padding-top: .45rem; }
 .permission-list { display: grid; gap: .42rem; margin: .85rem 0; }
-.permission-list label { display: grid; grid-template-columns: auto 1fr; column-gap: .55rem; padding: .48rem; border-radius: .5rem; background: #f7f8f6; }
+.permission-list label { display: grid; grid-template-columns: auto 1fr; column-gap: .55rem; padding: .48rem; border-radius: .5rem; background: var(--apologia-surface-muted); }
 .permission-list input { grid-row: span 2; margin-top: .2rem; }
 .permission-list span { font-weight: 700; }
-.permission-list code { color: #78847f; font-size: .72rem; }
+.permission-list code { color: var(--apologia-text-muted); font-size: .72rem; }
 .locked-note { margin-bottom: .75rem; }
 
 .access-dialog-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(17, 34, 31, .52); }
-.access-dialog { width: min(44rem, 100%); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.35rem; border-radius: 1.1rem; background: #fff; box-shadow: 0 24px 80px rgba(0,0,0,.25); }
+.access-dialog { width: min(44rem, 100%); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.35rem; border-radius: 1.1rem; background: var(--apologia-surface); box-shadow: 0 24px 80px rgba(0,0,0,.25); }
 .access-dialog h2 { margin: .2rem 0 1rem; font-family: Georgia, serif; }
 .access-dialog > label,
 .access-dialog legend { display: block; margin: .8rem 0 .35rem; font-weight: 800; }
 .access-dialog fieldset { margin: 1rem 0; padding: .9rem; border: 1px solid #dfe5e1; border-radius: .8rem; }
 .access-dialog fieldset > label { display: inline-flex; gap: .4rem; margin: .25rem .75rem .25rem 0; }
 .member-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; }
-.member-picker label { display: flex; gap: .55rem; padding: .55rem; border-radius: .55rem; background: #f5f7f5; }
-.member-picker small { display: block; color: #74837f; }
+.member-picker label { display: flex; gap: .55rem; padding: .55rem; border-radius: .55rem; background: var(--apologia-surface-muted); }
+.member-picker small { display: block; color: var(--apologia-text-muted); }
 .dialog-actions { justify-content: flex-end; margin-top: 1rem; }
 .confirm-dialog { width: min(30rem, 100%); }
 
 .access-audit { margin-top: 1.25rem; padding: 1.25rem; border: 1px solid #e0e3dc; border-radius: 1.25rem; background: rgba(255,255,255,.92); box-shadow: 0 16px 38px rgba(37, 63, 59, .08); }
 .access-audit > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.access-audit > header p { margin: 0; color: #337e76; font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.access-audit > header p { margin: 0; color: var(--apologia-accent-text); font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .access-audit h2 { margin: .15rem 0 0; font-family: Georgia, serif; }
 .audit-table-wrap { overflow-x: auto; }
 .access-audit table { width: 100%; border-collapse: collapse; }

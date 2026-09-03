@@ -10,7 +10,7 @@
 .message.user {
     align-self: flex-end;
     border-color: #cbded4;
-    background: #e4efe9;
+    background: var(--apologia-accent-soft);
 }
 
 .message.agent {
@@ -21,10 +21,10 @@
     align-self: flex-start;
     border-color: color-mix(
         in srgb,
-        var(--agent-bubble-color, #f3f2ee) 82%,
-        #252823 18%);
-    background: var(--agent-bubble-color, #f3f2ee);
-    color: var(--agent-text-color, #252823);
+        var(--agent-bubble-color, var(--apologia-surface-muted)) 82%,
+        var(--apologia-text) 18%);
+    background: var(--agent-bubble-color, var(--apologia-surface-muted));
+    color: var(--agent-text-color, var(--apologia-text));
 }
 
 .message.system {

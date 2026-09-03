@@ -8,6 +8,8 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 @inject IServiceScopeFactory ServiceScopeFactory
+@inject IJSRuntime JavaScript
+@inject NavigationManager Navigation
 
 <PageTitle>@Text("Préférences", "Preferences") · Apologia Studio</PageTitle>
 <DocumentLanguage Language="@SelectedInterfaceLanguage" />
@@ -24,10 +26,11 @@
                         "Customize the language, dates, and behavior of your workspace.")
                 </p>
             </div>
-            <a class="settings-close"
-               href="/"
-               aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")"
-               title="@Text("Fermer", "Close")">×</a>
+            <button class="settings-close"
+                    type="button"
+                    aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")"
+                    title="@Text("Fermer sans enregistrer les modifications", "Close without saving changes")"
+                    @onclick="CloseAsync">×</button>
         </header>
 
         <nav class="settings-tabs"
@@ -89,6 +92,16 @@
                         @onclick="SaveAsync">
                     @(_isSaving ? Text("Enregistrement…", "Saving…") : Text("Enregistrer", "Save"))
                 </button>
+                @if (_activeTab == SettingsTab.Themes)
+                {
+                    <button class="action-ribbon-command"
+                            type="button"
+                            disabled="@(_isLoading || _isSaving || IsDefaultTheme)"
+                            title="@Text("Rétablir le thème par défaut", "Restore the default theme")"
+                            @onclick="ResetThemeAsync">
+                        @Text("Réinitialiser", "Reset")
+                    </button>
+                }
                 @if (!string.IsNullOrWhiteSpace(_statusMessage))
                 {
                     <span class="action-ribbon-note success" role="status">@_statusMessage</span>
@@ -253,15 +266,94 @@
              role="tabpanel"
              aria-labelledby="settings-tab-themes"
              hidden="@(_activeTab != SettingsTab.Themes)">
-        <section class="settings-card future-settings" aria-labelledby="themes-settings-title">
+        <section class="settings-card" aria-labelledby="themes-settings-title">
             <header class="panel-heading">
                 <div>
                     <p class="settings-eyebrow">@Text("Thèmes", "Themes")</p>
                     <h2 id="themes-settings-title">@Text("Apparence", "Appearance")</h2>
                 </div>
-                <p>@Text("La personnalisation visuelle sera bientôt disponible ici.", "Visual customization will soon be available here.")</p>
+                <p>@Text("Choisissez un mode d’affichage et la couleur principale de votre espace.", "Choose a display mode and the main color of your workspace.")</p>
             </header>
-            <p>@Text("Les futurs thèmes resteront une préférence propre à chaque compte.", "Future themes will remain specific to each account.")</p>
+
+            <div class="theme-mode-setting">
+                <div>
+                    <strong id="theme-mode-label">@Text("Mode d’affichage", "Display mode")</strong>
+                    <p>@Text("Le changement est visible immédiatement et sera conservé après enregistrement.", "The change is visible immediately and will be kept after saving.")</p>
+                </div>
+                <button type="button"
+                        role="switch"
+                        aria-labelledby="theme-mode-label"
+                        aria-checked="@(_themeMode == ThemeMode.Dark)"
+                        class="@ThemeToggleClass"
+                        disabled="@(_isLoading || _isSaving)"
+                        @onclick="ToggleThemeModeAsync">
+                    <span class="theme-toggle-choice light-choice">
+                        <span aria-hidden="true">☀</span>
+                        @Text("Clair", "Light")
+                    </span>
+                    <span class="theme-toggle-choice dark-choice">
+                        <span aria-hidden="true">☾</span>
+                        @Text("Sombre", "Dark")
+                    </span>
+                </button>
+            </div>
+
+            <div class="theme-color-setting">
+                <div class="theme-controls">
+                    <div class="settings-field">
+                        <label for="theme-color">@Text("Couleur principale", "Main color")</label>
+                        <div class="theme-color-control">
+                            <input id="theme-color"
+                                   type="color"
+                                   value="@_themeColor"
+                                   disabled="@(_isLoading || _isSaving)"
+                                   @oninput="UpdateThemeColor" />
+                            <output for="theme-color">@_themeColor</output>
+                        </div>
+                        <p>@Text("Cette couleur personnalise les boutons, les sélections et les repères visuels.", "This color customizes buttons, selections, and visual accents.")</p>
+                    </div>
+
+                    <fieldset class="dark-palette-settings" disabled="@(_isLoading || _isSaving || _themeMode != ThemeMode.Dark)">
+                        <legend>@Text("Palette du mode sombre", "Dark mode palette")</legend>
+                        <div class="shade-setting">
+                            <label for="dark-page-shade">@Text("Fond de l’écran", "Screen background")</label>
+                            <div class="shade-control">
+                                <input id="dark-page-shade"
+                                       type="range"
+                                       min="@UserPreferences.MinimumDarkShade"
+                                       max="@UserPreferences.MaximumDarkShade"
+                                       value="@DarkPageShade"
+                                       @oninput="UpdateDarkPageShade" />
+                                <span class="shade-swatch" style="background: @_darkPageColor" aria-hidden="true"></span>
+                                <output for="dark-page-shade">@_darkPageColor</output>
+                            </div>
+                        </div>
+                        <div class="shade-setting">
+                            <label for="dark-surface-shade">@Text("Fond des zones de présentation", "Presentation area background")</label>
+                            <div class="shade-control">
+                                <input id="dark-surface-shade"
+                                       type="range"
+                                       min="@UserPreferences.MinimumDarkShade"
+                                       max="@UserPreferences.MaximumDarkShade"
+                                       value="@DarkSurfaceShade"
+                                       @oninput="UpdateDarkSurfaceShade" />
+                                <span class="shade-swatch" style="background: @_darkSurfaceColor" aria-hidden="true"></span>
+                                <output for="dark-surface-shade">@_darkSurfaceColor</output>
+                            </div>
+                        </div>
+                        <p>@Text("Un fond de présentation légèrement plus clair aide à distinguer les cartes et les panneaux.", "A slightly lighter presentation background helps distinguish cards and panels.")</p>
+                    </fieldset>
+                </div>
+
+                <div class="@ThemePreviewClass" style="@ThemePreviewStyle" aria-label="@Text("Aperçu du thème", "Theme preview")">
+                    <div class="theme-preview-surface">
+                        <span class="theme-preview-eyebrow">Apologia Studio</span>
+                        <strong>@Text("Aperçu du thème", "Theme preview")</strong>
+                        <p>@Text("Le cadre représente l’écran et cette carte la zone de présentation.", "The frame represents the screen and this card the presentation area.")</p>
+                        <span class="theme-preview-button">@Text("Action principale", "Primary action")</span>
+                    </div>
+                </div>
+            </div>
         </section>
     </section>
 

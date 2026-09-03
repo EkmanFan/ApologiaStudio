@@ -2,7 +2,7 @@
     display: grid;
     gap: 1.25rem;
     margin-top: 1.5rem;
-    color: #252823;
+    color: var(--apologia-text);
 }
 
 .agent-settings-panel > header,
@@ -17,9 +17,9 @@
 
 .agent-settings-panel > header {
     padding: 1.35rem;
-    border: 1px solid #d8d7d1;
+    border: 1px solid var(--apologia-border);
     border-radius: 1rem;
-    background: #fff;
+    background: var(--apologia-surface);
     box-shadow: 0 0.45rem 1.4rem rgba(34, 39, 35, 0.06);
 }
 
@@ -34,12 +34,12 @@
 .section-heading > p {
     max-width: 52rem;
     margin-top: 0.35rem;
-    color: #697069;
+    color: var(--apologia-text-muted);
     line-height: 1.5;
 }
 
 .settings-kicker {
-    color: #315f4e;
+    color: var(--apologia-accent-text);
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.09em;
@@ -50,8 +50,8 @@
     flex: 0 0 auto;
     padding: 0.35rem 0.58rem;
     border-radius: 999px;
-    background: #e5eee9;
-    color: #315f4e;
+    background: var(--apologia-accent-soft);
+    color: var(--apologia-accent-text);
     font-size: 0.72rem;
     font-weight: 750;
 }
@@ -61,9 +61,9 @@
     display: grid;
     gap: 1.15rem;
     padding: 1.35rem;
-    border: 1px solid #d8d7d1;
+    border: 1px solid var(--apologia-border);
     border-radius: 1rem;
-    background: #fff;
+    background: var(--apologia-surface);
     box-shadow: 0 0.45rem 1.4rem rgba(34, 39, 35, 0.05);
 }
 
@@ -76,7 +76,7 @@
 
 .section-heading h3 {
     margin-top: 0.1rem;
-    color: #303730;
+    color: var(--apologia-text);
     font-size: 1.1rem;
 }
 
@@ -100,7 +100,7 @@
     align-content: start;
     gap: 0.38rem;
     min-width: 0;
-    color: #353b36;
+    color: var(--apologia-text);
     font-size: 0.84rem;
     font-weight: 700;
 }
@@ -115,10 +115,10 @@
     min-width: 0;
     min-height: 2.65rem;
     padding: 0.62rem 0.72rem;
-    border: 1px solid #cfd2cd;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.65rem;
-    background: #fbfcfa;
-    color: #252823;
+    background: var(--apologia-surface);
+    color: var(--apologia-text);
     font: inherit;
     font-weight: 500;
 }
@@ -149,7 +149,7 @@
 .settings-note,
 .catalog-note,
 .agent-status {
-    color: #747b75;
+    color: var(--apologia-text-muted);
     font-size: 0.72rem;
     font-weight: 450;
     line-height: 1.4;
@@ -170,7 +170,7 @@
 }
 
 .execution-settings h4 {
-    color: #303730;
+    color: var(--apologia-text);
     font-size: 0.95rem;
 }
 
@@ -185,8 +185,8 @@
 .catalog-note code {
     padding: 0.08rem 0.25rem;
     border-radius: 0.25rem;
-    background: #eef0ed;
-    color: #3d4841;
+    background: var(--apologia-surface-muted);
+    color: var(--apologia-text);
 }
 
 .catalog-message {
@@ -202,7 +202,7 @@
 }
 
 .agent-status .success {
-    color: #28513f;
+    color: var(--apologia-accent-text);
 }
 
 .runtime-footer {
@@ -218,9 +218,9 @@
 
 .agent-card {
     overflow: clip;
-    border: 1px solid #deddd7;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.9rem;
-    background: #fcfcfa;
+    background: var(--apologia-surface);
 }
 
 .agent-card-summary,
@@ -266,8 +266,8 @@
     flex: 0 0 auto;
     width: 0.55rem;
     height: 0.55rem;
-    border-right: 2px solid #69716b;
-    border-bottom: 2px solid #69716b;
+    border-right: 2px solid var(--apologia-text-muted);
+    border-bottom: 2px solid var(--apologia-text-muted);
     transform: rotate(45deg);
     transition: transform 120ms ease;
 }
@@ -293,7 +293,7 @@
     overflow: hidden;
     border: 1px solid rgba(37, 40, 35, 0.1);
     border-radius: 0.8rem;
-    background: var(--agent-preview-color, #f3f2ee);
+    background: var(--agent-preview-color, var(--apologia-surface-muted));
     font-size: 1.25rem;
 }
 
@@ -305,7 +305,7 @@
 
 .agent-identity-preview strong {
     overflow: hidden;
-    color: #282d29;
+    color: var(--apologia-text);
     font-size: 0.96rem;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -313,7 +313,7 @@
 
 .agent-identity-preview small,
 .agent-id {
-    color: #7a817b;
+    color: var(--apologia-text-muted);
     font-size: 0.7rem;
     font-weight: 500;
 }
@@ -341,18 +341,18 @@
     overflow: clip;
     border: 1px solid #e0e2dd;
     border-radius: 0.75rem;
-    background: #f8f9f6;
+    background: var(--apologia-surface-muted);
 }
 
 .prompt-section-summary {
     padding: 0.72rem 0.82rem;
-    color: #353b36;
+    color: var(--apologia-text);
     font-size: 0.84rem;
     font-weight: 700;
 }
 
 .prompt-section-summary small {
-    color: #747b75;
+    color: var(--apologia-text-muted);
     font-size: 0.72rem;
     font-weight: 500;
 }
@@ -392,24 +392,24 @@
     padding: 0.58rem 0.9rem;
     border: 0;
     border-radius: 0.65rem;
-    background: #315f4e;
-    color: #fff;
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
     font-weight: 750;
     cursor: pointer;
 }
 
 .agent-settings-panel .secondary-action {
-    border: 1px solid #bfc7c1;
-    background: #f4f6f4;
-    color: #39433c;
+    border: 1px solid var(--apologia-border);
+    background: var(--apologia-surface-muted);
+    color: var(--apologia-text);
 }
 
 .agent-settings-panel button:hover:not(:disabled) {
-    background: #244a3d;
+    background: var(--apologia-accent-strong);
 }
 
 .agent-settings-panel .secondary-action:hover:not(:disabled) {
-    background: #e7ebe8;
+    background: var(--apologia-surface-muted);
 }
 
 .agent-settings-panel button:disabled,
@@ -429,8 +429,8 @@
 }
 
 .settings-status.success {
-    background: #e8f2ec;
-    color: #28513f;
+    background: var(--apologia-accent-soft);
+    color: var(--apologia-accent-text);
 }
 
 .settings-status.error {
@@ -505,7 +505,7 @@
 }
 
 .agent-count {
-    color: #697069;
+    color: var(--apologia-text-muted);
     font-size: 0.76rem;
     font-weight: 650;
     white-space: nowrap;
@@ -516,7 +516,7 @@
     align-content: start;
     gap: 0.38rem;
     min-width: 0;
-    color: #353b36;
+    color: var(--apologia-text);
     font-size: 0.84rem;
     font-weight: 700;
 }
@@ -526,10 +526,10 @@
     min-width: 0;
     min-height: 7rem;
     padding: 0.62rem 0.72rem;
-    border: 1px solid #cfd2cd;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.65rem;
-    background: #fbfcfa;
-    color: #252823;
+    background: var(--apologia-surface);
+    color: var(--apologia-text);
     font: inherit;
     font-weight: 500;
     line-height: 1.45;
@@ -542,7 +542,7 @@
 }
 
 .routing-field small {
-    color: #747b75;
+    color: var(--apologia-text-muted);
     font-size: 0.72rem;
     font-weight: 450;
     line-height: 1.4;

@@ -3,6 +3,7 @@ using System;
 using ApologiaStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ApologiaStudio.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApologiaStudioDbContext))]
-    partial class ApologiaStudioDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260903103238_AddUserThemePreferences")]
+    partial class AddUserThemePreferences
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -212,22 +215,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.Property<string>("DarkPageColor")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(7)
-                        .HasColumnType("character varying(7)")
-                        .HasDefaultValue("#242424")
-                        .HasColumnName("dark_page_color");
-
-                    b.Property<string>("DarkSurfaceColor")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(7)
-                        .HasColumnType("character varying(7)")
-                        .HasDefaultValue("#303030")
-                        .HasColumnName("dark_surface_color");
-
                     b.Property<string>("EnterBehavior")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -286,10 +273,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Migrations
                     b.ToTable("user_preferences", null, t =>
                         {
                             t.HasCheckConstraint("ck_user_preferences_composer_enter_behavior", "composer_enter_behavior IN ('NewLine', 'SendMessage')");
-
-                            t.HasCheckConstraint("ck_user_preferences_dark_page_color", "dark_page_color ~ '^#[0-9A-F]{6}$' AND substring(dark_page_color from 2 for 2) = substring(dark_page_color from 4 for 2) AND substring(dark_page_color from 4 for 2) = substring(dark_page_color from 6 for 2)");
-
-                            t.HasCheckConstraint("ck_user_preferences_dark_surface_color", "dark_surface_color ~ '^#[0-9A-F]{6}$' AND substring(dark_surface_color from 2 for 2) = substring(dark_surface_color from 4 for 2) AND substring(dark_surface_color from 4 for 2) = substring(dark_surface_color from 6 for 2)");
 
                             t.HasCheckConstraint("ck_user_preferences_interface_language", "interface_language IN ('French', 'English')");
 

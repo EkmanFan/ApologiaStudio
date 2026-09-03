@@ -4,8 +4,8 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: #f5f3ed;
-    color: #252823;
+    background: var(--apologia-page);
+    color: var(--apologia-text);
 }
 
 .editorial-review-header {
@@ -13,8 +13,8 @@
     align-items: center;
     min-height: 6.25rem;
     padding: 1rem clamp(1.25rem, 3vw, 2.5rem);
-    border-bottom: 1px solid #dedbd4;
-    background: #fff;
+    border-bottom: 1px solid var(--apologia-border);
+    background: var(--apologia-surface);
 }
 
 .editorial-review-header p,
@@ -39,7 +39,7 @@
 }
 
 .editorial-review-header span {
-    color: #6a7068;
+    color: var(--apologia-text-muted);
     font-size: 0.84rem;
 }
 
@@ -54,8 +54,8 @@
     min-height: 0;
     overflow-y: auto;
     padding: 1.1rem;
-    border-right: 1px solid #dedbd4;
-    background: #fbfaf7;
+    border-right: 1px solid var(--apologia-border);
+    background: var(--apologia-page);
 }
 
 .queue-heading {
@@ -83,8 +83,8 @@
     min-width: 1.65rem;
     height: 1.65rem;
     border-radius: 999px;
-    background: #e2ece7;
-    color: #315f4e;
+    background: var(--apologia-accent-soft);
+    color: var(--apologia-accent-text);
 }
 
 .queue-heading select,
@@ -93,8 +93,8 @@
 .record-editor textarea {
     border: 1px solid #cfd2cc;
     border-radius: 0.55rem;
-    background: #fff;
-    color: #252823;
+    background: var(--apologia-surface);
+    color: var(--apologia-text);
     font: inherit;
 }
 
@@ -116,7 +116,7 @@
     padding: 0.85rem;
     border: 1px solid #dfddd6;
     border-radius: 0.78rem;
-    background: #fff;
+    background: var(--apologia-surface);
     color: inherit;
     font: inherit;
     text-align: left;
@@ -130,7 +130,7 @@
 }
 
 .draft-card.selected {
-    background: #f1f6f3;
+    background: var(--apologia-accent-soft);
 }
 
 .draft-card strong,
@@ -149,7 +149,7 @@
 
 .draft-card > span:not(.status-badge),
 .draft-card small {
-    color: #6a7068;
+    color: var(--apologia-text-muted);
     font-size: 0.74rem;
 }
 
@@ -192,7 +192,7 @@
 .record-heading p,
 .record-date {
     margin: 0;
-    color: #6a7068;
+    color: var(--apologia-text-muted);
     font-size: 0.75rem;
 }
 
@@ -201,14 +201,14 @@
 .confirmation-panel {
     margin: 0 0 1rem;
     padding: 1rem;
-    border: 1px solid #dedbd4;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.85rem;
-    background: #fff;
+    background: var(--apologia-surface);
 }
 
 .record-editor legend {
     padding: 0 0.4rem;
-    color: #315f4e;
+    color: var(--apologia-accent-text);
     font-size: 0.78rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -223,7 +223,7 @@
 .record-editor label {
     display: grid;
     gap: 0.35rem;
-    color: #4e554f;
+    color: var(--apologia-text);
     font-size: 0.76rem;
     font-weight: 700;
 }
@@ -260,12 +260,12 @@
 }
 
 .rejection-field small {
-    color: #777d76;
+    color: var(--apologia-text-muted);
     font-weight: 400;
 }
 
 .provenance-panel summary {
-    color: #315f4e;
+    color: var(--apologia-accent-text);
     font-size: 0.82rem;
     font-weight: 800;
     cursor: pointer;
@@ -283,7 +283,7 @@
     gap: 0.75rem;
 }
 
-.provenance-panel dt { color: #6a7068; font-size: 0.72rem; }
+.provenance-panel dt { color: var(--apologia-text-muted); font-size: 0.72rem; }
 .provenance-panel dd { margin: 0; font-size: 0.78rem; }
 .provenance-panel .hash { overflow-wrap: anywhere; font-family: monospace; }
 
@@ -297,7 +297,7 @@
 .part-list li {
     padding: 0.5rem 0.65rem;
     border-radius: 0.5rem;
-    background: #f5f4f0;
+    background: var(--apologia-surface-muted);
 }
 
 .part-list strong,
@@ -308,7 +308,7 @@
 
 .part-list strong { font-size: 0.78rem; }
 .part-list span,
-.part-list small { margin-top: 0.18rem; color: #6a7068; font-size: 0.7rem; }
+.part-list small { margin-top: 0.18rem; color: var(--apologia-text-muted); font-size: 0.7rem; }
 .part-list small { overflow-wrap: anywhere; }
 
 .record-actions,
@@ -321,7 +321,7 @@
 
 .record-actions > span {
     margin-right: auto;
-    color: #6a7068;
+    color: var(--apologia-text-muted);
     font-size: 0.76rem;
 }
 
@@ -337,9 +337,9 @@
     cursor: pointer;
 }
 
-.primary-action { background: #315f4e; color: #fff; }
-.primary-action:hover:not(:disabled) { background: #244a3d; }
-.secondary-action { border-color: #c8cdc7 !important; background: #fff; color: #374039; }
+.primary-action { background: var(--apologia-accent); color: var(--apologia-on-accent); }
+.primary-action:hover:not(:disabled) { background: var(--apologia-accent-strong); }
+.secondary-action { border-color: var(--apologia-border) !important; background: var(--apologia-surface); color: var(--apologia-text); }
 .danger-action { border-color: #e2b9b0 !important; background: #fff7f5; color: #9a4638; }
 button:disabled { cursor: default; opacity: 0.58; }
 
@@ -372,15 +372,15 @@ button:disabled { cursor: default; opacity: 0.58; }
     gap: 0.65rem;
     min-height: 15rem;
     padding: 2rem;
-    color: #697169;
+    color: var(--apologia-text-muted);
     text-align: center;
 }
 
-.review-state strong { color: #343934; font-family: Georgia, serif; font-size: 1.2rem; }
+.review-state strong { color: var(--apologia-text); font-family: Georgia, serif; font-size: 1.2rem; }
 .review-state span { max-width: 32rem; font-size: 0.84rem; }
 .review-state.error { color: #8c4034; }
-.review-state button { border-color: #c8cdc7; background: #fff; color: #315f4e; }
-.empty-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; background: #dcece4; color: #2a6b55; font-size: 1.35rem !important; }
+.review-state button { border-color: var(--apologia-border); background: var(--apologia-surface); color: var(--apologia-accent-text); }
+.empty-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; background: #dcece4; color: var(--apologia-accent-text); font-size: 1.35rem !important; }
 
 .mobile-sidebar-toggle {
     display: none;
@@ -401,10 +401,10 @@ button:disabled { cursor: default; opacity: 0.58; }
         justify-content: center;
         width: 2.45rem;
         height: 2.45rem;
-        border: 1px solid #c8cdc7;
+        border: 1px solid var(--apologia-border);
         border-radius: 0.58rem;
-        background: #fff;
-        color: #374039;
+        background: var(--apologia-surface);
+        color: var(--apologia-text);
         font-size: 1.05rem;
         cursor: pointer;
     }
@@ -417,7 +417,7 @@ button:disabled { cursor: default; opacity: 0.58; }
     .draft-queue {
         max-height: 18rem;
         border-right: 0;
-        border-bottom: 1px solid #dedbd4;
+        border-bottom: 1px solid var(--apologia-border);
     }
 
     .record-editor {

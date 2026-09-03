@@ -54,6 +54,10 @@ public sealed class PostgreSqlUserPreferencesRepositoryTests
                     enterBehavior: ComposerEnterBehavior.SendMessage,
                     messageDateFormat: MessageTimestampFormats.IsoYearMonthDay,
                     messageTimeFormat: MessageTimestampFormats.TwelveHourWithSeconds,
+                    themeMode: ThemeMode.Dark,
+                    themeColor: "#B45522",
+                    darkPageColor: "#1C1C1C",
+                    darkSurfaceColor: "#2A2A2A",
                     updatedAt: DateTimeOffset.UtcNow));
 
             await writeContext.SaveChangesAsync();
@@ -85,9 +89,13 @@ public sealed class PostgreSqlUserPreferencesRepositoryTests
             Assert.Equal(
                 MessageTimestampFormats.IsoYearMonthDay,
                 preferences.MessageDateFormat);
-            Assert.Equal(
-                MessageTimestampFormats.TwelveHourWithSeconds,
-                preferences.MessageTimeFormat);
+                Assert.Equal(
+                    MessageTimestampFormats.TwelveHourWithSeconds,
+                    preferences.MessageTimeFormat);
+                Assert.Equal(ThemeMode.Dark, preferences.ThemeMode);
+                Assert.Equal("#B45522", preferences.ThemeColor);
+                Assert.Equal("#1C1C1C", preferences.DarkPageColor);
+                Assert.Equal("#2A2A2A", preferences.DarkSurfaceColor);
         }
     }
 }

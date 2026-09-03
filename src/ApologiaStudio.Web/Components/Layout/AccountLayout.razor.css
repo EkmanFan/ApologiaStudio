@@ -7,7 +7,7 @@
     padding: 2rem 1rem;
     background:
         radial-gradient(circle at top left, rgba(56, 113, 90, 0.14), transparent 35rem),
-        #f5f2ea;
+        var(--apologia-surface-muted);
     color: #20271f;
 }
 
@@ -25,8 +25,8 @@
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 0.75rem;
-    background: #276b59;
-    color: #fff;
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
     font: 700 1.25rem Georgia, serif;
 }
 
@@ -46,7 +46,7 @@
 
 ::deep .account-intro {
     margin: 0 0 1.4rem;
-    color: #697068;
+    color: var(--apologia-text-muted);
     line-height: 1.55;
 }
 
@@ -73,7 +73,7 @@
 }
 
 ::deep .identity-field input:focus {
-    border-color: #276b59;
+    border-color: var(--apologia-accent);
     outline: 3px solid rgba(39, 107, 89, 0.13);
 }
 
@@ -87,8 +87,8 @@
     min-height: 2.9rem;
     border: 0;
     border-radius: 0.7rem;
-    background: #276b59;
-    color: white;
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
     font: inherit;
     font-weight: 800;
     cursor: pointer;
@@ -102,7 +102,7 @@
 }
 
 ::deep a {
-    color: #245f50;
+    color: var(--apologia-accent-text);
 }
 
 ::deep .validation-message,
@@ -114,7 +114,7 @@
 ::deep .identity-status {
     padding: 0.8rem;
     border-radius: 0.65rem;
-    background: #edf4f0;
+    background: var(--apologia-accent-soft);
     line-height: 1.45;
 }
 

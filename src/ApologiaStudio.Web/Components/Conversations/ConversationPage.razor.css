@@ -9,7 +9,7 @@
     display: grid;
     gap: 0.75rem;
     padding-bottom: 0.85rem;
-    border-bottom: 1px solid #dedbd4;
+    border-bottom: 1px solid var(--apologia-border);
 }
 
 .conversation-heading {
@@ -21,7 +21,7 @@
 
 .conversation-heading h1 {
     margin: 0;
-    color: #252823;
+    color: var(--apologia-text);
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(1.35rem, 2vw, 1.8rem);
     line-height: 1.2;
@@ -30,16 +30,16 @@
 .conversation-heading p {
     max-width: 48rem;
     margin: 0.35rem 0 0;
-    color: #697068;
+    color: var(--apologia-text-muted);
     font-size: 0.85rem;
 }
 
 .runtime-badge {
     flex: 0 0 auto;
     padding: 0.32rem 0.65rem;
-    border: 1px solid #cfd4ce;
+    border: 1px solid var(--apologia-border);
     border-radius: 999px;
-    background: #f3f5f2;
+    background: var(--apologia-surface-muted);
     color: #5f675f;
     font-size: 0.72rem;
     font-weight: 700;
@@ -54,18 +54,18 @@
     flex: 1;
     min-width: 0;
     padding: 0.48rem 0.65rem;
-    border: 1px solid #bdc3bc;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.5rem;
-    background: #fff;
-    color: #252823;
+    background: var(--apologia-surface);
+    color: var(--apologia-text);
 }
 
 .rename-controls button {
     padding: 0.48rem 0.8rem;
     border: 1px solid #aeb6ae;
     border-radius: 0.5rem;
-    background: #fff;
-    color: #384039;
+    background: var(--apologia-surface);
+    color: var(--apologia-text);
 }
 
 .chat-feedback {
@@ -83,7 +83,7 @@
 }
 
 .routing-information {
-    background: #edf2ef;
+    background: var(--apologia-accent-soft);
     color: #3f5147;
 }
 
@@ -109,8 +109,8 @@
     padding: 0.55rem 1.05rem;
     border: 0;
     border-radius: 0.55rem;
-    background: #315f4e;
-    color: #fff;
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
     font-weight: 700;
 }
 

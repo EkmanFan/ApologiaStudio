@@ -34,6 +34,12 @@ public sealed class UserPreferencesHandlerTests
         Assert.Equal(
             UserPreferences.DefaultMessageTimeFormat,
             result.MessageTimeFormat);
+        Assert.Equal(
+            UserPreferences.DefaultThemeMode,
+            result.ThemeMode);
+        Assert.Equal(
+            UserPreferences.DefaultThemeColor,
+            result.ThemeColor);
     }
 
     [Fact]
@@ -63,7 +69,11 @@ public sealed class UserPreferencesHandlerTests
                 TheologicalLanguage: null,
                 EnterBehavior: ComposerEnterBehavior.SendMessage,
                 MessageDateFormat: MessageTimestampFormats.IsoYearMonthDay,
-                MessageTimeFormat: MessageTimestampFormats.TwentyFourHour),
+                MessageTimeFormat: MessageTimestampFormats.TwentyFourHour,
+                ThemeMode: ThemeMode.Dark,
+                ThemeColor: "#6F42C1",
+                DarkPageColor: "#1C1C1C",
+                DarkSurfaceColor: "#2A2A2A"),
             CancellationToken.None);
 
         Assert.Equal(
@@ -89,6 +99,18 @@ public sealed class UserPreferencesHandlerTests
         Assert.Equal(
             MessageTimestampFormats.TwentyFourHour,
             repository.Preferences.MessageTimeFormat);
+        Assert.Equal(ThemeMode.Dark, result.ThemeMode);
+        Assert.Equal("#6F42C1", result.ThemeColor);
+        Assert.Equal(ThemeMode.Dark, repository.Preferences.ThemeMode);
+        Assert.Equal("#6F42C1", repository.Preferences.ThemeColor);
+        Assert.Equal("#1C1C1C", result.DarkPageColor);
+        Assert.Equal("#2A2A2A", result.DarkSurfaceColor);
+        Assert.Equal(
+            "#1C1C1C",
+            repository.Preferences.DarkPageColor);
+        Assert.Equal(
+            "#2A2A2A",
+            repository.Preferences.DarkSurfaceColor);
         Assert.Equal(1, unitOfWork.SaveCount);
     }
 

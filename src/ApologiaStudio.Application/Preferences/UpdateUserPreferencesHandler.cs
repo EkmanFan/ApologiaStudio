@@ -13,7 +13,11 @@ public sealed record UpdateUserPreferencesCommand(
     string MessageDateFormat =
         UserPreferences.DefaultMessageDateFormat,
     string MessageTimeFormat =
-        UserPreferences.DefaultMessageTimeFormat);
+        UserPreferences.DefaultMessageTimeFormat,
+    ThemeMode ThemeMode = UserPreferences.DefaultThemeMode,
+    string ThemeColor = UserPreferences.DefaultThemeColor,
+    string DarkPageColor = UserPreferences.DefaultDarkPageColor,
+    string DarkSurfaceColor = UserPreferences.DefaultDarkSurfaceColor);
 
 public sealed class UpdateUserPreferencesHandler(
     IUserPreferencesRepository preferencesRepository,
@@ -49,6 +53,10 @@ public sealed class UpdateUserPreferencesHandler(
                 command.EnterBehavior,
                 command.MessageDateFormat,
                 command.MessageTimeFormat,
+                command.ThemeMode,
+                command.ThemeColor,
+                command.DarkPageColor,
+                command.DarkSurfaceColor,
                 timeProvider.GetUtcNow());
 
             preferencesRepository.Add(preferences);
@@ -61,6 +69,10 @@ public sealed class UpdateUserPreferencesHandler(
                 command.EnterBehavior,
                 command.MessageDateFormat,
                 command.MessageTimeFormat,
+                command.ThemeMode,
+                command.ThemeColor,
+                command.DarkPageColor,
+                command.DarkSurfaceColor,
                 timeProvider.GetUtcNow());
         }
 

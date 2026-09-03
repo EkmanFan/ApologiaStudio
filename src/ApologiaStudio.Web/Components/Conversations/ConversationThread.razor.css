@@ -22,13 +22,13 @@
     margin: auto;
     max-width: 38rem;
     padding: 2rem;
-    color: #646b64;
+    color: var(--apologia-text-muted);
     text-align: center;
 }
 
 .empty-state h2 {
     margin: 0 0 0.5rem;
-    color: #2e342f;
+    color: var(--apologia-text);
     font-family: Georgia, "Times New Roman", serif;
 }
 
@@ -37,8 +37,8 @@
     padding: 0.58rem 0.82rem;
     border: 1px solid #c5cac4;
     border-radius: 0.55rem;
-    background: #fff;
-    color: #384039;
+    background: var(--apologia-surface);
+    color: var(--apologia-text);
 }
 
 .message {
@@ -58,10 +58,10 @@
     align-self: flex-start;
     border-color: color-mix(
         in srgb,
-        var(--agent-bubble-color, #f3f2ee) 82%,
-        #252823 18%);
-    background: var(--agent-bubble-color, #f3f2ee);
-    color: var(--agent-text-color, #252823);
+        var(--agent-bubble-color, var(--apologia-surface-muted)) 82%,
+        var(--apologia-text) 18%);
+    background: var(--agent-bubble-color, var(--apologia-surface-muted));
+    color: var(--agent-text-color, var(--apologia-text));
 }
 
 .message-avatar {
@@ -121,9 +121,9 @@
     padding: 0.5rem 0.7rem;
     border: 1px solid #bdc6be;
     border-radius: 999px;
-    background: #fff;
+    background: var(--apologia-surface);
     box-shadow: 0 0.35rem 1rem rgba(37, 40, 35, 0.12);
-    color: #315f4e;
+    color: var(--apologia-accent-text);
     font-size: 0.76rem;
     font-weight: 800;
     cursor: pointer;

@@ -4,7 +4,7 @@
     min-height: 4.75rem;
     overflow-x: auto;
     padding: 0.55rem 0.7rem;
-    border: 1px solid var(--action-ribbon-border, #d5ded9);
+    border: 1px solid var(--action-ribbon-border, var(--apologia-border));
     border-radius: 0.8rem;
-    background: var(--action-ribbon-background, #f1f4f1);
+    background: var(--action-ribbon-background, var(--apologia-surface-muted));
 }

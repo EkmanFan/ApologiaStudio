@@ -8,7 +8,7 @@
     display: grid;
     gap: 0.55rem;
     padding-top: 0.8rem;
-    border-top: 1px solid #dedbd4;
+    border-top: 1px solid var(--apologia-border);
 }
 
 .composer-options {
@@ -18,17 +18,17 @@
 }
 
 .composer-options label {
-    color: #4d564f;
+    color: var(--apologia-text);
     font-size: 0.8rem;
     font-weight: 800;
 }
 
 .composer-options select,
 .composer textarea {
-    border: 1px solid #b9c0b9;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.55rem;
-    background: #fff;
-    color: #252823;
+    background: var(--apologia-surface);
+    color: var(--apologia-text);
 }
 
 .composer-options select {
@@ -49,7 +49,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    color: #687068;
+    color: var(--apologia-text-muted);
     font-size: 0.78rem;
 }
 
@@ -57,8 +57,8 @@
     padding: 0.55rem 1.05rem;
     border: 0;
     border-radius: 0.55rem;
-    background: #315f4e;
-    color: #fff;
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
     font-weight: 700;
 }
 
@@ -99,7 +99,7 @@
     padding: 0.5rem 0.55rem 0.5rem 0.95rem;
     border: 1px solid #c8cec9;
     border-radius: 1.75rem;
-    background: #ffffff;
+    background: var(--apologia-surface);
     box-shadow:
         0 0.08rem 0.2rem rgba(37, 40, 35, 0.05),
         0 0.45rem 1.35rem rgba(37, 40, 35, 0.07);
@@ -133,7 +133,7 @@
     outline: 0;
     background: transparent;
     box-shadow: none;
-    color: #252823;
+    color: var(--apologia-text);
     line-height: 1.42;
     resize: none;
 }
@@ -183,7 +183,7 @@
     border-radius: 999px;
     outline: 0;
     background-color: transparent;
-    color: #3d453f;
+    color: var(--apologia-text);
     font-size: 0.82rem;
     font-weight: 650;
     text-overflow: ellipsis;
@@ -192,7 +192,7 @@
 }
 
 .composer-surface .composer-options select:hover:not(:disabled) {
-    background-color: #eef1ef;
+    background-color: var(--apologia-surface-muted);
 }
 
 .composer-surface .composer-options select:focus-visible {
@@ -221,9 +221,9 @@
     padding: 0;
     border: 0;
     border-radius: 999px;
-    background: #315f4e;
+    background: var(--apologia-accent);
     box-shadow: none;
-    color: #ffffff;
+    color: var(--apologia-on-accent);
     font-size: 0;
     line-height: 1;
     cursor: pointer;
@@ -242,7 +242,7 @@
 }
 
 .composer-surface .composer-actions > button:hover:not(:disabled) {
-    background: #244a3d;
+    background: var(--apologia-accent-strong);
     transform: translateY(-0.06rem);
 }
 

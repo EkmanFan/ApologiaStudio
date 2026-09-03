@@ -5,7 +5,7 @@
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
-    background: #fbfaf7;
+    background: var(--apologia-page);
 }
 
 .loading {

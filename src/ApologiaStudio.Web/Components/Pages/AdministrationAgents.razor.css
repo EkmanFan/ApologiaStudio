@@ -6,6 +6,6 @@
     min-height: 100dvh;
     margin: 0 auto;
     padding: clamp(1.25rem, 4vw, 3rem);
-    background: #fbfaf7;
-    color: #203331;
+    background: var(--apologia-page);
+    color: var(--apologia-heading);
 }

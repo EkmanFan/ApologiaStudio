@@ -85,6 +85,7 @@ app.MapBibleCorpusEndpoints();
 app.MapDocumentManagerNotificationEndpoint();
 app.MapDocumentManagerSessionEndpoints();
 app.MapIdentitySessionEndpoints();
+app.MapUserPreferenceEndpoints();
 
 app.Run();
 

@@ -6,8 +6,8 @@
     min-height: 100dvh;
     margin: 0 auto;
     padding: clamp(1.25rem, 4vw, 3rem);
-    background: #fbfaf7;
-    color: #203331;
+    background: var(--apologia-page);
+    color: var(--apologia-heading);
 }
 
 .account-admin-header {
@@ -21,7 +21,7 @@
 
 .account-admin-header p {
     margin: 0 0 0.3rem;
-    color: #2b705d;
+    color: var(--apologia-accent-text);
     font-size: 0.75rem;
     font-weight: 900;
     letter-spacing: 0.12em;
@@ -37,11 +37,11 @@
     display: block;
     max-width: 52rem;
     margin-top: 0.45rem;
-    color: #687067;
+    color: var(--apologia-text-muted);
 }
 
 .account-admin-header a {
-    color: #245f50;
+    color: var(--apologia-accent-text);
     font-weight: 750;
 }
 
@@ -53,9 +53,9 @@
 
 .account-admin-header a.admin-section-link {
     padding: 0.62rem 0.82rem;
-    border: 1px solid #c9d2cd;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.7rem;
-    background: #fff;
+    background: var(--apologia-surface);
     text-decoration: none;
 }
 
@@ -65,9 +65,9 @@
     width: 2.65rem;
     height: 2.65rem;
     padding: 0;
-    border: 1px solid #c9d2cd;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.7rem;
-    background: #fff;
+    background: var(--apologia-surface);
     color: #29483d;
     font-size: 1.65rem;
     font-weight: 500;
@@ -105,7 +105,7 @@
     padding: 0.85rem 1rem;
     border: 1px solid #ded8cc;
     border-radius: 0.9rem;
-    background: #fff;
+    background: var(--apologia-surface);
 }
 
 .account-summary strong {
@@ -113,7 +113,7 @@
 }
 
 .account-summary span {
-    color: #6c726b;
+    color: var(--apologia-text-muted);
     font-size: 0.78rem;
 }
 
@@ -130,7 +130,7 @@
     padding: 1rem;
     border: 1px solid #ded8cc;
     border-radius: 1rem;
-    background: #fff;
+    background: var(--apologia-surface);
 }
 
 .account-row.selected {
@@ -147,7 +147,7 @@
 .account-selection input {
     width: 1.1rem;
     height: 1.1rem;
-    accent-color: #2d766e;
+    accent-color: var(--apologia-accent-text);
 }
 
 .account-avatar {
@@ -156,8 +156,8 @@
     width: 2.8rem;
     height: 2.8rem;
     border-radius: 0.8rem;
-    background: #276b59;
-    color: #fff;
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
     font-weight: 900;
 }
 
@@ -183,13 +183,13 @@
 
 .account-name-button:hover,
 .account-name-button:focus-visible {
-    color: #276b59;
+    color: var(--apologia-accent-text);
     text-decoration-color: currentColor;
 }
 
 .account-identity span,
 .account-identity small {
-    color: #6b716a;
+    color: var(--apologia-text-muted);
 }
 
 .role-list {
@@ -230,9 +230,9 @@
 
 button {
     padding: 0.55rem 0.75rem;
-    border: 1px solid #c9d2cd;
+    border: 1px solid var(--apologia-border);
     border-radius: 0.6rem;
-    background: #fff;
+    background: var(--apologia-surface);
     color: #29483d;
     font: inherit;
     font-weight: 750;
@@ -240,9 +240,9 @@ button {
 }
 
 button.primary {
-    border-color: #276b59;
-    background: #276b59;
-    color: #fff;
+    border-color: var(--apologia-accent);
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
 }
 
 button.danger {
@@ -271,7 +271,7 @@ button:disabled {
     width: min(100%, 32rem);
     padding: 1.35rem;
     border-radius: 1rem;
-    background: #fff;
+    background: var(--apologia-surface);
     box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.22);
 }
 
@@ -318,7 +318,7 @@ button:disabled {
 }
 
 .account-access-heading p {
-    color: #2b705d;
+    color: var(--apologia-accent-text);
     font-size: 0.72rem;
     font-weight: 900;
     letter-spacing: 0.1em;
@@ -327,7 +327,7 @@ button:disabled {
 
 .account-access-heading span:not(.account-status),
 .account-access-explanation {
-    color: #687067;
+    color: var(--apologia-text-muted);
 }
 
 .account-group-picker {
@@ -350,7 +350,7 @@ button:disabled {
     gap: 0.6rem;
     padding: 0.7rem;
     border-radius: 0.65rem;
-    background: #f5f6f3;
+    background: var(--apologia-surface-muted);
 }
 
 .account-group-picker input {
@@ -363,7 +363,7 @@ button:disabled {
 }
 
 .account-group-picker small {
-    color: #687067;
+    color: var(--apologia-text-muted);
     font-weight: 500;
 }
 
@@ -376,7 +376,7 @@ button:disabled {
 .effective-access-grid > div {
     padding: 0.8rem;
     border-radius: 0.75rem;
-    background: #f5f2ea;
+    background: var(--apologia-surface-muted);
 }
 
 .effective-access-grid h3 {
@@ -393,7 +393,7 @@ button:disabled {
 .access-chip-list > span {
     padding: 0.28rem 0.5rem;
     border-radius: 999px;
-    background: #e0ebe5;
+    background: var(--apologia-accent-soft);
     color: #2d5e4c;
     font-size: 0.72rem;
     font-weight: 750;
@@ -407,7 +407,7 @@ button:disabled {
 .access-chip-list > span.empty-access,
 .access-chip-list.permissions > span.empty-access {
     background: transparent;
-    color: #777d76;
+    color: var(--apologia-text-muted);
     font-weight: 500;
 }
 
@@ -424,7 +424,7 @@ button:disabled {
     gap: 0.7rem;
     padding: 0.8rem;
     border-radius: 0.7rem;
-    background: #f5f2ea;
+    background: var(--apologia-surface-muted);
 }
 
 .bypass-verification-option input {
@@ -437,7 +437,7 @@ button:disabled {
 }
 
 .bypass-verification-option small {
-    color: #687067;
+    color: var(--apologia-text-muted);
     font-weight: 500;
 }
 

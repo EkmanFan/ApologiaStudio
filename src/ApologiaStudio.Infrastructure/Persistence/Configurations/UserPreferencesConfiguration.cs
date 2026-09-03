@@ -35,6 +35,22 @@ internal sealed class UserPreferencesConfiguration
                     "ck_user_preferences_message_time_format",
                     "message_time_format IN " +
                     "('HH:mm:ss', 'HH:mm', 'hh:mm:ss tt', 'hh:mm tt')");
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_preferences_theme_mode",
+                    "theme_mode IN ('Light', 'Dark')");
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_preferences_theme_color",
+                    "theme_color ~ '^#[0-9A-F]{6}$'");
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_preferences_dark_page_color",
+                    "dark_page_color ~ '^#[0-9A-F]{6}$' AND " +
+                    "substring(dark_page_color from 2 for 2) = substring(dark_page_color from 4 for 2) AND " +
+                    "substring(dark_page_color from 4 for 2) = substring(dark_page_color from 6 for 2)");
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_preferences_dark_surface_color",
+                    "dark_surface_color ~ '^#[0-9A-F]{6}$' AND " +
+                    "substring(dark_surface_color from 2 for 2) = substring(dark_surface_color from 4 for 2) AND " +
+                    "substring(dark_surface_color from 4 for 2) = substring(dark_surface_color from 6 for 2)");
             });
 
         builder.HasKey(preferences => preferences.UserId);
@@ -73,6 +89,30 @@ internal sealed class UserPreferencesConfiguration
             .HasMaxLength(16)
             .HasColumnName("message_time_format")
             .HasDefaultValue(UserPreferences.DefaultMessageTimeFormat)
+            .IsRequired();
+
+        builder.Property(preferences => preferences.ThemeMode)
+            .HasConversion<string>()
+            .HasMaxLength(16)
+            .HasColumnName("theme_mode")
+            .IsRequired();
+
+        builder.Property(preferences => preferences.ThemeColor)
+            .HasMaxLength(7)
+            .HasColumnName("theme_color")
+            .HasDefaultValue(UserPreferences.DefaultThemeColor)
+            .IsRequired();
+
+        builder.Property(preferences => preferences.DarkPageColor)
+            .HasMaxLength(7)
+            .HasColumnName("dark_page_color")
+            .HasDefaultValue(UserPreferences.DefaultDarkPageColor)
+            .IsRequired();
+
+        builder.Property(preferences => preferences.DarkSurfaceColor)
+            .HasMaxLength(7)
+            .HasColumnName("dark_surface_color")
+            .HasDefaultValue(UserPreferences.DefaultDarkSurfaceColor)
             .IsRequired();
 
         builder.Property(preferences => preferences.UpdatedAt)

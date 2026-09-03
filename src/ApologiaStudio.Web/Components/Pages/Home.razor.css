@@ -5,7 +5,7 @@
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
-    background: #fbfaf7;
+    background: var(--apologia-page);
 }
 
 .chat-shell {
@@ -63,10 +63,10 @@ button:disabled {
         justify-content: center;
         width: 2.45rem;
         height: 2.45rem;
-        border: 1px solid #c8cdc7;
+        border: 1px solid var(--apologia-border);
         border-radius: 0.58rem;
-        background: #fff;
-        color: #374039;
+        background: var(--apologia-surface);
+        color: var(--apologia-text);
         font-size: 1.05rem;
         cursor: pointer;
     }

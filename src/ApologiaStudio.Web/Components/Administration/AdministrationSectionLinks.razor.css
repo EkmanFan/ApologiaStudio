@@ -6,7 +6,7 @@
     min-height: 3.2rem;
     overflow-x: auto;
     padding: 0 0.35rem;
-    border-bottom: 1px solid #d5ded9;
+    border-bottom: 1px solid var(--apologia-border);
 }
 
 .administration-section-link {
@@ -18,22 +18,22 @@
     border-bottom: 3px solid transparent;
     border-radius: 0.65rem 0.65rem 0 0;
     background: transparent;
-    color: #255f59;
+    color: var(--apologia-accent-text);
     font-weight: 700;
     text-decoration: none;
     white-space: nowrap;
 }
 
 .administration-section-link:hover {
-    border-color: #cdd8d4;
-    border-bottom-color: #8ab5ae;
-    background: #fff;
+    border-color: var(--apologia-border);
+    border-bottom-color: var(--apologia-accent-border);
+    background: var(--apologia-surface);
 }
 
 .administration-section-link.active {
-    border-color: #2d766e;
-    border-bottom-color: #2d766e;
-    background: #e8f3f0;
+    border-color: var(--apologia-accent);
+    border-bottom-color: var(--apologia-accent-text);
+    background: var(--apologia-accent-soft);
 }
 
 @media (max-width: 760px) {
