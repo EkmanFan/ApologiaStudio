@@ -22,9 +22,12 @@ grounding is recorded in
 
 Text recovery for pages without an extractable text layer is decided in
 [ADR 0003: Raster page text recovery](docs/adr/0003-raster-page-text-recovery.md):
-recognition stays a Document Manager responsibility and reaches Apologia Studio
-as a distinct `ocr` artifact, rather than growing a second extraction pipeline
-here. The measurements behind that decision are recorded in the
+character recognition stays a DocumentProcessingEngine responsibility, where it
+already runs as evidence-driven targeted OCR, and Apologia Studio records it as
+a distinct `ocr` artifact built from the published provenance manifest rather
+than growing a second extraction pipeline here. Element-level attribution of
+recognized text remains an open contract gap between the two systems. The
+measurements behind that decision are recorded in the
 [Docling spike v1](docs/knowledge-ingestion/docling-spike-v1.md).
 
 Completed DPEngine results enter Apologia Studio through the durable,
