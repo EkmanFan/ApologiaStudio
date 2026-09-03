@@ -20,6 +20,14 @@ PostgreSQL + pgvector Knowledge Store, retrieval projections, and citation
 grounding is recorded in
 [ADR 0002: Knowledge Store and RAG architecture](docs/adr/0002-knowledge-store-and-rag-architecture.md).
 
+The bibliographic half of that enrichment follows existing standards rather
+than an Apologia ontology:
+[ADR 0004: Bibliographic alignment on IFLA LRM and RDA](docs/adr/0004-bibliographic-standards-alignment.md)
+adopts IFLA LRM as the conceptual model, RDA as the descriptive reference,
+LCGFT for genre/form and MARC Relators for contributor roles, all through a
+closed Apologia application profile. It supersedes the WEMI, contributor-role
+and `SourceKind` parts of ADR 0002.
+
 Text recovery for pages without an extractable text layer is decided in
 [ADR 0003: Raster page text recovery](docs/adr/0003-raster-page-text-recovery.md):
 character recognition stays a DocumentProcessingEngine responsibility, where it

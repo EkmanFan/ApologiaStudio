@@ -1,8 +1,13 @@
 # ADR 0002: Knowledge Store and RAG architecture
 
-- Status: Accepted
+- Status: Accepted, superseded in part
 - Date: 2026-08-11
 - Decision owners: ApologiaStudio
+- Superseded in part by
+  [ADR 0004: Bibliographic alignment on IFLA LRM and RDA](0004-bibliographic-standards-alignment.md)
+  — §3 (WEMI-inspired model), §4 (contributor roles) and §8 (`SourceKind`)
+  were decided before the relevant bibliographic standards were examined.
+  The rest of this record stands.
 
 ## Context
 
