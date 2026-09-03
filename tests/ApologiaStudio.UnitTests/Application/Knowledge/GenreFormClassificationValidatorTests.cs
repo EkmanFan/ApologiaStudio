@@ -1,3 +1,4 @@
+using ApologiaStudio.Application.Knowledge.GenreForms;
 using ApologiaStudio.Application.Knowledge.MetadataReview;
 
 namespace ApologiaStudio.UnitTests.Application.Knowledge;

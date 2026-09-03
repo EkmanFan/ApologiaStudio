@@ -1,3 +1,5 @@
+using ApologiaStudio.Application.Knowledge.GenreForms;
+
 namespace ApologiaStudio.Application.Knowledge.MetadataReview;
 
 /// <summary>
@@ -145,10 +147,8 @@ public sealed class GenreFormClassificationValidator(
     }
 
     /// <summary>
-    /// Resolves an identifier the model produced. A term is accepted only when
-    /// it matches the active policy by authority URI or authority identifier;
-    /// a preferred label is never accepted, so an invented label can never be
-    /// coerced into a real term.
+    /// Delegates to the shared selection rules so the assistant is judged by
+    /// exactly the vocabulary rules a reviewer is.
     /// </summary>
     private static GenreFormPolicyTerm? Resolve(
         string? authorityId,
@@ -163,20 +163,13 @@ public sealed class GenreFormClassificationValidator(
             return null;
         }
 
-        var candidate = authorityId.Trim();
-
-        var term = policy.Find(candidate) ??
-                   policy.Terms.FirstOrDefault(
-                       x => string.Equals(
-                           x.AuthorityIdentifier,
-                           candidate,
-                           StringComparison.Ordinal));
+        var term = GenreFormSelectionRules.Resolve(authorityId, policy);
 
         if (term is null)
         {
             errors.Add(new GenreFormValidationError(
                 GenreFormValidationFailure.UnknownAuthorityTerm,
-                $"'{candidate}' is not a term of the active profile."));
+                $"'{authorityId.Trim()}' is not a term of the active profile."));
         }
 
         return term;
@@ -214,42 +207,22 @@ public sealed class GenreFormClassificationValidator(
         }
     }
 
-    /// <summary>
-    /// GF-RULE-08: on one ancestor path only the most specific applicable term
-    /// is kept. Two unrelated genres may coexist.
-    /// </summary>
     private static void ValidateHierarchy(
         List<GenreFormSuggestion> suggested,
         GenreFormPolicySnapshot policy,
         List<GenreFormValidationError> errors)
     {
-        foreach (var candidate in suggested)
-        {
-            var term = policy.Find(candidate.AuthorityUri);
-            if (term is null)
-            {
-                continue;
-            }
+        var terms = suggested
+            .Select(x => policy.Find(x.AuthorityUri))
+            .OfType<GenreFormPolicyTerm>()
+            .ToList();
 
-            foreach (var other in suggested)
-            {
-                if (ReferenceEquals(candidate, other))
-                {
-                    continue;
-                }
-
-                if (term.AncestorAuthorityUris.Contains(
-                        other.AuthorityUri,
-                        StringComparer.Ordinal))
-                {
-                    errors.Add(new GenreFormValidationError(
-                        GenreFormValidationFailure.RedundantHierarchy,
-                        $"'{other.PreferredLabel}' is a broader term of " +
-                        $"'{candidate.PreferredLabel}'; only the most specific " +
-                        "applicable term may be suggested."));
-                }
-            }
-        }
+        errors.AddRange(
+            GenreFormSelectionRules
+                .FindRedundantHierarchy(terms)
+                .Select(x => new GenreFormValidationError(
+                    GenreFormValidationFailure.RedundantHierarchy,
+                    x.Detail)));
     }
 
     private static void ValidateInsufficientEvidence(

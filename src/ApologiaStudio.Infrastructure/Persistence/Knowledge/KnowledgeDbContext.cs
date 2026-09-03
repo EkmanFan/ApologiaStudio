@@ -54,6 +54,10 @@ public sealed class KnowledgeDbContext(
     internal DbSet<KnowledgeWorkGenreFormEntity> WorkGenreForms =>
         Set<KnowledgeWorkGenreFormEntity>();
 
+    internal DbSet<DocumentManagerEditorialDraftGenreFormEntity>
+        EditorialDraftGenreForms =>
+            Set<DocumentManagerEditorialDraftGenreFormEntity>();
+
     internal DbSet<DocumentManagerResultInboxEntity> DocumentManagerResults =>
         Set<DocumentManagerResultInboxEntity>();
 

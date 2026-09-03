@@ -350,6 +350,7 @@ public sealed class DocumentManagerResultInboxTests
             2026,
             "Paris",
             "Reviewed description",
+            Array.Empty<string>(),
             targetStatus,
             editorId,
             occurredAtUtc,

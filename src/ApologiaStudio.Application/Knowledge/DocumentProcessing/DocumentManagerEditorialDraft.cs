@@ -31,7 +31,15 @@ public sealed record DocumentManagerEditorialDraft(
     string? RejectionReason,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
-    IReadOnlyList<DocumentManagerEditorialDraftPart> Parts);
+    IReadOnlyList<DocumentManagerEditorialDraftPart> Parts,
+    // Pre-publication genre/form selection. Human-reviewed metadata: never a
+    // machine suggestion, and not yet authoritative Work metadata.
+    IReadOnlyList<DocumentManagerEditorialDraftGenreForm> GenreForms);
+
+public sealed record DocumentManagerEditorialDraftGenreForm(
+    string AuthorityUri,
+    string AuthorityIdentifier,
+    string PreferredLabel);
 
 public sealed record DocumentManagerEditorialDraftPart(
     Guid ProcessingUnitId,

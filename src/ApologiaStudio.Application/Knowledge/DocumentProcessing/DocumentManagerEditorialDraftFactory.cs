@@ -59,7 +59,9 @@ public static class DocumentManagerEditorialDraftFactory
                             part.Ordinal,
                             part.ResultReference!,
                             part.Scope))
-                .ToArray());
+                .ToArray(),
+            // A new draft carries no genre/form: the reviewer chooses.
+            GenreForms: []);
     }
 
     private static string ProposeTitle(string originalFileName)

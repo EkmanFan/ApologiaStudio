@@ -1,3 +1,4 @@
+using ApologiaStudio.Application.Knowledge.GenreForms;
 using System.Text.Json;
 using ApologiaStudio.Application.Abstractions.AiRuntime;
 using ApologiaStudio.Application.Knowledge.MetadataReview;

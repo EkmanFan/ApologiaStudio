@@ -128,7 +128,8 @@ public sealed class PostgreSqlDocumentManagerEditorialDraftStore(
         };
 
     internal static DocumentManagerEditorialDraft ToContract(
-        DocumentManagerEditorialDraftEntity entity) =>
+        DocumentManagerEditorialDraftEntity entity,
+        IReadOnlyList<DocumentManagerEditorialDraftGenreForm>? genreForms = null) =>
         new(
             entity.Id,
             entity.SubmissionId,
@@ -161,7 +162,8 @@ public sealed class PostgreSqlDocumentManagerEditorialDraftStore(
                             part.Ordinal,
                             part.ResultReference,
                             ToScope(part)))
-                .ToArray());
+                .ToArray(),
+            genreForms ?? []);
 
     private static DocumentManagerResultScope ToScope(
         DocumentManagerEditorialDraftPartEntity part) =>

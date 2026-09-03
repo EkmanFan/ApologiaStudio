@@ -1,3 +1,5 @@
+using ApologiaStudio.Application.Knowledge.GenreForms;
+
 namespace ApologiaStudio.Application.Knowledge.MetadataReview;
 
 /// <summary>
@@ -31,53 +33,6 @@ public sealed record MetadataReviewEvidenceSection(
     string Kind,
     string? Reference,
     string Text);
-
-/// <summary>
-/// Usage of a term inside the active profile. Only <see cref="Selectable"/>
-/// terms may be suggested; structural ancestors are carried so hierarchy
-/// redundancy can be detected without a database round trip.
-/// </summary>
-public enum GenreFormPolicyUsage
-{
-    StructuralOnly = 0,
-    Selectable = 1
-}
-
-public sealed record GenreFormPolicyTerm(
-    string AuthorityUri,
-    string AuthorityIdentifier,
-    string PreferredLabel,
-    GenreFormPolicyUsage Usage,
-    IReadOnlyList<string> AncestorAuthorityUris);
-
-/// <summary>
-/// The active Genre/Form policy, captured as a value so classification and its
-/// validation stay independent of persistence. Built from the Knowledge Store
-/// in production and from a fixture in evaluation.
-/// </summary>
-public sealed record GenreFormPolicySnapshot(
-    string PolicyVersion,
-    IReadOnlyList<GenreFormPolicyTerm> Terms)
-{
-    public IEnumerable<GenreFormPolicyTerm> SelectableTerms =>
-        Terms.Where(x => x.Usage == GenreFormPolicyUsage.Selectable);
-
-    public GenreFormPolicyTerm? Find(string authorityUri)
-    {
-        return Terms.FirstOrDefault(
-            x => string.Equals(x.AuthorityUri, authorityUri, StringComparison.Ordinal));
-    }
-}
-
-/// <summary>
-/// Supplies the active policy. Implemented over the Knowledge Store; kept as a
-/// port so the classification contract never depends on persistence.
-/// </summary>
-public interface IGenreFormPolicyProvider
-{
-    Task<GenreFormPolicySnapshot> GetActivePolicyAsync(
-        CancellationToken cancellationToken);
-}
 
 /// <summary>
 /// Identity of one classification run, retained so a suggestion can always be

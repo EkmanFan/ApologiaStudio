@@ -67,7 +67,9 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
 
         return entity is null
             ? null
-            : PostgreSqlDocumentManagerEditorialDraftStore.ToContract(entity);
+            : PostgreSqlDocumentManagerEditorialDraftStore.ToContract(
+                entity,
+                await ReadGenreFormsAsync(entity.Id, cancellationToken));
     }
 
     public async Task<DocumentManagerEditorialDraft> ApplyAsync(
@@ -137,6 +139,11 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
                 : null;
         entity.RejectionReason = mutation.RejectionReason;
 
+        var genreForms = await ReplaceGenreFormsAsync(
+            entity.Id,
+            mutation.GenreFormAuthorityUris,
+            cancellationToken);
+
         dbContext.DocumentManagerEditorialReviewEvents.Add(
             new DocumentManagerEditorialReviewEventEntity
             {
@@ -160,7 +167,10 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
                         entity.PublicationPlace,
                         entity.Description,
                         entity.Status,
-                        entity.RejectionReason
+                        entity.RejectionReason,
+                        GenreForms = genreForms
+                            .Select(x => x.AuthorityUri)
+                            .ToList()
                     },
                     SnapshotOptions)
             });
@@ -175,7 +185,89 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
                 mutation.DraftId);
         }
 
-        return PostgreSqlDocumentManagerEditorialDraftStore.ToContract(entity);
+        return PostgreSqlDocumentManagerEditorialDraftStore.ToContract(
+            entity,
+            genreForms);
+    }
+
+    /// <summary>
+    /// Replaces the draft's selection inside the caller's transaction, so a
+    /// genre/form change is part of the same mutation and the same optimistic
+    /// version bump as the rest of the editorial metadata.
+    /// </summary>
+    private async Task<IReadOnlyList<DocumentManagerEditorialDraftGenreForm>>
+        ReplaceGenreFormsAsync(
+            Guid draftId,
+            IReadOnlyList<string> authorityUris,
+            CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.EditorialDraftGenreForms
+            .Where(x => x.DraftId == draftId)
+            .ToListAsync(cancellationToken);
+
+        dbContext.EditorialDraftGenreForms.RemoveRange(existing);
+
+        if (authorityUris.Count == 0)
+        {
+            return [];
+        }
+
+        var terms = await dbContext.GenreFormTerms
+            .AsNoTracking()
+            .Where(x => authorityUris.Contains(x.AuthorityUri))
+            .Select(x => new
+            {
+                x.Id,
+                x.AuthorityUri,
+                x.AuthorityIdentifier,
+                x.PreferredLabel
+            })
+            .ToListAsync(cancellationToken);
+
+        if (terms.Count != authorityUris.Distinct().Count())
+        {
+            throw new DocumentManagerEditorialReviewValidationException(
+                "A selected genre/form term is unknown to the authority.");
+        }
+
+        foreach (var term in terms)
+        {
+            dbContext.EditorialDraftGenreForms.Add(
+                new DocumentManagerEditorialDraftGenreFormEntity
+                {
+                    DraftId = draftId,
+                    TermId = term.Id
+                });
+        }
+
+        return terms
+            .Select(x => new DocumentManagerEditorialDraftGenreForm(
+                x.AuthorityUri,
+                x.AuthorityIdentifier,
+                x.PreferredLabel))
+            .OrderBy(x => x.PreferredLabel, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Loads the selection for a draft being read.
+    /// </summary>
+    private async Task<IReadOnlyList<DocumentManagerEditorialDraftGenreForm>>
+        ReadGenreFormsAsync(
+            Guid draftId,
+            CancellationToken cancellationToken)
+    {
+        return await (
+            from selection in dbContext.EditorialDraftGenreForms.AsNoTracking()
+            join term in dbContext.GenreFormTerms.AsNoTracking()
+                on selection.TermId equals term.Id
+            where selection.DraftId == draftId
+            orderby term.PreferredLabel
+            select new DocumentManagerEditorialDraftGenreForm(
+                term.AuthorityUri,
+                term.AuthorityIdentifier,
+                term.PreferredLabel))
+            .ToListAsync(cancellationToken);
     }
 
     private static string ToPersistenceAction(

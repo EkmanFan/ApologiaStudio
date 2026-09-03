@@ -1,3 +1,7 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Components.Web;
+using ApologiaStudio.Application.Knowledge.MetadataReview;
+using ApologiaStudio.Application.Knowledge.GenreForms;
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Domain.Users;
 using ApologiaStudio.Web.DocumentManager;
@@ -19,6 +23,14 @@ public partial class EditorialReviewPanel
 
     [Inject]
     private DocumentManagerConsumerOptions ConsumerOptions { get; set; } = null!;
+
+    private IReadOnlyList<GenreFormTermView> _genreFormTerms = [];
+
+    private IReadOnlyList<GenreFormSuggestion>? _suggestions;
+
+    private bool _isAnalyzing;
+
+    private string? _analysisError;
 
     [Parameter]
     public ApplicationLanguage Language { get; set; } = ApplicationLanguage.French;
@@ -130,6 +142,9 @@ public partial class EditorialReviewPanel
         _selectedDraft = draft ?? throw new InvalidOperationException(
             Text("La fiche demandée n’existe plus.", "The requested record no longer exists."));
         _form = EditorialForm.FromDraft(_selectedDraft);
+        _suggestions = null;
+        _analysisError = null;
+        await LoadGenreFormVocabularyAsync();
     }
 
     private Task SaveAsync() => ExecuteAsync(DocumentManagerEditorialReviewAction.Save);
@@ -523,6 +538,137 @@ public partial class EditorialReviewPanel
         _messageIsError = true;
     }
 
+    private bool IsGenreFormSelected(string authorityUri) =>
+        _form.GenreFormAuthorityUris.Contains(authorityUri, StringComparer.Ordinal);
+
+    private void ToggleGenreForm(string authorityUri, ChangeEventArgs args)
+    {
+        var selected = args.Value is true;
+
+        if (selected)
+        {
+            if (!IsGenreFormSelected(authorityUri))
+            {
+                _form.GenreFormAuthorityUris.Add(authorityUri);
+            }
+
+            return;
+        }
+
+        _form.GenreFormAuthorityUris.RemoveAll(
+            x => string.Equals(x, authorityUri, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The closed vocabulary comes from the active profile; the panel never
+    /// restates the terms or the hierarchy rules.
+    /// </summary>
+    private async Task LoadGenreFormVocabularyAsync()
+    {
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var store = scope.ServiceProvider
+                .GetRequiredService<IGenreFormAuthorityStore>();
+
+            _genreFormTerms = await store.GetSelectableTermsAsync(
+                CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            // A missing vocabulary must not prevent editorial review.
+            _genreFormTerms = [];
+        }
+    }
+
+    /// <summary>
+    /// Runs the assistant. A suggestion is never written: it only populates a
+    /// panel the reviewer may accept, adjust or ignore.
+    /// </summary>
+    private async Task RunGenreFormAnalysisAsync()
+    {
+        if (_selectedDraft is null || _isAnalyzing)
+        {
+            return;
+        }
+
+        _isAnalyzing = true;
+        _analysisError = null;
+        _suggestions = null;
+
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var classifier = scope.ServiceProvider
+                .GetRequiredService<IGenreFormClassifier>();
+
+            var validation = await classifier.ClassifyAsync(
+                BuildEvidence(),
+                CancellationToken.None);
+
+            if (validation.IsValid)
+            {
+                _suggestions = validation.Result!.Suggested;
+            }
+            else
+            {
+                // Invalid model output is discarded whole; nothing is shown as
+                // a suggestion and nothing is written.
+                _analysisError = Text(
+                    "La proposition de l\u2019assistant a été refusée par la validation.",
+                    "The assistant's proposal was refused by validation.");
+            }
+        }
+        catch (Exception)
+        {
+            _analysisError = Text(
+                "L\u2019assistant est indisponible.",
+                "The assistant is unavailable.");
+        }
+        finally
+        {
+            _isAnalyzing = false;
+        }
+    }
+
+    private void AcceptSuggestions()
+    {
+        if (_suggestions is null)
+        {
+            return;
+        }
+
+        _form.GenreFormAuthorityUris = _suggestions
+            .Select(x => x.AuthorityUri)
+            .ToList();
+    }
+
+    private void RejectSuggestions()
+    {
+        _suggestions = null;
+        _analysisError = null;
+    }
+
+    /// <summary>
+    /// Bounded evidence taken from the reviewed record itself. Source excerpts
+    /// are not duplicated here.
+    /// </summary>
+    private MetadataReviewEvidence BuildEvidence()
+    {
+        return new MetadataReviewEvidence(
+            _form.Title,
+            null,
+            string.IsNullOrWhiteSpace(_form.PrimaryContributorName)
+                ? []
+                : [_form.PrimaryContributorName],
+            _form.LanguageCode,
+            _form.EditionStatement,
+            _form.PublicationYear,
+            _form.PublicationPlace,
+            _form.Description,
+            []);
+    }
+
     private sealed class EditorialForm
     {
         public string Title { get; set; } = string.Empty;
@@ -535,6 +681,12 @@ public partial class EditorialReviewPanel
         public string? Description { get; set; }
         public string? RejectionReason { get; set; }
 
+        /// <summary>
+        /// Authority URIs chosen by the reviewer. The vocabulary itself is
+        /// never restated here: the panel only carries identifiers.
+        /// </summary>
+        public List<string> GenreFormAuthorityUris { get; set; } = [];
+
         public static EditorialForm FromDraft(DocumentManagerEditorialDraft draft) =>
             new()
             {
@@ -546,7 +698,10 @@ public partial class EditorialReviewPanel
                 PublicationYear = draft.PublicationYear,
                 PublicationPlace = draft.PublicationPlace,
                 Description = draft.Description,
-                RejectionReason = draft.RejectionReason
+                RejectionReason = draft.RejectionReason,
+                GenreFormAuthorityUris = draft.GenreForms
+                    .Select(x => x.AuthorityUri)
+                    .ToList()
             };
 
         public DocumentManagerEditorialDraftReviewCommand ToCommand(
@@ -564,6 +719,7 @@ public partial class EditorialReviewPanel
                 PublicationYear,
                 PublicationPlace,
                 Description,
+                GenreFormAuthorityUris,
                 RejectionReason);
     }
 

@@ -101,3 +101,19 @@ internal sealed class KnowledgeWorkGenreFormEntity
 
     public Guid TermId { get; set; }
 }
+
+/// <summary>
+/// The reviewer's pre-publication Genre/Form selection on an editorial draft.
+///
+/// Owned by the editorial-review workflow, not by the metadata assistant: it
+/// holds human-reviewed choices, never raw machine suggestions. AS-DM-06 will
+/// later project it into <c>knowledge_work_genre_forms</c>.
+/// </summary>
+internal sealed class DocumentManagerEditorialDraftGenreFormEntity
+{
+    public long Id { get; set; }
+
+    public Guid DraftId { get; set; }
+
+    public Guid TermId { get; set; }
+}

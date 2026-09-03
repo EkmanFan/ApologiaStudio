@@ -1,3 +1,4 @@
+using ApologiaStudio.Application.Knowledge.GenreForms;
 using ApologiaStudio.Application.Abstractions.Identity;
 
 namespace ApologiaStudio.Application.Knowledge.DocumentProcessing;
@@ -32,6 +33,7 @@ public sealed record DocumentManagerEditorialDraftReviewCommand(
     int? PublicationYear,
     string? PublicationPlace,
     string? Description,
+    IReadOnlyList<string> GenreFormAuthorityUris,
     string? RejectionReason);
 
 public sealed record DocumentManagerEditorialDraftMutation(
@@ -47,6 +49,9 @@ public sealed record DocumentManagerEditorialDraftMutation(
     int? PublicationYear,
     string? PublicationPlace,
     string? Description,
+    // Authority URIs of the reviewer's selection; part of the same mutation
+    // and therefore of the same optimistic-concurrency check.
+    IReadOnlyList<string> GenreFormAuthorityUris,
     DocumentManagerEditorialDraftStatus TargetStatus,
     Guid ActorUserId,
     DateTimeOffset OccurredAtUtc,
@@ -143,6 +148,7 @@ public sealed class ReopenDocumentManagerEditorialDraftHandler(
                 draft.PublicationYear,
                 draft.PublicationPlace,
                 draft.Description,
+                draft.GenreForms.Select(x => x.AuthorityUri).ToList(),
                 DocumentManagerEditorialDraftStatus.PendingReview,
                 currentUser.UserId.Value,
                 timeProvider.GetUtcNow(),
@@ -167,7 +173,8 @@ public sealed class DocumentManagerAdministrationForbiddenException()
 public sealed class ReviewDocumentManagerEditorialDraftHandler(
     IDocumentManagerEditorialReviewStore store,
     ICurrentUser currentUser,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IGenreFormPolicyProvider genreFormPolicyProvider)
 {
     private static readonly HashSet<string> AllowedContributorRoles =
         new(StringComparer.Ordinal)
@@ -178,7 +185,7 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
             "textual_editor"
         };
 
-    public Task<DocumentManagerEditorialDraft> HandleAsync(
+    public async Task<DocumentManagerEditorialDraft> HandleAsync(
         DocumentManagerEditorialDraftReviewCommand command,
         CancellationToken cancellationToken)
     {
@@ -269,7 +276,11 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
                 null)
         };
 
-        return store.ApplyAsync(
+        var genreFormAuthorityUris = await ResolveGenreFormsAsync(
+            command.GenreFormAuthorityUris,
+            cancellationToken);
+
+        return await store.ApplyAsync(
             new DocumentManagerEditorialDraftMutation(
                 command.DraftId,
                 command.ExpectedVersion,
@@ -283,6 +294,7 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
                 command.PublicationYear,
                 publicationPlace,
                 description,
+                genreFormAuthorityUris,
                 targetStatus,
                 currentUser.UserId.Value,
                 timeProvider.GetUtcNow(),
@@ -290,6 +302,36 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
                     ? rejectionReason
                     : null),
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates the reviewer's selection through the shared Genre/Form rules,
+    /// so a hand-made choice is judged exactly as an assisted one. The
+    /// vocabulary is never restated here.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> ResolveGenreFormsAsync(
+        IReadOnlyList<string>? requested,
+        CancellationToken cancellationToken)
+    {
+        if (requested is null || requested.Count == 0)
+        {
+            return [];
+        }
+
+        var policy = await genreFormPolicyProvider.GetActivePolicyAsync(
+            cancellationToken);
+
+        var errors = GenreFormSelectionRules.Validate(requested, policy);
+
+        if (errors.Count > 0)
+        {
+            throw new DocumentManagerEditorialReviewValidationException(
+                string.Join(" ", errors.Select(x => x.Detail)));
+        }
+
+        return requested
+            .Select(x => GenreFormSelectionRules.Resolve(x, policy)!.AuthorityUri)
+            .ToList();
     }
 
     private static string RequireText(

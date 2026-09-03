@@ -255,6 +255,7 @@ public sealed class DocumentManagerEditorialAdministrationTests
             null,
             null,
             null,
+            Array.Empty<string>(),
             targetStatus,
             editorId,
             occurredAtUtc,

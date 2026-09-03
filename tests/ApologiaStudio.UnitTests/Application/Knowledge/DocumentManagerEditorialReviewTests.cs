@@ -1,3 +1,4 @@
+using ApologiaStudio.Application.Knowledge.GenreForms;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Domain.Users;
@@ -73,7 +74,8 @@ public sealed class DocumentManagerEditorialReviewTests
         new(
             store,
             new StubCurrentUser(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new StubGenreFormPolicyProvider());
 
     private static DocumentManagerEditorialDraftReviewCommand Command(
         DocumentManagerEditorialReviewAction action,
@@ -94,6 +96,7 @@ public sealed class DocumentManagerEditorialReviewTests
             null,
             null,
             null,
+            Array.Empty<string>(),
             rejectionReason);
 
     private sealed class StubReviewStore : IDocumentManagerEditorialReviewStore
@@ -138,8 +141,17 @@ public sealed class DocumentManagerEditorialReviewTests
                     mutation.RejectionReason,
                     Now,
                     mutation.OccurredAtUtc,
+                    [],
                     []));
         }
+    }
+
+    private sealed class StubGenreFormPolicyProvider : IGenreFormPolicyProvider
+    {
+        public Task<GenreFormPolicySnapshot> GetActivePolicyAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new GenreFormPolicySnapshot("test-policy", []));
     }
 
     private sealed class StubCurrentUser : ICurrentUser

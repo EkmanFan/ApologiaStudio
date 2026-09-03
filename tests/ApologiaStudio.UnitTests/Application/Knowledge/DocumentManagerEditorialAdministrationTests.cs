@@ -96,6 +96,7 @@ public sealed class DocumentManagerEditorialAdministrationTests
             "Duplicate test import",
             Now.AddHours(-1),
             Now.AddMinutes(-1),
+            [],
             []);
 
     private sealed class StubAuthorizer(bool isAuthorized)

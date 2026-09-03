@@ -167,6 +167,97 @@
                         </label>
                     </fieldset>
 
+                    <fieldset class="genre-form-section" disabled="@IsReadOnly">
+                        <legend>@Text("Genre / forme", "Genre / form")</legend>
+
+                        <div class="genre-form-selection">
+                            @if (_genreFormTerms.Count == 0)
+                            {
+                                <p class="genre-form-empty">@Text(
+                                    "Aucun vocabulaire genre/forme actif.",
+                                    "No active genre/form vocabulary.")</p>
+                            }
+                            else
+                            {
+                                @foreach (var term in _genreFormTerms)
+                                {
+                                    <label class="genre-form-choice">
+                                        <input type="checkbox"
+                                               checked="@IsGenreFormSelected(term.AuthorityUri)"
+                                               @onchange="args => ToggleGenreForm(term.AuthorityUri, args)" />
+                                        <span>@term.PreferredLabel</span>
+                                    </label>
+                                }
+                            }
+                        </div>
+
+                        <div class="assistant-panel">
+                            <div class="assistant-header">
+                                <span class="assistant-badge">@Text("Assistant", "Assistant")</span>
+                                <button type="button"
+                                        class="assistant-run"
+                                        disabled="@(_isAnalyzing || IsReadOnly)"
+                                        @onclick="RunGenreFormAnalysisAsync">
+                                    @(_isAnalyzing
+                                        ? Text("Analyse en cours…", "Analyzing…")
+                                        : Text("Proposer un genre/forme", "Suggest genre/form"))
+                                </button>
+                            </div>
+
+                            @if (_analysisError is not null)
+                            {
+                                <p class="assistant-error" role="alert">@_analysisError</p>
+                                <p class="assistant-hint">@Text(
+                                    "La revue manuelle reste disponible.",
+                                    "Manual review remains available.")</p>
+                            }
+                            else if (_suggestions is not null)
+                            {
+                                @if (_suggestions.Count == 0)
+                                {
+                                    <p class="assistant-hint">@Text(
+                                        "Aucun terme proposé pour cet ouvrage.",
+                                        "No term proposed for this work.")</p>
+                                }
+                                else
+                                {
+                                    <ul class="assistant-suggestions">
+                                        @foreach (var suggestion in _suggestions)
+                                        {
+                                            <li>
+                                                <strong>@suggestion.PreferredLabel</strong>
+                                                <p>@suggestion.Justification</p>
+                                                @if (suggestion.Evidence.Count > 0)
+                                                {
+                                                    <p class="assistant-evidence">
+                                                        @string.Join(" · ", suggestion.Evidence)
+                                                    </p>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+
+                                    <div class="assistant-actions">
+                                        <button type="button"
+                                                disabled="@IsReadOnly"
+                                                @onclick="AcceptSuggestions">
+                                            @Text("Accepter la proposition", "Accept suggestions")
+                                        </button>
+                                        <button type="button"
+                                                disabled="@IsReadOnly"
+                                                @onclick="RejectSuggestions">
+                                            @Text("Tout rejeter", "Reject all")
+                                        </button>
+                                    </div>
+
+                                    <p class="assistant-hint">@Text(
+                                        "Proposition non enregistrée : ajustez la sélection ci-dessus, puis enregistrez.",
+                                        "Suggestion not saved: adjust the selection above, then save.")</p>
+                                }
+                            }
+                        </div>
+                    </fieldset>
+
                     <details class="provenance-panel">
                         <summary>@Text("Document source et parties regroupées", "Source document and assembled parts")</summary>
                         <dl>

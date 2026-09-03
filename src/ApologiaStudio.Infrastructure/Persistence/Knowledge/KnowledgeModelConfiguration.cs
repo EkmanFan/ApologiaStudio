@@ -67,6 +67,8 @@ internal static class KnowledgeModelConfiguration
             modelBuilder.Entity<GenreFormProfileEntryEntity>());
         ConfigureKnowledgeWorkGenreForm(
             modelBuilder.Entity<KnowledgeWorkGenreFormEntity>());
+        ConfigureEditorialDraftGenreForm(
+            modelBuilder.Entity<DocumentManagerEditorialDraftGenreFormEntity>());
     }
 
     private static void ConfigureDocumentManagerResult(
@@ -2209,5 +2211,35 @@ internal static class KnowledgeModelConfiguration
         builder.HasIndex(x => new { x.WorkId, x.TermId })
             .IsUnique()
             .HasDatabaseName("ux_knowledge_work_genre_forms");
+    }
+
+    private static void ConfigureEditorialDraftGenreForm(
+        EntityTypeBuilder<DocumentManagerEditorialDraftGenreFormEntity> builder)
+    {
+        builder.ToTable("document_manager_editorial_draft_genre_forms");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.DraftId)
+            .HasColumnName("draft_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.TermId)
+            .HasColumnName("term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+
+        builder.HasOne<DocumentManagerEditorialDraftEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.DraftId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.DraftId, x.TermId })
+            .IsUnique()
+            .HasDatabaseName("ux_document_manager_editorial_draft_genre_forms");
     }
 }

@@ -450,3 +450,112 @@ button:disabled { cursor: default; opacity: 0.58; }
         gap: 0.2rem;
     }
 }
+
+.genre-form-section {
+    display: grid;
+    gap: 1rem;
+    margin: 0 0 1.25rem;
+    padding: 0.75rem 1rem 1rem;
+    border: 1px solid var(--apologia-border);
+    border-radius: 0.7rem;
+    background: var(--apologia-surface-muted);
+}
+
+.genre-form-section legend {
+    padding: 0 0.35rem;
+    color: var(--apologia-heading);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.genre-form-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+}
+
+/* Outranks the generic .record-editor label rule, which lays fields out as a
+   grid; a checkbox and its term belong on one line. */
+.genre-form-section .genre-form-choice {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+}
+
+.genre-form-empty {
+    margin: 0;
+    color: var(--apologia-text-muted);
+}
+
+/* The assistant is visually distinct from reviewed metadata: a suggestion is
+   never mistaken for a saved decision. */
+.assistant-panel {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--apologia-accent-border);
+    border-radius: 0.6rem;
+    background: var(--apologia-accent-soft);
+}
+
+.assistant-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.assistant-badge {
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: var(--apologia-accent);
+    color: var(--apologia-on-accent);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.assistant-suggestions {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.assistant-suggestions li {
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.5rem;
+    background: var(--apologia-surface);
+}
+
+.assistant-suggestions p {
+    margin: 0.25rem 0 0;
+}
+
+.assistant-evidence {
+    color: var(--apologia-text-muted);
+    font-size: 0.85rem;
+}
+
+.assistant-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.assistant-hint {
+    margin: 0;
+    color: var(--apologia-text-muted);
+    font-size: 0.85rem;
+}
+
+.assistant-error {
+    margin: 0;
+    color: var(--apologia-text);
+    font-weight: 650;
+}
