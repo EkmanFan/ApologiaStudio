@@ -31,4 +31,10 @@
     <ProjectReference Include="..\..\tools\ApologiaStudio.BibleCorpusImporter\ApologiaStudio.BibleCorpusImporter.csproj" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <None Update="Fixtures\lcgft-profile-v1-fixture.jsonl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

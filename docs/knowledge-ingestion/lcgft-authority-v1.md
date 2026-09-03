@@ -137,6 +137,56 @@ transaction, leaving no partial snapshot.
 A dangling `skos:related` reference is skipped rather than fatal, because an
 association carries no hierarchy or assignment semantics.
 
+## Apologia Genre/Form Profile V1
+
+`GenreFormProfile` declares the thirteen approved terms **by preferred label**.
+Authority identifiers are never hard-coded: the seeder resolves each label
+against the imported snapshot and fails closed when a label is absent or
+ambiguous, so the profile cannot drift from the authority it claims to follow.
+
+The required structural ancestors are **derived** from the imported hierarchy
+rather than declared. Applying the profile over the 2026-09-03 snapshot yields:
+
+```text
+selectable       13
+structural only   6   Business correspondence, Creative nonfiction,
+                      Discursive works, Informational works,
+                      Instructional and educational works, Religious materials
+```
+
+Those six are exactly the direct ancestors of an approved term that are not
+themselves approved. `Biographies` is both approved and an ancestor of
+`Hagiographies`; it stays selectable, and the redundancy is prevented at
+assignment time rather than by demoting it.
+
+Apply the profile as an explicit maintenance operation:
+
+```bash
+dotnet run --project tools/ApologiaStudio.GenreFormImporter -- --apply-profile
+```
+
+Re-applying reports `profile already current` and changes nothing.
+
+### Assignment rules enforced in code
+
+```text
+only selectable terms may be assigned
+a duplicate Work/term pair is refused
+a term and one of its ancestors never coexist on the same Work
+broader terms are never persisted implicitly
+zero genre/form assignments is valid
+independent genres may coexist
+```
+
+Variants are never assignable: `Homilies` resolves to `Sermons` and
+`Confessions of faith` to `Creeds`, both verified against the real authority.
+
+### Multi-authority scoping
+
+An import rebuilds relations, variants and notes **only for the authority
+being imported**, and reviews only that authority's profile entries. Importing
+one authority never disturbs another's facts or editorial decisions.
+
 ## What this increment does not do
 
 ```text

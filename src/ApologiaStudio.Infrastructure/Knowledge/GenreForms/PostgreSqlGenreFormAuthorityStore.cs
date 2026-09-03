@@ -35,6 +35,7 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
         if (existing is not null)
         {
             return await BuildResultAsync(
+                snapshot.Authority,
                 existing.Id,
                 snapshot.ContentSha256,
                 snapshotAlreadyImported: true,
@@ -71,6 +72,7 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
         await transaction.CommitAsync(cancellationToken);
 
         return await BuildResultAsync(
+            snapshot.Authority,
             snapshotId,
             snapshot.ContentSha256,
             snapshotAlreadyImported: false,
@@ -291,14 +293,31 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
         GenreFormAuthorityDataset dataset,
         CancellationToken cancellationToken)
     {
-        // Relations and derived facts are rebuilt from the new snapshot.
-        // Profile entries and Work assignments are deliberately untouched.
-        await context.GenreFormBroaderRelations.ExecuteDeleteAsync(cancellationToken);
-        await context.GenreFormRelatedRelations.ExecuteDeleteAsync(cancellationToken);
-        await context.GenreFormVariants.ExecuteDeleteAsync(cancellationToken);
-        await context.GenreFormNotes.ExecuteDeleteAsync(cancellationToken);
+        // Relations and derived facts are rebuilt from the new snapshot, but
+        // only for the authority being imported: another authority's facts are
+        // none of this import's business. Profile entries and Work assignments
+        // are never touched.
+        var authority = snapshot.Authority;
+
+        await context.GenreFormBroaderRelations
+            .Where(x => context.GenreFormTerms
+                .Any(t => t.Id == x.NarrowerTermId && t.Authority == authority))
+            .ExecuteDeleteAsync(cancellationToken);
+        await context.GenreFormRelatedRelations
+            .Where(x => context.GenreFormTerms
+                .Any(t => t.Id == x.TermIdA && t.Authority == authority))
+            .ExecuteDeleteAsync(cancellationToken);
+        await context.GenreFormVariants
+            .Where(x => context.GenreFormTerms
+                .Any(t => t.Id == x.TermId && t.Authority == authority))
+            .ExecuteDeleteAsync(cancellationToken);
+        await context.GenreFormNotes
+            .Where(x => context.GenreFormTerms
+                .Any(t => t.Id == x.TermId && t.Authority == authority))
+            .ExecuteDeleteAsync(cancellationToken);
 
         var existingTerms = await context.GenreFormTerms
+            .Where(x => x.Authority == authority)
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         foreach (var term in dataset.Terms)
@@ -418,6 +437,7 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
     }
 
     private async Task<GenreFormAuthorityImportResult> BuildResultAsync(
+        string authority,
         Guid snapshotId,
         string contentSha256,
         bool snapshotAlreadyImported,
@@ -436,7 +456,8 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
             from entry in entries.DefaultIfEmpty()
             let assignments = context.WorkGenreForms
                 .Count(x => x.TermId == term.Id)
-            where entry != null || assignments > 0
+            where term.Authority == authority &&
+                  (entry != null || assignments > 0)
             select new
             {
                 term.AuthorityUri,

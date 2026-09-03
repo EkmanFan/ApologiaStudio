@@ -79,6 +79,12 @@ public static class DependencyInjection
             IGenreFormAuthorityDatasetReader,
             SkosJsonLdGenreFormDatasetReader>();
         services.AddScoped<
+            IGenreFormProfileSeeder,
+            PostgreSqlGenreFormProfileSeeder>();
+        services.AddScoped<
+            IGenreFormAssignmentStore,
+            PostgreSqlGenreFormAssignmentStore>();
+        services.AddScoped<
             IDocumentManagerSubmissionAssemblyReader,
             PostgreSqlDocumentManagerSubmissionAssemblyReader>();
         services.AddScoped<

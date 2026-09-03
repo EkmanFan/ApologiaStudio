@@ -256,8 +256,10 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
 
     private static GenreFormAuthoritySnapshot Snapshot(string sha256)
     {
+        // Synthetic terms belong to their own authority so this test never
+        // rebuilds the real LCGFT facts.
         return new GenreFormAuthoritySnapshot(
-            "lcgft",
+            "test-lcgft",
             "https://id.loc.gov/download/authorities/genreForms.skosrdf.jsonld.gz",
             sha256,
             new DateTimeOffset(2026, 9, 3, 20, 0, 0, TimeSpan.Zero),

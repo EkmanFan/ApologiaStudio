@@ -44,9 +44,15 @@ public static class GenreFormImportCli
 
         var filePath = ReadOption(args, "--file");
         var sourceUri = ReadOption(args, "--source") ?? DefaultSourceUri;
+        var applyProfileOnly = args.Contains("--apply-profile");
 
         try
         {
+            if (applyProfileOnly)
+            {
+                return await ApplyProfileAsync(connectionString, cancellationToken);
+            }
+
             var (payload, sha256) = filePath is null
                 ? await DownloadAsync(sourceUri, cancellationToken)
                 : await ReadFileAsync(filePath, cancellationToken);
@@ -97,6 +103,35 @@ public static class GenreFormImportCli
             Console.Error.WriteLine($"Authority import failed: {exception.Message}");
             return 1;
         }
+    }
+
+    private static async Task<int> ApplyProfileAsync(
+        string connectionString,
+        CancellationToken cancellationToken)
+    {
+        var options = new DbContextOptionsBuilder<KnowledgeDbContext>()
+            .UseNpgsql(connectionString, postgres => postgres.UseVector())
+            .Options;
+
+        await using var context = new KnowledgeDbContext(options);
+        var seeder = new PostgreSqlGenreFormProfileSeeder(context);
+
+        var result = await seeder.ApplyAsync(cancellationToken);
+
+        Console.WriteLine($"profile version  : {result.ProfileVersion}");
+        Console.WriteLine($"selectable       : {result.SelectableCount}");
+        Console.WriteLine($"structural only  : {result.StructuralOnlyCount}");
+        Console.WriteLine(
+            result.Changed
+                ? "profile applied"
+                : "profile already current; no change applied");
+
+        foreach (var label in result.StructuralOnlyLabels)
+        {
+            Console.WriteLine($"  structural: {label}");
+        }
+
+        return 0;
     }
 
     private static void WriteResult(GenreFormAuthorityImportResult result)
@@ -191,6 +226,8 @@ public static class GenreFormImportCli
                                Library of Congress LCGFT SKOS/RDF JSON-LD dump.
               --file <path>    Import a already-downloaded dataset instead of
                                fetching it. Accepts .gz or plain JSON Lines.
+              --apply-profile  Apply Apologia Genre/Form Profile V1 over the
+                               already-imported authority and exit.
               -h, --help       Show this help.
 
             Environment:
