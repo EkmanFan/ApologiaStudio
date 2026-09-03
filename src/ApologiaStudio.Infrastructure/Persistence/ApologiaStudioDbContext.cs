@@ -3,13 +3,19 @@ using ApologiaStudio.Domain.Navigation;
 using ApologiaStudio.Domain.Projects;
 using ApologiaStudio.Domain.Users;
 using ApologiaStudio.Infrastructure.Persistence.AiRuntime;
+using ApologiaStudio.Infrastructure.Persistence.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApologiaStudio.Infrastructure.Persistence;
 
 public sealed class ApologiaStudioDbContext(
     DbContextOptions<ApologiaStudioDbContext> options)
-    : DbContext(options)
+    : IdentityDbContext<
+        ApologiaIdentityUser,
+        IdentityRole<Guid>,
+        Guid>(options)
 {
     public DbSet<Conversation> Conversations =>
         Set<Conversation>();
@@ -35,9 +41,24 @@ public sealed class ApologiaStudioDbContext(
     internal DbSet<AiAgentSettingsEntity> AiAgentSettings =>
         Set<AiAgentSettingsEntity>();
 
+    public DbSet<IdentityAdministrationEventEntity>
+        IdentityAdministrationEvents =>
+            Set<IdentityAdministrationEventEntity>();
+
+    public DbSet<IdentityGroupEntity> IdentityGroups =>
+        Set<IdentityGroupEntity>();
+
+    public DbSet<IdentityGroupMembershipEntity> IdentityGroupMemberships =>
+        Set<IdentityGroupMembershipEntity>();
+
+    public DbSet<IdentityGroupRoleEntity> IdentityGroupRoles =>
+        Set<IdentityGroupRoleEntity>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(ApologiaStudioDbContext).Assembly);
     }

@@ -1,0 +1,75 @@
+@page "/account/registration-sent"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+
+@using System.Text
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Infrastructure.Persistence.Identity
+
+@inject UserManager<ApologiaIdentityUser> UserManager
+@inject NavigationManager NavigationManager
+@inject IWebHostEnvironment Environment
+
+<PageTitle>@Text("Vérifiez votre e-mail", "Check your email") · Apologia Studio</PageTitle>
+
+<h1>@Text("Vérifiez votre e-mail", "Check your email")</h1>
+<p class="account-intro">
+    @Text("Un lien de confirmation a été préparé pour", "A confirmation link has been prepared for")
+    <strong>@Email</strong>.
+    @Text(
+        "Après cette vérification, un administrateur examinera votre demande.",
+        "After verification, an administrator will review your request.")
+</p>
+
+@if (_developmentConfirmationLink is not null)
+{
+    <IdentityStatusMessage Message="@Text(
+        "Mode local : aucun serveur d’e-mail n’est configuré. Utilisez le lien ci-dessous pour tester la vérification.",
+        "Local mode: no email server is configured. Use the link below to test verification.")" />
+    <a class="development-link" href="@_developmentConfirmationLink">
+        @Text("Confirmer l’adresse en mode développement", "Confirm the address in development mode")
+    </a>
+}
+
+<div class="identity-links">
+    <a href="/account/login">@Text("Retour à la connexion", "Back to sign in")</a>
+</div>
+
+@code {
+    private string? _developmentConfirmationLink;
+
+    [CascadingParameter]
+    private ApplicationLanguage InterfaceLanguage { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Email { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Environment.IsDevelopment() || string.IsNullOrWhiteSpace(Email))
+        {
+            return;
+        }
+
+        var user = await UserManager.FindByEmailAsync(Email);
+        if (user is null || user.EmailConfirmed)
+        {
+            return;
+        }
+
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        _developmentConfirmationLink = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("account/confirm-email").AbsoluteUri,
+            new Dictionary<string, object?>
+            {
+                ["userId"] = user.Id,
+                ["code"] = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code))
+            });
+    }
+
+    private string Text(string french, string english) =>
+        InterfaceLanguage == ApplicationLanguage.English ? english : french;
+}

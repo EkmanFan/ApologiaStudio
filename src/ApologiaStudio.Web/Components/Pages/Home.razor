@@ -2,6 +2,7 @@
 @page "/conversations/{ConversationIdValue:guid}"
 @page "/document-manager"
 @page "/editorial-review"
+@attribute [Authorize(Policy = SystemPermissions.AccessStudio)]
 
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.WebUtilities
@@ -43,6 +44,8 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 @inject DocumentManagerUiOptions DocumentManagerUiOptions
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@GetPageTitle()</PageTitle>
 <DocumentLanguage Language="@_interfaceLanguage" />

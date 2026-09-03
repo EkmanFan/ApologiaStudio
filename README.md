@@ -67,6 +67,14 @@ The canonical Bible corpus remains deterministic reference data. RAG retrieval
 is a separate, derived knowledge path and must not replace exact Bible passage
 lookup.
 
+## Identity and access
+
+The accepted public-registration, administrator-approval and permission model
+is defined in
+[Authentication and Authorization V1](docs/security/authentication-and-authorization-v1.md).
+Apologia is the authority for human accounts; Document Manager keeps separate
+service credentials and does not own another user directory.
+
 ## Bible corpus query API
 
 The web application exposes deterministic, read-only access to active and

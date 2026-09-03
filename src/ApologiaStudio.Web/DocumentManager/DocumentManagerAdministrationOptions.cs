@@ -1,4 +1,5 @@
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
+using ApologiaStudio.Domain.Users;
 
 namespace ApologiaStudio.Web.DocumentManager;
 
@@ -18,8 +19,13 @@ public sealed record DocumentManagerAdministrationOptions(bool Enabled)
 }
 
 public sealed class ConfiguredDocumentManagerAdministrationAuthorizer(
-    DocumentManagerAdministrationOptions options)
+    DocumentManagerAdministrationOptions options,
+    IHttpContextAccessor httpContextAccessor)
     : IDocumentManagerAdministrationAuthorizer
 {
-    public bool IsAuthorized => options.Enabled;
+    public bool IsAuthorized =>
+        options.Enabled &&
+        httpContextAccessor.HttpContext?.User.HasClaim(
+            SystemPermissions.ClaimType,
+            SystemPermissions.PurgeEditorial) is true;
 }

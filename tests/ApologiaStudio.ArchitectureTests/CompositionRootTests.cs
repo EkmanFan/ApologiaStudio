@@ -6,6 +6,9 @@ using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.AiRuntime.Settings;
 using ApologiaStudio.Web;
 using ApologiaStudio.Web.DocumentManager;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -107,11 +110,26 @@ public sealed class CompositionRootTests
 
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
+        services.AddSingleton<NavigationManager, TestNavigationManager>();
+        services.AddSingleton<EndpointDataSource>(
+            new DefaultEndpointDataSource(Array.Empty<Endpoint>()));
         services.AddApologiaStudioWebServices(
             configuration,
             CreateRuntimeDefaults());
 
         return services;
+    }
+
+    private sealed class TestNavigationManager : NavigationManager
+    {
+        public TestNavigationManager() =>
+            Initialize("http://localhost/", "http://localhost/");
+
+        protected override void NavigateToCore(
+            string uri,
+            bool forceLoad)
+        {
+        }
     }
 
     private static AiRuntimeSettingsDefaults CreateRuntimeDefaults()

@@ -53,6 +53,10 @@ builder.Services.AddApologiaStudioWebServices(
 
 var app = builder.Build();
 
+await app.Services
+    .GetRequiredService<IdentityBootstrapper>()
+    .InitializeAsync(app.Lifetime.ApplicationStopping);
+
 await InitializeAiRuntimeSettingsAsync(
     app,
     aiRuntimeDefaults);
@@ -68,6 +72,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -77,6 +83,7 @@ app.MapRazorComponents<App>()
 
 app.MapBibleCorpusEndpoints();
 app.MapDocumentManagerNotificationEndpoint();
+app.MapIdentitySessionEndpoints();
 
 app.Run();
 

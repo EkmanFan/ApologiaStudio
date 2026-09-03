@@ -1,5 +1,6 @@
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Domain.BibleCorpora;
+using ApologiaStudio.Domain.Users;
 
 namespace ApologiaStudio.Web.Endpoints;
 
@@ -10,7 +11,8 @@ public static class BibleCorpusEndpoints
     {
         var group = endpoints
             .MapGroup("/api/bible")
-            .WithTags("Bible");
+            .WithTags("Bible")
+            .RequireAuthorization(SystemPermissions.AccessStudio);
 
         group.MapGet(
             "/editions",

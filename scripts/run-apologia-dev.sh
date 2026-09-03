@@ -48,9 +48,23 @@ export DocumentManagerConsumer__NotificationSecret="${DPE_MANAGER_NOTIFICATION_S
 export DocumentManagerConsumer__DeliveryReplayApiKey="${DPE_MANAGER_DELIVERY_REPLAY_API_KEY:-dpengine-delivery-replay-local-development-key-2026}"
 export DocumentManagerConsumer__ReconciliationSeconds="${DocumentManagerConsumer__ReconciliationSeconds:-300}"
 export DocumentManagerConsumer__RetrySeconds="${DocumentManagerConsumer__RetrySeconds:-10}"
+export IdentityBootstrap__Enabled="${IdentityBootstrap__Enabled:-true}"
+export IdentityBootstrap__Email="${APOLOGIA_BOOTSTRAP_ADMIN_EMAIL:-admin@apologia.local}"
+export IdentityBootstrap__Password="${APOLOGIA_BOOTSTRAP_ADMIN_PASSWORD:-Apologia-Local-Admin-2026!}"
+export IdentityBootstrap__DisplayName="${APOLOGIA_BOOTSTRAP_ADMIN_NAME:-Apologia Administrator}"
+
+printf 'Local administrator: %s\n' "${IdentityBootstrap__Email}"
+printf 'Local password: %s\n' "${IdentityBootstrap__Password}"
+printf 'These development defaults are never used unless the identity store is empty.\n\n'
 
 ./scripts/db-up.sh
 ./scripts/knowledge-db-up.sh
+
+export APOLOGIASTUDIO_DB_CONNECTION="${ConnectionStrings__ApologiaStudio}"
+
+dotnet ef database update \
+  --project src/ApologiaStudio.Infrastructure/ApologiaStudio.Infrastructure.csproj \
+  --context ApologiaStudioDbContext
 
 dotnet ef database update \
   --project src/ApologiaStudio.Infrastructure/ApologiaStudio.Infrastructure.csproj \

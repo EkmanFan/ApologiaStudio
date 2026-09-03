@@ -1,0 +1,23 @@
+@page "/account/access-denied"
+@layout AccountLayout
+@using ApologiaStudio.Domain.Users
+
+<PageTitle>@Text("Accès refusé", "Access denied") · Apologia Studio</PageTitle>
+
+<h1>@Text("Accès refusé", "Access denied")</h1>
+<p class="account-intro">
+    @Text(
+        "Votre compte ne possède pas le droit nécessaire pour cette opération.",
+        "Your account does not have the permission required for this operation.")
+</p>
+<div class="identity-links">
+    <a href="/">@Text("Retour à Apologia Studio", "Return to Apologia Studio")</a>
+</div>
+
+@code {
+    [CascadingParameter]
+    private ApplicationLanguage InterfaceLanguage { get; set; }
+
+    private string Text(string french, string english) =>
+        InterfaceLanguage == ApplicationLanguage.English ? english : french;
+}

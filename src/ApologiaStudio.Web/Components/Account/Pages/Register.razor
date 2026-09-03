@@ -1,0 +1,200 @@
+@page "/account/register"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Infrastructure.Persistence.Identity
+@using ApologiaStudio.Web.Identity
+
+@inject UserManager<ApologiaIdentityUser> UserManager
+@inject IEmailSender<ApologiaIdentityUser> EmailSender
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+@inject TimeProvider TimeProvider
+
+<PageTitle>@Text("Inscription", "Registration") · Apologia Studio</PageTitle>
+
+<h1>@Text("Créer un compte", "Create an account")</h1>
+<p class="account-intro">
+    @Text(
+        "Après vérification de votre adresse, votre demande sera examinée par un administrateur.",
+        "After your email is verified, an administrator will review your request.")
+</p>
+
+<IdentityStatusMessage Message="@_message" IsError="true" />
+
+<EditForm Model="Input"
+          method="post"
+          OnValidSubmit="RegisterAsync"
+          FormName="register"
+          class="identity-form">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="identity-field">
+        <label for="register-name">@Text("Nom affiché", "Display name")</label>
+        <InputText id="register-name" autocomplete="name" @bind-Value="Input.DisplayName" />
+        <ValidationMessage For="() => Input.DisplayName" />
+    </div>
+
+    <div class="identity-field">
+        <label for="register-email">@Text("Adresse e-mail", "Email address")</label>
+        <InputText id="register-email" type="email" autocomplete="email" @bind-Value="Input.Email" />
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+
+    <div class="identity-field">
+        <label for="register-password">@Text("Mot de passe", "Password")</label>
+        <InputText id="register-password" type="password" autocomplete="new-password" @bind-Value="Input.Password" />
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+
+    <div class="identity-field">
+        <label for="register-confirmation">@Text("Confirmer le mot de passe", "Confirm password")</label>
+        <InputText id="register-confirmation" type="password" autocomplete="new-password" @bind-Value="Input.Confirmation" />
+        <ValidationMessage For="() => Input.Confirmation" />
+    </div>
+
+    <button class="identity-submit" type="submit">@Text("Envoyer ma demande", "Submit my request")</button>
+</EditForm>
+
+<div class="identity-links">
+    <a href="/account/login">@Text("J’ai déjà un compte", "I already have an account")</a>
+</div>
+
+@code {
+    private string? _message;
+
+    [CascadingParameter]
+    private ApplicationLanguage InterfaceLanguage { get; set; }
+
+    [SupplyParameterFromForm]
+    private RegistrationInput Input { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        Input ??= new RegistrationInput();
+        Input.Language = InterfaceLanguage;
+    }
+
+    private async Task RegisterAsync()
+    {
+        var now = TimeProvider.GetUtcNow();
+        var email = Input.Email.Trim();
+        var user = new ApologiaIdentityUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = email,
+            Email = email,
+            DisplayName = Input.DisplayName.Trim(),
+            RegistrationStatus = AccountRegistrationStatus.PendingEmail,
+            RegisteredAtUtc = now,
+            LockoutEnabled = true,
+            SecurityStamp = Guid.NewGuid().ToString("N")
+        };
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            _message = string.Join(
+                " ",
+                result.Errors.Select(error => error.Description));
+            return;
+        }
+
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        var encodedCode = WebEncoders.Base64UrlEncode(
+            Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("account/confirm-email").AbsoluteUri,
+            new Dictionary<string, object?>
+            {
+                ["userId"] = user.Id,
+                ["code"] = encodedCode
+            });
+
+        await EmailSender.SendConfirmationLinkAsync(
+            user,
+            email,
+            HtmlEncoder.Default.Encode(callbackUrl));
+
+        RedirectManager.RedirectTo(
+            "account/registration-sent",
+            new Dictionary<string, object?> { ["email"] = email });
+    }
+
+    private string Text(string french, string english) =>
+        InterfaceLanguage == ApplicationLanguage.English ? english : french;
+
+    private sealed class RegistrationInput : IValidatableObject
+    {
+        public string DisplayName { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+
+        public string Confirmation { get; set; } = string.Empty;
+
+        public ApplicationLanguage Language { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var english = Language == ApplicationLanguage.English;
+            if (string.IsNullOrWhiteSpace(DisplayName))
+            {
+                yield return Error(
+                    english ? "Display name is required." : "Le nom affiché est obligatoire.",
+                    nameof(DisplayName));
+            }
+            else if (DisplayName.Trim().Length is < 2 or > 200)
+            {
+                yield return Error(
+                    english ? "The display name must contain between 2 and 200 characters." : "Le nom doit contenir entre 2 et 200 caractères.",
+                    nameof(DisplayName));
+            }
+
+            if (string.IsNullOrWhiteSpace(Email))
+            {
+                yield return Error(
+                    english ? "Email address is required." : "L’adresse e-mail est obligatoire.",
+                    nameof(Email));
+            }
+            else if (!new EmailAddressAttribute().IsValid(Email))
+            {
+                yield return Error(
+                    english ? "The email address is not valid." : "L’adresse e-mail n’est pas valide.",
+                    nameof(Email));
+            }
+
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                yield return Error(
+                    english ? "Password is required." : "Le mot de passe est obligatoire.",
+                    nameof(Password));
+            }
+            else if (Password.Length is < 12 or > 100)
+            {
+                yield return Error(
+                    english ? "The password must contain at least 12 characters." : "Le mot de passe doit contenir au moins 12 caractères.",
+                    nameof(Password));
+            }
+
+            if (Password != Confirmation)
+            {
+                yield return Error(
+                    english ? "The two passwords do not match." : "Les deux mots de passe ne correspondent pas.",
+                    nameof(Confirmation));
+            }
+        }
+
+        private static ValidationResult Error(string message, string memberName) =>
+            new(message, [memberName]);
+    }
+}

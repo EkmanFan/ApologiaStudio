@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -107,7 +108,29 @@ public partial class Home
         _loadedRouteKey = routeKey;
         _preparedDraftRouteKey = null;
 
+        if (!await IsCurrentRouteAuthorizedAsync())
+        {
+            NavigationManager.NavigateTo(
+                "/account/access-denied",
+                replace: true);
+            return;
+        }
+
         await LoadRouteAsync();
+    }
+
+    private async Task<bool> IsCurrentRouteAuthorizedAsync()
+    {
+        var requiredPermission = IsDocumentManagerRoute()
+            ? SystemPermissions.OperateDocumentManager
+            : IsEditorialReviewRoute()
+                ? SystemPermissions.ReviewEditorial
+                : SystemPermissions.AccessStudio;
+        var authentication = await AuthenticationStateProvider
+            .GetAuthenticationStateAsync();
+        return (await AuthorizationService.AuthorizeAsync(
+            authentication.User,
+            requiredPermission)).Succeeded;
     }
 
     protected override async Task OnAfterRenderAsync(

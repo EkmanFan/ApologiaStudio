@@ -1,0 +1,547 @@
+@page "/administration/access"
+@attribute [Authorize(Policy = SystemPolicies.ManageAccess)]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@using System.Security.Claims
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Web.Identity
+
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>@Text("Groupes et droits", "Groups and permissions") · Apologia Studio</PageTitle>
+<DocumentLanguage Language="@_interfaceLanguage" />
+
+<main class="access-admin-shell">
+    <header class="access-admin-header">
+        <div>
+            <p>@Text("Administration", "Administration")</p>
+            <h1>@Text("Groupes, rôles et droits", "Groups, roles, and permissions")</h1>
+            <span>@Text("Les comptes héritent des rôles de leurs groupes. Les rôles ne peuvent utiliser que les droits connus de l’application.", "Accounts inherit roles from their groups. Roles can only use permissions known to the application.")</span>
+        </div>
+        <div class="access-admin-header-actions">
+            <a class="admin-section-link" href="/administration/accounts">@Text("Comptes", "Accounts")</a>
+            <a class="admin-close" href="/" aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")" title="@Text("Fermer", "Close")">×</a>
+        </div>
+    </header>
+
+    @if (_message is not null)
+    {
+        <p class="access-message @(_messageIsError ? "error" : null)"
+           role="@(_messageIsError ? "alert" : "status")">@_message</p>
+    }
+
+    @if (_isLoading)
+    {
+        <p>@Text("Chargement de la politique d’accès…", "Loading access policy…")</p>
+    }
+    else if (_snapshot is not null)
+    {
+        <section class="access-grid">
+            <article class="access-panel">
+                <header>
+                    <div>
+                        <p>@Text("Composition des accès", "Access composition")</p>
+                        <h2>@Text("Groupes", "Groups")</h2>
+                    </div>
+                    <strong>@_snapshot.Groups.Count</strong>
+                </header>
+
+                <div class="create-access-item">
+                    <label for="new-group-name">@Text("Nouveau groupe", "New group")</label>
+                    <input id="new-group-name" maxlength="120" placeholder="@Text("Ex. Comité éditorial", "E.g. Editorial committee")" @bind="_newGroupName" />
+                    <textarea maxlength="500" rows="2" placeholder="@Text("Description facultative", "Optional description")" @bind="_newGroupDescription"></textarea>
+                    <button class="primary" type="button" disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newGroupName))" @onclick="CreateGroupAsync">
+                        @Text("Créer le groupe", "Create group")
+                    </button>
+                </div>
+
+                <div class="access-item-list">
+                    @foreach (var group in _snapshot.Groups)
+                    {
+                        <article class="access-item">
+                            <div>
+                                <strong>@group.Name</strong>
+                                @if (group.IsSystem)
+                                {
+                                    <span class="system-badge">@Text("Système", "System")</span>
+                                }
+                                <p>@GroupDescription(group.Name, group.Description)</p>
+                                <small>
+                                    @group.MemberIds.Count @Text("membre(s)", "member(s)") ·
+                                    @RoleNames(group.RoleIds)
+                                </small>
+                            </div>
+                            <div class="item-actions">
+                                <button type="button" disabled="@_isSaving" @onclick="() => EditGroup(group)">@Text("Configurer", "Configure")</button>
+                                @if (!group.IsSystem)
+                                {
+                                    <button class="danger" type="button" disabled="@_isSaving" @onclick="() => AskDeleteGroup(group)">@Text("Supprimer", "Delete")</button>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            </article>
+
+            <article class="access-panel">
+                <header>
+                    <div>
+                        <p>@Text("Catalogue fermé", "Closed catalog")</p>
+                        <h2>@Text("Rôles et droits", "Roles and permissions")</h2>
+                    </div>
+                    <strong>@_snapshot.Roles.Count</strong>
+                </header>
+
+                <div class="create-access-item compact">
+                    <label for="new-role-name">@Text("Nouveau rôle", "New role")</label>
+                    <div class="inline-create">
+                        <input id="new-role-name" maxlength="120" placeholder="@Text("Ex. Validateur", "E.g. Reviewer")" @bind="_newRoleName" />
+                        <button class="primary" type="button" disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newRoleName))" @onclick="CreateRoleAsync">@Text("Créer", "Create")</button>
+                    </div>
+                </div>
+
+                <div class="role-list">
+                    @foreach (var role in _snapshot.Roles)
+                    {
+                        <article class="role-card">
+                            <header>
+                                <div>
+                                    <strong>@role.Name</strong>
+                                    @if (role.IsSystem)
+                                    {
+                                        <span class="system-badge">@Text("Système", "System")</span>
+                                    }
+                                    <small>@role.GroupCount @Text("groupe(s)", "group(s)")</small>
+                                </div>
+                                @if (!role.IsSystem)
+                                {
+                                    <button class="danger-link" type="button" disabled="@_isSaving" @onclick="() => AskDeleteRole(role)">@Text("Supprimer", "Delete")</button>
+                                }
+                            </header>
+
+                            <div class="permission-list">
+                                @foreach (var permission in _snapshot.PermissionCatalog)
+                                {
+                                    var locked = role.Name == SystemRoles.Administrator;
+                                    <label>
+                                        <input type="checkbox"
+                                               checked="@RoleHasPermission(role.Id, permission)"
+                                               disabled="@(_isSaving || locked)"
+                                               @onchange="args => TogglePermission(role.Id, permission, args.Value is true)" />
+                                        <span>@PermissionLabel(permission)</span>
+                                        <code>@permission</code>
+                                    </label>
+                                }
+                            </div>
+
+                            @if (role.Name == SystemRoles.Administrator)
+                            {
+                                <small class="locked-note">@Text("Le rôle Administrator conserve toujours tous les droits.", "The Administrator role always retains all permissions.")</small>
+                            }
+                            else
+                            {
+                                <button type="button" disabled="@_isSaving" @onclick="() => SaveRoleAsync(role.Id)">@Text("Enregistrer les droits", "Save permissions")</button>
+                            }
+                        </article>
+                    }
+                </div>
+            </article>
+        </section>
+
+        <section class="access-audit">
+            <header>
+                <div>
+                    <p>@Text("Traçabilité", "Audit trail")</p>
+                    <h2>@Text("Dernières décisions de sécurité", "Latest security decisions")</h2>
+                </div>
+                <strong>@_snapshot.RecentEvents.Count</strong>
+            </header>
+            @if (_snapshot.RecentEvents.Count == 0)
+            {
+                <p>@Text("Aucun événement de sécurité enregistré.", "No security event recorded.")</p>
+            }
+            else
+            {
+                <div class="audit-table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>@Text("Date", "Date")</th><th>@Text("Acteur", "Actor")</th><th>@Text("Action", "Action")</th><th>@Text("Cible", "Target")</th><th>@Text("Motif", "Reason")</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in _snapshot.RecentEvents)
+                            {
+                                <tr>
+                                    <td>@FormatDate(item.OccurredAtUtc)</td>
+                                    <td>@item.Actor</td>
+                                    <td><code>@item.Action</code></td>
+                                    <td>@item.Target</td>
+                                    <td>@(item.Reason ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</main>
+
+@if (_editedGroup is not null && _snapshot is not null)
+{
+    <div class="access-dialog-backdrop" @onclick="CancelDialog">
+        <section class="access-dialog" role="dialog" aria-modal="true" aria-labelledby="group-dialog-title" @onclick:stopPropagation>
+            <header>
+                <p>@Text("Configuration", "Configuration")</p>
+                <h2 id="group-dialog-title">@_editedGroup.Name</h2>
+            </header>
+
+            <label for="edit-group-name">@Text("Nom", "Name")</label>
+            <input id="edit-group-name" maxlength="120" disabled="@_editedGroup.IsSystem" @bind="_editedGroupName" />
+            <label for="edit-group-description">@Text("Description", "Description")</label>
+            <textarea id="edit-group-description" maxlength="500" rows="3" @bind="_editedGroupDescription"></textarea>
+
+            <fieldset>
+                <legend>@Text("Rôles hérités", "Inherited roles")</legend>
+                @foreach (var role in _snapshot.Roles)
+                {
+                    <label>
+                        <input type="checkbox"
+                               checked="@_editedRoleIds.Contains(role.Id)"
+                               disabled="@(_isSaving || _editedGroup.IsSystem)"
+                               @onchange="args => ToggleEditedRole(role.Id, args.Value is true)" />
+                        @role.Name
+                    </label>
+                }
+                @if (_editedGroup.IsSystem)
+                {
+                    <small>@Text("La correspondance entre un groupe système et son rôle est protégée.", "The mapping between a system group and its role is protected.")</small>
+                }
+            </fieldset>
+
+            <fieldset>
+                <legend>@Text("Membres", "Members")</legend>
+                <div class="member-picker">
+                    @foreach (var member in _snapshot.Members)
+                    {
+                        <label>
+                            <input type="checkbox"
+                                   checked="@_editedMemberIds.Contains(member.Id)"
+                                   disabled="@_isSaving"
+                                   @onchange="args => ToggleEditedMember(member.Id, args.Value is true)" />
+                            <span>
+                                <strong>@member.DisplayName</strong>
+                                <small>@member.Email · @AccountStatusLabel(member.Status)</small>
+                            </span>
+                        </label>
+                    }
+                </div>
+            </fieldset>
+
+            <div class="dialog-actions">
+                <button type="button" disabled="@_isSaving" @onclick="CancelDialog">@Text("Annuler", "Cancel")</button>
+                <button class="primary" type="button" disabled="@_isSaving" @onclick="SaveGroupAsync">
+                    @(_isSaving ? Text("Enregistrement…", "Saving…") : Text("Enregistrer le groupe", "Save group"))
+                </button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (_deleteGroup is not null || _deleteRole is not null)
+{
+    <div class="access-dialog-backdrop" @onclick="CancelDialog">
+        <section class="access-dialog confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" @onclick:stopPropagation>
+            <h2 id="delete-dialog-title">@Text("Confirmer la suppression", "Confirm deletion")</h2>
+            <p>
+                @if (_deleteGroup is not null)
+                {
+                    <text>@Text($"Le groupe « {_deleteGroup.Name} » sera supprimé et ses membres perdront les rôles hérités de ce groupe.", $"The “{_deleteGroup.Name}” group will be deleted and its members will lose roles inherited from this group.")</text>
+                }
+                else
+                {
+                    <text>@Text($"Le rôle « {_deleteRole!.Name} » sera supprimé. Il doit d’abord n’être rattaché à aucun groupe.", $"The “{_deleteRole!.Name}” role will be deleted. It must first be detached from every group.")</text>
+                }
+            </p>
+            <div class="dialog-actions">
+                <button type="button" disabled="@_isSaving" @onclick="CancelDialog">@Text("Annuler", "Cancel")</button>
+                <button class="danger" type="button" disabled="@_isSaving" @onclick="ConfirmDeleteAsync">@Text("Supprimer", "Delete")</button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private AccessAdministrationSnapshot? _snapshot;
+    private AccessGroupView? _editedGroup;
+    private AccessGroupView? _deleteGroup;
+    private AccessRoleView? _deleteRole;
+    private readonly Dictionary<Guid, HashSet<string>> _rolePermissions = [];
+    private readonly HashSet<Guid> _editedRoleIds = [];
+    private readonly HashSet<Guid> _editedMemberIds = [];
+    private Guid _actorUserId;
+    private ApplicationLanguage _interfaceLanguage = UserPreferences.DefaultInterfaceLanguage;
+    private string _newGroupName = string.Empty;
+    private string _newGroupDescription = string.Empty;
+    private string _newRoleName = string.Empty;
+    private string _editedGroupName = string.Empty;
+    private string _editedGroupDescription = string.Empty;
+    private string? _message;
+    private bool _messageIsError;
+    private bool _isLoading = true;
+    private bool _isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (!Guid.TryParse(state.User.FindFirstValue(ClaimTypes.NameIdentifier), out _actorUserId))
+        {
+            ShowError("L’identité de la session n’est pas valide.");
+            _isLoading = false;
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<AccessAdministrationService>();
+            var languageResolver = scope.ServiceProvider.GetRequiredService<InterfaceLanguageResolver>();
+            _interfaceLanguage = await languageResolver.ResolveAsync(_actorUserId, CancellationToken.None);
+            _snapshot = await service.GetSnapshotAsync(_actorUserId, CancellationToken.None);
+            _rolePermissions.Clear();
+            foreach (var role in _snapshot.Roles)
+            {
+                _rolePermissions[role.Id] = role.Permissions.ToHashSet(StringComparer.Ordinal);
+            }
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateGroupAsync()
+    {
+        await RunMutationAsync(async service =>
+        {
+            await service.CreateGroupAsync(_actorUserId, _newGroupName, _newGroupDescription, CancellationToken.None);
+            _newGroupName = string.Empty;
+            _newGroupDescription = string.Empty;
+        }, Text("Le groupe a été créé.", "The group was created."));
+    }
+
+    private async Task CreateRoleAsync()
+    {
+        await RunMutationAsync(async service =>
+        {
+            await service.CreateRoleAsync(_actorUserId, _newRoleName, CancellationToken.None);
+            _newRoleName = string.Empty;
+        }, Text("Le rôle a été créé sans droit. Vous pouvez maintenant le composer.", "The role was created without permissions. You can now configure it."));
+    }
+
+    private void EditGroup(AccessGroupView group)
+    {
+        _editedGroup = group;
+        _editedGroupName = group.Name;
+        _editedGroupDescription = group.Description ?? string.Empty;
+        _editedRoleIds.Clear();
+        _editedRoleIds.UnionWith(group.RoleIds);
+        _editedMemberIds.Clear();
+        _editedMemberIds.UnionWith(group.MemberIds);
+        _message = null;
+    }
+
+    private async Task SaveGroupAsync()
+    {
+        if (_editedGroup is null)
+        {
+            return;
+        }
+
+        var groupId = _editedGroup.Id;
+        await RunMutationAsync(
+            service => service.UpdateGroupAsync(
+                _actorUserId,
+                groupId,
+                _editedGroupName,
+                _editedGroupDescription,
+                _editedRoleIds,
+                _editedMemberIds,
+                CancellationToken.None),
+            Text("Le groupe et les droits hérités ont été mis à jour.", "The group and inherited permissions were updated."));
+        _editedGroup = null;
+    }
+
+    private async Task SaveRoleAsync(Guid roleId)
+    {
+        await RunMutationAsync(
+            service => service.UpdateRolePermissionsAsync(
+                _actorUserId,
+                roleId,
+                _rolePermissions[roleId],
+                CancellationToken.None),
+            Text("Les droits du rôle ont été mis à jour.", "The role permissions were updated."));
+    }
+
+    private void AskDeleteGroup(AccessGroupView group)
+    {
+        _deleteGroup = group;
+        _deleteRole = null;
+    }
+
+    private void AskDeleteRole(AccessRoleView role)
+    {
+        _deleteRole = role;
+        _deleteGroup = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_deleteGroup is not null)
+        {
+            var id = _deleteGroup.Id;
+            await RunMutationAsync(
+                service => service.DeleteGroupAsync(_actorUserId, id, CancellationToken.None),
+                Text("Le groupe a été supprimé.", "The group was deleted."));
+        }
+        else if (_deleteRole is not null)
+        {
+            var id = _deleteRole.Id;
+            await RunMutationAsync(
+                service => service.DeleteRoleAsync(_actorUserId, id, CancellationToken.None),
+                Text("Le rôle a été supprimé.", "The role was deleted."));
+        }
+
+        _deleteGroup = null;
+        _deleteRole = null;
+    }
+
+    private async Task RunMutationAsync(
+        Func<AccessAdministrationService, Task> mutation,
+        string successMessage)
+    {
+        if (_isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<AccessAdministrationService>();
+            await mutation(service);
+            ShowSuccess(successMessage);
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void CancelDialog()
+    {
+        if (_isSaving)
+        {
+            return;
+        }
+
+        _editedGroup = null;
+        _deleteGroup = null;
+        _deleteRole = null;
+    }
+
+    private void ToggleEditedRole(Guid roleId, bool selected)
+    {
+        if (selected) _editedRoleIds.Add(roleId); else _editedRoleIds.Remove(roleId);
+    }
+
+    private void ToggleEditedMember(Guid userId, bool selected)
+    {
+        if (selected) _editedMemberIds.Add(userId); else _editedMemberIds.Remove(userId);
+    }
+
+    private void TogglePermission(Guid roleId, string permission, bool selected)
+    {
+        if (selected) _rolePermissions[roleId].Add(permission); else _rolePermissions[roleId].Remove(permission);
+    }
+
+    private bool RoleHasPermission(Guid roleId, string permission) =>
+        _rolePermissions.TryGetValue(roleId, out var permissions) && permissions.Contains(permission);
+
+    private string RoleNames(IReadOnlyList<Guid> roleIds)
+    {
+        var names = _snapshot!.Roles.Where(role => roleIds.Contains(role.Id)).Select(role => role.Name).ToArray();
+        return names.Length == 0 ? Text("aucun rôle", "no role") : string.Join(", ", names);
+    }
+
+    private string FormatDate(DateTimeOffset value) =>
+        value.ToLocalTime().ToString(
+            _interfaceLanguage == ApplicationLanguage.English
+                ? "MM/dd/yyyy h:mm tt"
+                : "dd/MM/yyyy HH:mm");
+
+    private string PermissionLabel(string permission) => permission switch
+    {
+        SystemPermissions.AccessStudio => Text("Accéder à Studio", "Access Studio"),
+        SystemPermissions.ManageAccounts => Text("Gérer les comptes", "Manage accounts"),
+        SystemPermissions.ManageGroups => Text("Gérer les groupes", "Manage groups"),
+        SystemPermissions.ManageRoles => Text("Composer les rôles", "Configure roles"),
+        SystemPermissions.ReviewEditorial => Text("Effectuer la revue éditoriale", "Perform editorial review"),
+        SystemPermissions.PurgeEditorial => Text("Supprimer définitivement côté éditorial", "Permanently delete editorial data"),
+        SystemPermissions.OperateDocumentManager => Text("Utiliser le Document Manager", "Use Document Manager"),
+        SystemPermissions.ReplayDocumentDelivery => Text("Relancer une livraison Manager", "Replay a Manager delivery"),
+        SystemPermissions.PurgeManagerCustody => Text("Purger la chaîne de custody", "Purge the custody chain"),
+        SystemPermissions.ManageSettings => Text("Modifier les paramètres", "Change settings"),
+        _ => permission
+    };
+
+    private string GroupDescription(string groupName, string? description) => groupName switch
+    {
+        SystemGroups.Readers => Text("Accès de base à Apologia Studio.", "Basic access to Apologia Studio."),
+        SystemGroups.Editors => Text("Revue et validation éditoriales.", "Editorial review and approval."),
+        SystemGroups.DocumentOperators => Text("Exploitation du Document Manager.", "Document Manager operations."),
+        SystemGroups.Administrators => Text("Administration complète d’Apologia Studio.", "Full administration of Apologia Studio."),
+        _ => description ?? Text("Sans description", "No description")
+    };
+
+    private string AccountStatusLabel(AccountRegistrationStatus status) => status switch
+    {
+        AccountRegistrationStatus.PendingEmail => Text("e-mail à vérifier", "email verification pending"),
+        AccountRegistrationStatus.PendingApproval => Text("à approuver", "awaiting approval"),
+        AccountRegistrationStatus.Active => Text("actif", "active"),
+        AccountRegistrationStatus.Rejected => Text("refusé", "rejected"),
+        AccountRegistrationStatus.Suspended => Text("suspendu", "suspended"),
+        _ => status.ToString()
+    };
+
+    private void ShowSuccess(string message)
+    {
+        _message = message;
+        _messageIsError = false;
+    }
+
+    private void ShowError(string message)
+    {
+        _message = message;
+        _messageIsError = true;
+    }
+
+    private string Text(string french, string english) =>
+        _interfaceLanguage == ApplicationLanguage.English ? english : french;
+}

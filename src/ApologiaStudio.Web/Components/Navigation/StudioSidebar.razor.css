@@ -121,6 +121,20 @@
     line-height: 1;
 }
 
+.account-logout-form {
+    margin: 0;
+}
+
+.account-logout-form button.account-menu-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: #96372f;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
 .sidebar-navigation {
     min-height: 0;
     overflow-y: auto;
@@ -394,6 +408,7 @@
     background: #fbfaf7;
     color: #252823;
     box-shadow: 0 0.9rem 2.4rem rgba(25, 30, 26, 0.2);
+    overflow: visible;
 }
 
 .account-menu-identity {
@@ -435,6 +450,60 @@
 
 .account-menu-item:hover {
     background: #eceae4;
+}
+
+.account-admin-submenu {
+    position: relative;
+}
+
+.account-admin-submenu-trigger {
+    justify-content: space-between;
+}
+
+.account-submenu-chevron {
+    margin-left: auto;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.account-admin-submenu-panel {
+    position: absolute;
+    left: calc(100% + 0.55rem);
+    bottom: 0;
+    z-index: 80;
+    display: grid;
+    width: 15.5rem;
+    padding: 0.42rem;
+    border: 1px solid #d4d1c9;
+    border-radius: 0.75rem;
+    background: #fbfaf7;
+    box-shadow: 0 0.9rem 2.4rem rgba(25, 30, 26, 0.2);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-0.25rem);
+    transition:
+        opacity 0.12s ease 0.18s,
+        transform 0.12s ease 0.18s,
+        visibility 0s linear 0.3s;
+}
+
+.account-admin-submenu::after {
+    position: absolute;
+    top: 0;
+    right: -0.6rem;
+    bottom: 0;
+    width: 0.65rem;
+    content: "";
+}
+
+.account-admin-submenu:hover > .account-admin-submenu-panel,
+.account-admin-submenu:focus-within > .account-admin-submenu-panel {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(0);
+    transition-delay: 0.18s, 0.18s, 0s;
 }
 
 .account-menu-item svg {
@@ -526,6 +595,13 @@ button:disabled {
 
     .account-menu-popover {
         width: calc(min(19rem, 88vw) - 1.1rem);
+    }
+
+    .account-admin-submenu-panel {
+        right: 0;
+        bottom: calc(100% + 0.35rem);
+        left: auto;
+        max-width: calc(100vw - 2.2rem);
     }
 }
 

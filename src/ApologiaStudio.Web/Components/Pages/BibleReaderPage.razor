@@ -1,5 +1,8 @@
 @page "/library/{LibraryEditionCode}"
 @page "/library/{LibraryEditionCode}/{LibraryBookCode}/{LibraryChapterNumber:int}"
+@attribute [Authorize(Policy = SystemPermissions.AccessStudio)]
+
+@using ApologiaStudio.Domain.Users
 
 @using ApologiaStudio.Web.Components.BibleReader
 @using ApologiaStudio.Web.Components.Navigation

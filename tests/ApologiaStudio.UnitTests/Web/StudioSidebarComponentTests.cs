@@ -1,6 +1,9 @@
+using System.Security.Claims;
 using ApologiaStudio.Domain.Users;
 using ApologiaStudio.Web.Components.Navigation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -281,11 +284,20 @@ public sealed class StudioSidebarComponentTests
         Assert.Contains("class=\"account-menu-popover\"", markup);
         Assert.Contains("popover=\"auto\"", markup);
         Assert.Contains("Local account", markup);
-        Assert.Contains("Demo profile", markup);
+        Assert.Contains("Secure session", markup);
         Assert.Contains("href=\"/settings\"", markup);
         Assert.Contains("Settings", markup);
+        Assert.Contains("href=\"/administration/accounts\"", markup);
+        Assert.Contains("href=\"/administration/access\"", markup);
+        Assert.Contains("class=\"account-admin-submenu\"", markup);
+        Assert.Contains("class=\"account-menu-item account-admin-submenu-trigger\"", markup);
+        Assert.Contains("href=\"/administration/accounts\" aria-haspopup=\"menu\"", markup);
+        Assert.Contains("class=\"account-admin-submenu-panel\"", markup);
+        Assert.Contains(">Administration<", markup);
+        Assert.Contains(">Accounts<", markup);
+        Assert.Contains(">Groups and permissions<", markup);
         Assert.DoesNotContain("Upgrade plan", markup);
-        Assert.DoesNotContain("Log out", markup);
+        Assert.Contains("Sign out", markup);
     }
 
     [Fact]
@@ -315,6 +327,39 @@ public sealed class StudioSidebarComponentTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddAuthorizationCore(options =>
+        {
+            foreach (var permission in SystemPermissions.All)
+            {
+                options.AddPolicy(
+                    permission,
+                    policy => policy.RequireClaim(
+                        SystemPermissions.ClaimType,
+                        permission));
+            }
+
+            options.AddPolicy(
+                SystemPolicies.ManageAccess,
+                policy => policy.RequireAssertion(context =>
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageGroups) ||
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageRoles)));
+            options.AddPolicy(
+                SystemPolicies.ViewAdministration,
+                policy => policy.RequireAssertion(context =>
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageAccounts) ||
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageGroups) ||
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageRoles)));
+        });
 
         using var serviceProvider =
             services.BuildServiceProvider();
@@ -330,9 +375,8 @@ public sealed class StudioSidebarComponentTests
         return await renderer.Dispatcher.InvokeAsync(
             async () =>
             {
-                var parameters =
-                    ParameterView.FromDictionary(
-                        new Dictionary<string, object?>
+                var parameterValues =
+                    new Dictionary<string, object?>
                         {
                             [nameof(StudioSidebar.BibleEditions)] =
                                 bibleEditions,
@@ -349,11 +393,37 @@ public sealed class StudioSidebarComponentTests
                                 Array.Empty<StudioSidebarDeletedConversation>(),
                             [nameof(StudioSidebar.Language)] =
                                 language
-                        });
+                        };
 
-                var component =
-                    await renderer.RenderComponentAsync<
-                        StudioSidebar>(parameters);
+                var identity = new ClaimsIdentity(
+                    SystemPermissions.All.Select(permission =>
+                        new Claim(SystemPermissions.ClaimType, permission)),
+                    authenticationType: "Test",
+                    nameType: ClaimTypes.Name,
+                    roleType: ClaimTypes.Role);
+                identity.AddClaim(new Claim(ClaimTypes.Name, "Local account"));
+                var authenticationState = Task.FromResult(
+                    new AuthenticationState(new ClaimsPrincipal(identity)));
+                RenderFragment childContent = builder =>
+                {
+                    builder.OpenComponent<StudioSidebar>(0);
+                    builder.AddMultipleAttributes(
+                        1,
+                        parameterValues.Select(parameter =>
+                            new KeyValuePair<string, object>(
+                                parameter.Key,
+                                parameter.Value!)));
+                    builder.CloseComponent();
+                };
+                var wrapperParameters = ParameterView.FromDictionary(
+                    new Dictionary<string, object?>
+                    {
+                        [nameof(CascadingValue<Task<AuthenticationState>>.Value)] = authenticationState,
+                        [nameof(CascadingValue<Task<AuthenticationState>>.IsFixed)] = true,
+                        [nameof(CascadingValue<Task<AuthenticationState>>.ChildContent)] = childContent
+                    });
+                var component = await renderer.RenderComponentAsync<
+                    CascadingValue<Task<AuthenticationState>>>(wrapperParameters);
 
                 return component.ToHtmlString();
             });

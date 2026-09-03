@@ -36,21 +36,25 @@
             <span>@Text("Nouvelle discussion", "New chat")</span>
         </button>
 
-        <a class="document-manager-link @(IsDocumentManagerActive ? "active" : null)"
-           href="/document-manager"
-           aria-current="@(IsDocumentManagerActive ? "page" : null)"
-           @onclick="CloseAsync">
-            <span class="document-manager-icon" aria-hidden="true">▤</span>
-            <span>@Text("Gestion des documents", "Document Manager")</span>
-        </a>
+        <AuthorizeView Policy="@SystemPermissions.OperateDocumentManager">
+            <a class="document-manager-link @(IsDocumentManagerActive ? "active" : null)"
+               href="/document-manager"
+               aria-current="@(IsDocumentManagerActive ? "page" : null)"
+               @onclick="CloseAsync">
+                <span class="document-manager-icon" aria-hidden="true">▤</span>
+                <span>@Text("Gestion des documents", "Document Manager")</span>
+            </a>
+        </AuthorizeView>
 
-        <a class="document-manager-link @(IsEditorialReviewActive ? "active" : null)"
-           href="/editorial-review"
-           aria-current="@(IsEditorialReviewActive ? "page" : null)"
-           @onclick="CloseAsync">
-            <span class="document-manager-icon" aria-hidden="true">✓</span>
-            <span>@Text("Revue éditoriale", "Editorial review")</span>
-        </a>
+        <AuthorizeView Policy="@SystemPermissions.ReviewEditorial">
+            <a class="document-manager-link @(IsEditorialReviewActive ? "active" : null)"
+               href="/editorial-review"
+               aria-current="@(IsEditorialReviewActive ? "page" : null)"
+               @onclick="CloseAsync">
+                <span class="document-manager-icon" aria-hidden="true">✓</span>
+                <span>@Text("Revue éditoriale", "Editorial review")</span>
+            </a>
+        </AuthorizeView>
     </header>
 
     <div class="sidebar-navigation">
@@ -528,53 +532,91 @@
         }
     </div>
 
-    <footer class="account-zone">
-        <button class="account-trigger"
-                type="button"
-                popovertarget="local-account-menu"
-                aria-haspopup="dialog"
-                aria-label="@Text("Ouvrir le menu du compte", "Open account menu")">
-            <span class="account-avatar" aria-hidden="true">A</span>
-            <span class="account-copy">
-                <strong>@Text("Compte local", "Local account")</strong>
-                <small>@Text("Profil de démonstration", "Demo profile")</small>
-            </span>
-            <svg class="account-trigger-chevron"
-                 viewBox="0 0 24 24"
-                 aria-hidden="true">
-                <path d="m8 14 4-4 4 4" />
-            </svg>
-        </button>
+    <AuthorizeView Context="accountContext">
+        <Authorized>
+            <footer class="account-zone">
+                <button class="account-trigger"
+                        type="button"
+                        popovertarget="local-account-menu"
+                        aria-haspopup="dialog"
+                        aria-label="@Text("Ouvrir le menu du compte", "Open account menu")">
+                    <span class="account-avatar" aria-hidden="true">A</span>
+                    <span class="account-copy">
+                        <strong>@(accountContext.User.Identity?.Name ?? Text("Compte", "Account"))</strong>
+                        <small>@Text("Compte vérifié", "Verified account")</small>
+                    </span>
+                    <svg class="account-trigger-chevron"
+                         viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path d="m8 14 4-4 4 4" />
+                    </svg>
+                </button>
 
-        <div id="local-account-menu"
-             class="account-menu-popover"
-             popover="auto"
-             role="dialog"
-             aria-label="@Text("Menu du compte", "Account menu")">
-            <div class="account-menu-identity">
-                <span class="account-avatar" aria-hidden="true">A</span>
-                <span class="account-copy">
-                    <strong>@Text("Compte local", "Local account")</strong>
-                    <small>@Text("Profil de démonstration", "Demo profile")</small>
-                </span>
-                <span class="account-local-badge">
-                    @Text("Local", "Local")
-                </span>
-            </div>
+                <div id="local-account-menu"
+                     class="account-menu-popover"
+                     popover="auto"
+                     role="dialog"
+                     aria-label="@Text("Menu du compte", "Account menu")">
+                    <div class="account-menu-identity">
+                        <span class="account-avatar" aria-hidden="true">A</span>
+                        <span class="account-copy">
+                            <strong>@(accountContext.User.Identity?.Name ?? Text("Compte", "Account"))</strong>
+                            <small>@Text("Session sécurisée", "Secure session")</small>
+                        </span>
+                    </div>
 
-            <div class="account-menu-separator" role="separator"></div>
+                    <div class="account-menu-separator" role="separator"></div>
 
-            <a class="account-menu-item"
-               href="/settings"
-               @onclick="CloseAsync">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" />
-                    <circle cx="12" cy="12" r="3" />
-                </svg>
-                <span>@Text("Paramètres", "Settings")</span>
-            </a>
-        </div>
-    </footer>
+                    <AuthorizeView Policy="@SystemPermissions.ManageSettings">
+                        <a class="account-menu-item"
+                           href="/settings"
+                           @onclick="CloseAsync">
+                            <span>@Text("Paramètres", "Settings")</span>
+                        </a>
+                    </AuthorizeView>
+
+                    <AuthorizeView Policy="@SystemPolicies.ViewAdministration" Context="administrationMenuContext">
+                        <div class="account-admin-submenu">
+                            <a class="account-menu-item account-admin-submenu-trigger"
+                               href="/administration/accounts"
+                               aria-haspopup="menu"
+                               @onclick="CloseAsync">
+                                <span>@Text("Administration", "Administration")</span>
+                                <span class="account-submenu-chevron" aria-hidden="true">›</span>
+                            </a>
+                            <div class="account-admin-submenu-panel" role="menu">
+                                <AuthorizeView Policy="@SystemPermissions.ManageAccounts" Context="accountsContext">
+                                    <a class="account-menu-item"
+                                       href="/administration/accounts"
+                                       role="menuitem"
+                                       @onclick="CloseAsync">
+                                        <span>@Text("Comptes", "Accounts")</span>
+                                    </a>
+                                </AuthorizeView>
+
+                                <AuthorizeView Policy="@SystemPolicies.ManageAccess" Context="accessContext">
+                                    <a class="account-menu-item"
+                                       href="/administration/access"
+                                       role="menuitem"
+                                       @onclick="CloseAsync">
+                                        <span>@Text("Groupes et droits", "Groups and permissions")</span>
+                                    </a>
+                                </AuthorizeView>
+                            </div>
+                        </div>
+                    </AuthorizeView>
+
+                    <form class="account-logout-form" method="post" action="/account/logout">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="returnUrl" value="account/login" />
+                        <button class="account-menu-item" type="submit">
+                            @Text("Se déconnecter", "Sign out")
+                        </button>
+                    </form>
+                </div>
+            </footer>
+        </Authorized>
+    </AuthorizeView>
 </aside>
 
 @if (_dialogKind != SidebarDialogKind.None)

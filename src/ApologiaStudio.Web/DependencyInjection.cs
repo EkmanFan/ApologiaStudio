@@ -32,6 +32,13 @@ using ApologiaStudio.Infrastructure.Knowledge.DocumentProcessing;
 using ApologiaStudio.Web.AiRuntime;
 using ApologiaStudio.Web.DocumentManager;
 using ApologiaStudio.Web.Identity;
+using ApologiaStudio.Domain.Users;
+using ApologiaStudio.Infrastructure.Persistence;
+using ApologiaStudio.Infrastructure.Persistence.Identity;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace ApologiaStudio.Web;
 
@@ -47,6 +54,107 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(aiRuntimeDefaults);
 
         services.AddInfrastructure(configuration);
+
+        services.AddHttpContextAccessor();
+        services.AddCascadingAuthenticationState();
+        services.AddScoped<IdentityRedirectManager>();
+        services.AddScoped<
+            AuthenticationStateProvider,
+            IdentityRevalidatingAuthenticationStateProvider>();
+
+        services.AddAuthentication(options =>
+            {
+                options.DefaultScheme =
+                    IdentityConstants.ApplicationScheme;
+                options.DefaultSignInScheme =
+                    IdentityConstants.ExternalScheme;
+            })
+            .AddIdentityCookies();
+
+        services.AddIdentityCore<ApologiaIdentityUser>(options =>
+            {
+                options.SignIn.RequireConfirmedAccount = true;
+                options.User.RequireUniqueEmail = true;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan =
+                    TimeSpan.FromMinutes(15);
+                options.Password.RequiredLength = 12;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Stores.SchemaVersion =
+                    IdentitySchemaVersions.Version3;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<ApologiaStudioDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+
+        services.AddScoped<
+            IUserConfirmation<ApologiaIdentityUser>,
+            ApprovedAccountConfirmation>();
+        services.AddScoped<IdentityAccessService>();
+        services.AddScoped<InterfaceLanguageResolver>();
+        services.AddScoped<
+            IUserClaimsPrincipalFactory<ApologiaIdentityUser>,
+            ApologiaUserClaimsPrincipalFactory>();
+        services.AddSingleton<
+            IEmailSender<ApologiaIdentityUser>,
+            DevelopmentIdentityEmailSender>();
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.Cookie.Name = ".ApologiaStudio.Auth";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.LoginPath = "/account/login";
+            options.AccessDeniedPath = "/account/access-denied";
+            options.ExpireTimeSpan = TimeSpan.FromHours(8);
+            options.SlidingExpiration = true;
+        });
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+            options.TokenLifespan = TimeSpan.FromHours(24));
+        services.Configure<SecurityStampValidatorOptions>(options =>
+            options.ValidationInterval = TimeSpan.FromMinutes(5));
+
+        var authorization = services.AddAuthorizationBuilder();
+        foreach (var permission in SystemPermissions.All)
+        {
+            authorization.AddPolicy(
+                permission,
+                policy => policy.RequireClaim(
+                    SystemPermissions.ClaimType,
+                    permission));
+        }
+        authorization.AddPolicy(
+            SystemPolicies.ManageAccess,
+            policy => policy.RequireAssertion(context =>
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageGroups) ||
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageRoles)));
+        authorization.AddPolicy(
+            SystemPolicies.ViewAdministration,
+            policy => policy.RequireAssertion(context =>
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageAccounts) ||
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageGroups) ||
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageRoles)));
+
+        services.AddSingleton(
+            IdentityBootstrapOptions.FromConfiguration(configuration));
+        services.AddSingleton<IdentityBootstrapper>();
+        services.AddScoped<AccountAdministrationService>();
+        services.AddScoped<AccessAdministrationService>();
 
         services.AddSingleton(
             DocumentManagerUiOptions.FromConfiguration(
@@ -98,7 +206,7 @@ public static class DependencyInjection
 
         services.AddScoped<
             ICurrentUser,
-            DemoCurrentUser>();
+            ClaimsCurrentUser>();
 
         services.AddSingleton<
             BiblePassageRequestParser>();

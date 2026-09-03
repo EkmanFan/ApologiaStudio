@@ -1,4 +1,5 @@
 @page "/settings"
+@attribute [Authorize(Policy = SystemPermissions.ManageSettings)]
 
 @using Microsoft.Extensions.DependencyInjection
 @using ApologiaStudio.Application.Preferences

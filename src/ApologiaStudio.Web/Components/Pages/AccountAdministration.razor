@@ -1,0 +1,754 @@
+@page "/administration/accounts"
+@attribute [Authorize(Policy = SystemPermissions.ManageAccounts)]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@using System.Security.Claims
+@using System.Text
+@using System.Text.Encodings.Web
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Infrastructure.Persistence.Identity
+@using ApologiaStudio.Web.Identity
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IEmailSender<ApologiaIdentityUser> EmailSender
+@inject NavigationManager NavigationManager
+
+<PageTitle>@Text("Gestion des comptes", "Account management") · Apologia Studio</PageTitle>
+<DocumentLanguage Language="@_interfaceLanguage" />
+
+<main class="account-admin-shell">
+    <header class="account-admin-header">
+        <div>
+            <p>@Text("Administration", "Administration")</p>
+            <h1>@Text("Comptes et inscriptions", "Accounts and registrations")</h1>
+            <span>
+                @Text(
+                    "Vérifiez les demandes, approuvez les utilisateurs et révoquez immédiatement les comptes problématiques.",
+                    "Review requests, approve users, and immediately revoke problematic accounts.")
+            </span>
+        </div>
+        <div class="account-admin-header-actions">
+            <a class="admin-section-link" href="/administration/access">
+                @Text("Groupes et droits", "Groups and permissions")
+            </a>
+            <button class="primary" type="button" @onclick="OpenCreateDialog">
+                @Text("Ajouter un compte", "Add account")
+            </button>
+            <a class="admin-close" href="/" aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")" title="@Text("Fermer", "Close")">×</a>
+        </div>
+    </header>
+
+    @if (_message is not null)
+    {
+        <p class="admin-message @(_messageIsError ? "error" : null)"
+           role="@(_messageIsError ? "alert" : "status")">
+            @_message
+        </p>
+    }
+
+    <section class="account-summary" aria-label="@Text("Résumé des comptes", "Account summary")">
+        @foreach (var status in Enum.GetValues<AccountRegistrationStatus>())
+        {
+            <article>
+                <strong>@_accounts.Count(account => account.Status == status)</strong>
+                <span>@StatusLabel(status)</span>
+            </article>
+        }
+    </section>
+
+    @if (_isLoading)
+    {
+        <p>@Text("Chargement des comptes…", "Loading accounts…")</p>
+    }
+    else
+    {
+        <section class="account-list" aria-label="@Text("Liste des comptes", "Account list")">
+            @foreach (var account in OrderedAccounts())
+            {
+                <article class="account-row">
+                    <div class="account-avatar" aria-hidden="true">
+                        @Initial(account.DisplayName)
+                    </div>
+                    <div class="account-identity">
+                        <button class="account-name-button"
+                                type="button"
+                                disabled="@_isSaving"
+                                @onclick="() => OpenAccessDetailsAsync(account)">
+                            @account.DisplayName
+                        </button>
+                        <span>@account.Email</span>
+                        <small>
+                            @Text("Inscrit le", "Registered on") @FormatDate(account.RegisteredAtUtc)
+                            @if (account.EmailVerifiedAtUtc is not null)
+                            {
+                                <text> · @Text("e-mail vérifié", "email verified")</text>
+                            }
+                        </small>
+                        @if (account.Roles.Count > 0)
+                        {
+                            <div class="role-list">
+                                @foreach (var role in account.Roles)
+                                {
+                                    <span>@role</span>
+                                }
+                            </div>
+                        }
+                        @if (account.Groups.Count > 0)
+                        {
+                            <small>@Text("Groupes", "Groups") : @string.Join(", ", account.Groups)</small>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(account.RejectionReason))
+                        {
+                            <p class="account-reason">@Text("Motif", "Reason") : @account.RejectionReason</p>
+                        }
+                    </div>
+                    <div class="account-controls">
+                        <span class="account-status status-@account.Status.ToString().ToLowerInvariant()">
+                            @StatusLabel(account.Status)
+                        </span>
+
+                        @if (account.Status == AccountRegistrationStatus.PendingApproval)
+                        {
+                            <button type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Approve)">
+                                @Text("Approuver", "Approve")
+                            </button>
+                            <button class="danger" type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Reject)">
+                                @Text("Refuser", "Reject")
+                            </button>
+                        }
+                        else if (account.Status == AccountRegistrationStatus.Active)
+                        {
+                            <button class="danger" type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Suspend)">
+                                @Text("Suspendre", "Suspend")
+                            </button>
+                        }
+                        else if (account.Status == AccountRegistrationStatus.Suspended)
+                        {
+                            <button type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Reactivate)">
+                                @Text("Réactiver", "Reactivate")
+                            </button>
+                        }
+
+                        @if (account.LockoutEnd > DateTimeOffset.UtcNow)
+                        {
+                            <button type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Unlock)">
+                                @Text("Déverrouiller", "Unlock")
+                            </button>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
+    }
+</main>
+
+@if (_isCreatingAccount)
+{
+    <div class="admin-dialog-backdrop" @onclick="CancelCreateDialog">
+        <section class="admin-dialog create-account-dialog" role="dialog" aria-modal="true" aria-labelledby="create-account-title" @onclick:stopPropagation>
+            <h2 id="create-account-title">@Text("Ajouter un compte", "Add account")</h2>
+            <p>
+                @Text(
+                    "Sans contournement, le compte devra vérifier son adresse puis attendre une approbation. Le contournement crée immédiatement un compte actif avec le rôle Reader et laisse une trace d’administration.",
+                    "Without bypass, the account must verify its email and then await approval. The bypass immediately creates an active account with the Reader role and records an administration event.")
+            </p>
+
+            <label for="create-account-name">@Text("Nom affiché", "Display name")</label>
+            <input id="create-account-name" maxlength="200" autocomplete="off" disabled="@_isSaving" @bind="_newAccountDisplayName" />
+
+            <label for="create-account-email">@Text("Adresse e-mail", "Email address")</label>
+            <input id="create-account-email" type="email" maxlength="256" autocomplete="off" disabled="@_isSaving" @bind="_newAccountEmail" />
+
+            <label for="create-account-password">@Text("Mot de passe provisoire", "Temporary password")</label>
+            <input id="create-account-password" type="password" maxlength="100" autocomplete="new-password" disabled="@_isSaving" @bind="_newAccountPassword" />
+
+            <label for="create-account-confirmation">@Text("Confirmer le mot de passe", "Confirm password")</label>
+            <input id="create-account-confirmation" type="password" maxlength="100" autocomplete="new-password" disabled="@_isSaving" @bind="_newAccountPasswordConfirmation" />
+
+            <label class="bypass-verification-option">
+                <input type="checkbox" disabled="@_isSaving" @bind="_bypassEmailVerification" />
+                <span>
+                    <strong>@Text("Marquer l’adresse comme vérifiée et activer immédiatement", "Mark email as verified and activate immediately")</strong>
+                    <small>@Text("Option d’administration destinée notamment aux tests locaux.", "Administration option intended especially for local testing.")</small>
+                </span>
+            </label>
+
+            <div class="admin-dialog-actions">
+                <button type="button" disabled="@_isSaving" @onclick="CancelCreateDialog">@Text("Annuler", "Cancel")</button>
+                <button class="primary" type="button" disabled="@(_isSaving || !CanCreateAccount())" @onclick="CreateAccountAsync">
+                    @(_isSaving ? Text("Création…", "Creating…") : Text("Créer le compte", "Create account"))
+                </button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (_accessDetails is not null)
+{
+    <div class="admin-dialog-backdrop" @onclick="CancelAccessDetails">
+        <section class="admin-dialog account-access-dialog" role="dialog" aria-modal="true" aria-labelledby="account-access-title" @onclick:stopPropagation>
+            <header class="account-access-heading">
+                <div>
+                    <p>@Text("Accès du compte", "Account access")</p>
+                    <h2 id="account-access-title">@_accessDetails.DisplayName</h2>
+                    <span>@_accessDetails.Email</span>
+                </div>
+                <span class="account-status status-@_accessDetails.Status.ToString().ToLowerInvariant()">
+                    @StatusLabel(_accessDetails.Status)
+                </span>
+            </header>
+
+            <p class="account-access-explanation">
+                @Text(
+                    "Les droits ne sont pas attribués directement au compte : ils sont hérités des rôles portés par les groupes sélectionnés.",
+                    "Permissions are not assigned directly to the account: they are inherited from the roles carried by the selected groups.")
+            </p>
+
+            <fieldset class="account-group-picker" disabled="@(_isSaving || !CanEditGroups(_accessDetails.Status))">
+                <legend>@Text("Groupes", "Groups")</legend>
+                @foreach (var group in _accessDetails.Groups)
+                {
+                    <label>
+                        <input type="checkbox"
+                               checked="@_selectedGroupIds.Contains(group.Id)"
+                               @onchange="args => ToggleAccountGroup(group.Id, args.Value is true)" />
+                        <span>
+                            <strong>@group.Name</strong>
+                            @if (!string.IsNullOrWhiteSpace(group.Description))
+                            {
+                                <small>@GroupDescription(group.Name, group.Description)</small>
+                            }
+                            <small>
+                                @Text("Rôles", "Roles") :
+                                @(group.Roles.Count == 0 ? Text("aucun", "none") : string.Join(", ", group.Roles))
+                            </small>
+                        </span>
+                    </label>
+                }
+            </fieldset>
+
+            <section class="effective-access-grid">
+                <div>
+                    <h3>@Text("Rôles effectifs", "Effective roles")</h3>
+                    <div class="access-chip-list">
+                        @if (SelectedRoles().Count == 0)
+                        {
+                            <span class="empty-access">@Text("Aucun rôle", "No role")</span>
+                        }
+                        else
+                        {
+                            @foreach (var role in SelectedRoles())
+                            {
+                                <span>@role</span>
+                            }
+                        }
+                    </div>
+                </div>
+                <div>
+                    <h3>@Text("Droits effectifs", "Effective permissions")</h3>
+                    <div class="access-chip-list permissions">
+                        @if (SelectedPermissions().Count == 0)
+                        {
+                            <span class="empty-access">@Text("Aucun droit", "No permission")</span>
+                        }
+                        else
+                        {
+                            @foreach (var permission in SelectedPermissions())
+                            {
+                                <span title="@permission">@PermissionLabel(permission)</span>
+                            }
+                        }
+                    </div>
+                </div>
+            </section>
+
+            @if (!CanEditGroups(_accessDetails.Status))
+            {
+                <p class="account-access-warning">
+                    @Text(
+                        "Ce compte doit être actif ou suspendu avant de pouvoir appartenir à un groupe.",
+                        "This account must be active or suspended before it can belong to a group.")
+                </p>
+            }
+
+            <div class="admin-dialog-actions">
+                <button type="button" disabled="@_isSaving" @onclick="CancelAccessDetails">@Text("Annuler", "Cancel")</button>
+                <button class="primary"
+                        type="button"
+                        disabled="@(_isSaving || !CanEditGroups(_accessDetails.Status))"
+                        @onclick="SaveAccountGroupsAsync">
+                    @(_isSaving ? Text("Enregistrement…", "Saving…") : Text("Enregistrer les groupes", "Save groups"))
+                </button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (_pendingAccount is not null)
+{
+    <div class="admin-dialog-backdrop" @onclick="Cancel">
+        <section class="admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-dialog-title" @onclick:stopPropagation>
+            <h2 id="admin-dialog-title">@ActionTitle(_pendingAction)</h2>
+            <p>@ActionExplanation(_pendingAction, _pendingAccount.DisplayName)</p>
+
+            @if (_pendingAction is AdminAction.Reject or AdminAction.Suspend)
+            {
+                <label for="administration-reason">@Text("Motif obligatoire", "Reason required")</label>
+                <textarea id="administration-reason"
+                          maxlength="2000"
+                          rows="4"
+                          disabled="@_isSaving"
+                          @bind="_reason"></textarea>
+            }
+
+            <div class="admin-dialog-actions">
+                <button type="button" disabled="@_isSaving" @onclick="Cancel">@Text("Annuler", "Cancel")</button>
+                <button class="@(_pendingAction is AdminAction.Reject or AdminAction.Suspend ? "danger" : "primary")"
+                        type="button"
+                        disabled="@(_isSaving || RequiresReason(_pendingAction) && string.IsNullOrWhiteSpace(_reason))"
+                        @onclick="ConfirmAsync">
+                    @(_isSaving ? Text("Traitement…", "Processing…") : ConfirmLabel(_pendingAction))
+                </button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<AccountAdministrationView> _accounts = [];
+    private AccountAdministrationView? _pendingAccount;
+    private AccountAccessDetailsView? _accessDetails;
+    private readonly HashSet<Guid> _selectedGroupIds = [];
+    private AdminAction _pendingAction;
+    private Guid _actorUserId;
+    private ApplicationLanguage _interfaceLanguage = UserPreferences.DefaultInterfaceLanguage;
+    private string _reason = string.Empty;
+    private string _newAccountDisplayName = string.Empty;
+    private string _newAccountEmail = string.Empty;
+    private string _newAccountPassword = string.Empty;
+    private string _newAccountPasswordConfirmation = string.Empty;
+    private bool _bypassEmailVerification;
+    private bool _isCreatingAccount;
+    private bool _isLoadingAccessDetails;
+    private string? _message;
+    private bool _messageIsError;
+    private bool _isLoading = true;
+    private bool _isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var value = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(value, out _actorUserId))
+        {
+            _message = "L’identité de la session n’est pas valide.";
+            _messageIsError = true;
+            _isLoading = false;
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task OpenAccessDetailsAsync(AccountAdministrationView account)
+    {
+        if (_isLoadingAccessDetails || _isSaving)
+        {
+            return;
+        }
+
+        _isLoadingAccessDetails = true;
+        _message = null;
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<AccountAdministrationService>();
+            _accessDetails = await service.GetAccessDetailsAsync(
+                account.Id,
+                _actorUserId,
+                CancellationToken.None);
+            _selectedGroupIds.Clear();
+            _selectedGroupIds.UnionWith(
+                _accessDetails.Groups
+                    .Where(group => group.IsSelected)
+                    .Select(group => group.Id));
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            _isLoadingAccessDetails = false;
+        }
+    }
+
+    private void CancelAccessDetails()
+    {
+        if (!_isSaving)
+        {
+            _accessDetails = null;
+            _selectedGroupIds.Clear();
+        }
+    }
+
+    private void ToggleAccountGroup(Guid groupId, bool selected)
+    {
+        if (selected)
+        {
+            _selectedGroupIds.Add(groupId);
+        }
+        else
+        {
+            _selectedGroupIds.Remove(groupId);
+        }
+    }
+
+    private IReadOnlyList<string> SelectedRoles() =>
+        _accessDetails?.Groups
+            .Where(group => _selectedGroupIds.Contains(group.Id))
+            .SelectMany(group => group.Roles)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray() ?? [];
+
+    private IReadOnlyList<string> SelectedPermissions() =>
+        _accessDetails?.Groups
+            .Where(group => _selectedGroupIds.Contains(group.Id))
+            .SelectMany(group => group.Permissions)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray() ?? [];
+
+    private static bool CanEditGroups(AccountRegistrationStatus status) =>
+        status is AccountRegistrationStatus.Active or AccountRegistrationStatus.Suspended;
+
+    private async Task SaveAccountGroupsAsync()
+    {
+        if (_accessDetails is null || _isSaving || !CanEditGroups(_accessDetails.Status))
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<AccountAdministrationService>();
+            await service.UpdateGroupsAsync(
+                _accessDetails.Id,
+                _actorUserId,
+                _selectedGroupIds,
+                CancellationToken.None);
+            _accessDetails = null;
+            _selectedGroupIds.Clear();
+            ShowSuccess(Text(
+                "Les groupes du compte et ses droits hérités ont été mis à jour.",
+                "The account groups and inherited permissions were updated."));
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<AccountAdministrationService>();
+            var languageResolver = scope.ServiceProvider.GetRequiredService<InterfaceLanguageResolver>();
+            _interfaceLanguage = await languageResolver.ResolveAsync(_actorUserId, CancellationToken.None);
+            _accounts = await service.ListAsync(_actorUserId, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        _isCreatingAccount = true;
+        _newAccountDisplayName = string.Empty;
+        _newAccountEmail = string.Empty;
+        _newAccountPassword = string.Empty;
+        _newAccountPasswordConfirmation = string.Empty;
+        _bypassEmailVerification = false;
+        _message = null;
+    }
+
+    private void CancelCreateDialog()
+    {
+        if (!_isSaving)
+        {
+            _isCreatingAccount = false;
+        }
+    }
+
+    private bool CanCreateAccount() =>
+        !string.IsNullOrWhiteSpace(_newAccountDisplayName) &&
+        !string.IsNullOrWhiteSpace(_newAccountEmail) &&
+        _newAccountPassword.Length >= 12 &&
+        _newAccountPassword == _newAccountPasswordConfirmation;
+
+    private async Task CreateAccountAsync()
+    {
+        if (_isSaving || !CanCreateAccount())
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<AccountAdministrationService>();
+            var result = await service.CreateAsync(
+                _actorUserId,
+                _newAccountDisplayName,
+                _newAccountEmail,
+                _newAccountPassword,
+                _bypassEmailVerification,
+                CancellationToken.None);
+
+            if (result.EmailConfirmationToken is not null)
+            {
+                var encodedCode = WebEncoders.Base64UrlEncode(
+                    Encoding.UTF8.GetBytes(result.EmailConfirmationToken));
+                var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+                    NavigationManager.ToAbsoluteUri("account/confirm-email").AbsoluteUri,
+                    new Dictionary<string, object?>
+                    {
+                        ["userId"] = result.User.Id,
+                        ["code"] = encodedCode
+                    });
+                await EmailSender.SendConfirmationLinkAsync(
+                    result.User,
+                    result.User.Email!,
+                    HtmlEncoder.Default.Encode(callbackUrl));
+            }
+
+            _isCreatingAccount = false;
+            ShowSuccess(_bypassEmailVerification
+                ? Text(
+                    "Le compte a été créé, activé et ajouté au groupe Readers. Le contournement de vérification a été tracé.",
+                    "The account was created, activated, and added to the Readers group. The verification bypass was recorded.")
+                : Text(
+                    "Le compte a été créé. Un lien de vérification a été envoyé ; l’approbation restera nécessaire ensuite.",
+                    "The account was created. A verification link was sent; approval will still be required afterward."));
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Ask(AccountAdministrationView account, AdminAction action)
+    {
+        _pendingAccount = account;
+        _pendingAction = action;
+        _reason = string.Empty;
+        _message = null;
+    }
+
+    private void Cancel()
+    {
+        if (!_isSaving)
+        {
+            _pendingAccount = null;
+            _reason = string.Empty;
+        }
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (_pendingAccount is null || _isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<AccountAdministrationService>();
+            switch (_pendingAction)
+            {
+                case AdminAction.Approve:
+                    await service.ApproveAsync(_pendingAccount.Id, _actorUserId, CancellationToken.None);
+                    break;
+                case AdminAction.Reject:
+                    await service.RejectAsync(_pendingAccount.Id, _actorUserId, _reason, CancellationToken.None);
+                    break;
+                case AdminAction.Suspend:
+                    await service.SuspendAsync(_pendingAccount.Id, _actorUserId, _reason, CancellationToken.None);
+                    break;
+                case AdminAction.Reactivate:
+                    await service.ReactivateAsync(_pendingAccount.Id, _actorUserId, CancellationToken.None);
+                    break;
+                case AdminAction.Unlock:
+                    await service.UnlockAsync(_pendingAccount.Id, _actorUserId, CancellationToken.None);
+                    break;
+            }
+
+            var completedAction = _pendingAction;
+            _pendingAccount = null;
+            _reason = string.Empty;
+            ShowSuccess(ActionSuccess(completedAction));
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            ShowError(exception.Message);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private IEnumerable<AccountAdministrationView> OrderedAccounts() =>
+        _accounts
+            .OrderBy(account => StatusOrder(account.Status))
+            .ThenBy(account => account.RegisteredAtUtc);
+
+    private static int StatusOrder(AccountRegistrationStatus status) => status switch
+    {
+        AccountRegistrationStatus.PendingApproval => 0,
+        AccountRegistrationStatus.PendingEmail => 1,
+        AccountRegistrationStatus.Active => 2,
+        AccountRegistrationStatus.Suspended => 3,
+        AccountRegistrationStatus.Rejected => 4,
+        _ => 5
+    };
+
+    private string StatusLabel(AccountRegistrationStatus status) => status switch
+    {
+        AccountRegistrationStatus.PendingEmail => Text("E-mail à vérifier", "Email verification pending"),
+        AccountRegistrationStatus.PendingApproval => Text("À approuver", "Awaiting approval"),
+        AccountRegistrationStatus.Active => Text("Actif", "Active"),
+        AccountRegistrationStatus.Rejected => Text("Refusé", "Rejected"),
+        AccountRegistrationStatus.Suspended => Text("Suspendu", "Suspended"),
+        _ => status.ToString()
+    };
+
+    private static string Initial(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "?" : value.Trim()[0].ToString().ToUpperInvariant();
+
+    private string FormatDate(DateTimeOffset value) =>
+        value.ToLocalTime().ToString(
+            _interfaceLanguage == ApplicationLanguage.English
+                ? "MM/dd/yyyy h:mm tt"
+                : "dd/MM/yyyy HH:mm");
+
+    private static bool RequiresReason(AdminAction action) =>
+        action is AdminAction.Reject or AdminAction.Suspend;
+
+    private string ActionTitle(AdminAction action) => action switch
+    {
+        AdminAction.Approve => Text("Approuver cette inscription ?", "Approve this registration?"),
+        AdminAction.Reject => Text("Refuser cette inscription ?", "Reject this registration?"),
+        AdminAction.Suspend => Text("Suspendre ce compte ?", "Suspend this account?"),
+        AdminAction.Reactivate => Text("Réactiver ce compte ?", "Reactivate this account?"),
+        AdminAction.Unlock => Text("Déverrouiller ce compte ?", "Unlock this account?"),
+        _ => throw new ArgumentOutOfRangeException(nameof(action))
+    };
+
+    private string ActionExplanation(AdminAction action, string name) => action switch
+    {
+        AdminAction.Approve => Text($"{name} pourra se connecter avec le rôle Reader, sans droit sensible.", $"{name} will be able to sign in with the Reader role and no sensitive permission."),
+        AdminAction.Reject => Text($"{name} ne pourra pas se connecter. La décision et son motif seront conservés.", $"{name} will not be able to sign in. The decision and its reason will be retained."),
+        AdminAction.Suspend => Text($"Les sessions de {name} seront révoquées et le compte ne pourra plus se connecter.", $"{name}’s sessions will be revoked and the account will no longer be able to sign in."),
+        AdminAction.Reactivate => Text($"{name} retrouvera ses rôles précédents et pourra se reconnecter.", $"{name} will regain their previous roles and will be able to sign in again."),
+        AdminAction.Unlock => Text($"Le compteur d’échecs de {name} sera remis à zéro.", $"{name}’s failed sign-in counter will be reset."),
+        _ => throw new ArgumentOutOfRangeException(nameof(action))
+    };
+
+    private string ConfirmLabel(AdminAction action) => action switch
+    {
+        AdminAction.Approve => Text("Confirmer l’approbation", "Confirm approval"),
+        AdminAction.Reject => Text("Confirmer le refus", "Confirm rejection"),
+        AdminAction.Suspend => Text("Confirmer la suspension", "Confirm suspension"),
+        AdminAction.Reactivate => Text("Confirmer la réactivation", "Confirm reactivation"),
+        AdminAction.Unlock => Text("Confirmer le déverrouillage", "Confirm unlock"),
+        _ => throw new ArgumentOutOfRangeException(nameof(action))
+    };
+
+    private string ActionSuccess(AdminAction action) => action switch
+    {
+        AdminAction.Approve => Text("Le compte a été approuvé avec le rôle Reader.", "The account was approved with the Reader role."),
+        AdminAction.Reject => Text("La demande a été refusée.", "The request was rejected."),
+        AdminAction.Suspend => Text("Le compte a été suspendu.", "The account was suspended."),
+        AdminAction.Reactivate => Text("Le compte a été réactivé.", "The account was reactivated."),
+        AdminAction.Unlock => Text("Le compte a été déverrouillé.", "The account was unlocked."),
+        _ => throw new ArgumentOutOfRangeException(nameof(action))
+    };
+
+    private string PermissionLabel(string permission) => permission switch
+    {
+        SystemPermissions.AccessStudio => Text("Accéder à Studio", "Access Studio"),
+        SystemPermissions.ManageAccounts => Text("Gérer les comptes", "Manage accounts"),
+        SystemPermissions.ManageGroups => Text("Gérer les groupes", "Manage groups"),
+        SystemPermissions.ManageRoles => Text("Composer les rôles", "Configure roles"),
+        SystemPermissions.ReviewEditorial => Text("Effectuer la revue éditoriale", "Perform editorial review"),
+        SystemPermissions.PurgeEditorial => Text("Supprimer définitivement côté éditorial", "Permanently delete editorial data"),
+        SystemPermissions.OperateDocumentManager => Text("Utiliser le Document Manager", "Use Document Manager"),
+        SystemPermissions.ReplayDocumentDelivery => Text("Relancer une livraison Manager", "Replay a Manager delivery"),
+        SystemPermissions.PurgeManagerCustody => Text("Purger la chaîne de custody", "Purge the custody chain"),
+        SystemPermissions.ManageSettings => Text("Modifier les paramètres", "Change settings"),
+        _ => permission
+    };
+
+    private string GroupDescription(string groupName, string? description) => groupName switch
+    {
+        SystemGroups.Readers => Text("Accès de base à Apologia Studio.", "Basic access to Apologia Studio."),
+        SystemGroups.Editors => Text("Revue et validation éditoriales.", "Editorial review and approval."),
+        SystemGroups.DocumentOperators => Text("Exploitation du Document Manager.", "Document Manager operations."),
+        SystemGroups.Administrators => Text("Administration complète d’Apologia Studio.", "Full administration of Apologia Studio."),
+        _ => description ?? Text("Sans description", "No description")
+    };
+
+    private void ShowSuccess(string message)
+    {
+        _message = message;
+        _messageIsError = false;
+    }
+
+    private void ShowError(string message)
+    {
+        _message = message;
+        _messageIsError = true;
+    }
+
+    private string Text(string french, string english) =>
+        _interfaceLanguage == ApplicationLanguage.English ? english : french;
+
+    private enum AdminAction
+    {
+        Approve,
+        Reject,
+        Suspend,
+        Reactivate,
+        Unlock
+    }
+}

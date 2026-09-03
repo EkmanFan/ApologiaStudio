@@ -5,6 +5,7 @@ window.apologiaStudio = {
     setDocumentLanguage(language) {
         if (language === "fr" || language === "en") {
             document.documentElement.lang = language;
+            document.cookie = `Apologia.InterfaceLanguage=${encodeURIComponent(language)}; Path=/; Max-Age=31536000; SameSite=Lax`;
         }
     },
 

@@ -1,0 +1,99 @@
+.access-admin-shell {
+    min-height: 100vh;
+    padding: clamp(1.25rem, 3vw, 3rem);
+    background: #f6f3ec;
+    color: #203331;
+}
+
+.access-admin-header,
+.access-panel > header,
+.access-item,
+.role-card > header,
+.inline-create,
+.dialog-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.access-admin-header { margin-bottom: 1.5rem; align-items: flex-end; }
+.access-admin-header p,
+.access-panel > header p,
+.access-dialog header p { margin: 0; color: #337e76; font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.access-admin-header h1 { margin: .2rem 0; font-family: Georgia, serif; font-size: clamp(2rem, 4vw, 3.4rem); }
+.access-admin-header span { color: #647672; }
+.access-admin-header-actions { display: flex; align-items: center; gap: .65rem; }
+.access-admin-header a.admin-section-link { padding: .65rem .9rem; border: 1px solid #cdd8d4; border-radius: .75rem; color: #255f59; text-decoration: none; font-weight: 700; background: #fff; }
+.access-admin-header a.admin-close { display: grid; place-items: center; width: 2.65rem; height: 2.65rem; border: 1px solid #cdd8d4; border-radius: .75rem; color: #255f59; text-decoration: none; font-size: 1.65rem; line-height: 1; background: #fff; }
+
+.access-message { padding: .8rem 1rem; border-radius: .75rem; background: #e1f3ee; color: #176258; }
+.access-message.error { background: #fae7e3; color: #9c392c; }
+
+.access-grid { display: grid; grid-template-columns: minmax(20rem, .85fr) minmax(28rem, 1.15fr); gap: 1.25rem; align-items: start; }
+.access-panel { padding: 1.25rem; border: 1px solid #e0e3dc; border-radius: 1.25rem; background: rgba(255,255,255,.92); box-shadow: 0 16px 38px rgba(37, 63, 59, .08); }
+.access-panel > header { padding-bottom: 1rem; border-bottom: 1px solid #e6e8e3; }
+.access-panel h2 { margin: .15rem 0 0; font-family: Georgia, serif; font-size: 1.8rem; }
+.access-panel > header > strong { min-width: 2.4rem; padding: .55rem; border-radius: 999px; text-align: center; background: #e4f2ef; color: #267168; }
+
+.create-access-item { display: grid; gap: .55rem; padding: 1rem; margin: 1rem 0; border-radius: 1rem; background: #f2f6f4; }
+.create-access-item label { font-weight: 800; }
+.create-access-item input,
+.create-access-item textarea,
+.access-dialog input,
+.access-dialog textarea { width: 100%; padding: .7rem .8rem; border: 1px solid #ccd7d3; border-radius: .65rem; background: #fff; color: inherit; }
+.inline-create input { flex: 1; }
+
+button { border: 1px solid #cbd7d3; border-radius: .65rem; padding: .62rem .82rem; color: #244742; background: #fff; font-weight: 750; cursor: pointer; }
+button.primary { border-color: #277d72; color: #fff; background: #277d72; }
+button.danger { border-color: #e5b9b1; color: #a23e31; background: #fff4f1; }
+button.danger-link { padding: .35rem; border: 0; color: #a23e31; background: transparent; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+
+.access-item-list,
+.role-list { display: grid; gap: .8rem; }
+.access-item,
+.role-card { padding: .9rem; border: 1px solid #e2e6e0; border-radius: .9rem; background: #fff; }
+.access-item { align-items: flex-start; }
+.access-item p { margin: .35rem 0; color: #667772; }
+.access-item small,
+.role-card small { display: block; color: #73827e; }
+.item-actions { display: flex; flex-direction: column; gap: .4rem; }
+.system-badge { display: inline-block; margin-left: .4rem; padding: .15rem .42rem; border-radius: 999px; background: #e4f2ef; color: #267168; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+
+.role-card > header { align-items: flex-start; }
+.permission-list { display: grid; gap: .42rem; margin: .85rem 0; }
+.permission-list label { display: grid; grid-template-columns: auto 1fr; column-gap: .55rem; padding: .48rem; border-radius: .5rem; background: #f7f8f6; }
+.permission-list input { grid-row: span 2; margin-top: .2rem; }
+.permission-list span { font-weight: 700; }
+.permission-list code { color: #78847f; font-size: .72rem; }
+.locked-note { margin-bottom: .75rem; }
+
+.access-dialog-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(17, 34, 31, .52); }
+.access-dialog { width: min(44rem, 100%); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.35rem; border-radius: 1.1rem; background: #fff; box-shadow: 0 24px 80px rgba(0,0,0,.25); }
+.access-dialog h2 { margin: .2rem 0 1rem; font-family: Georgia, serif; }
+.access-dialog > label,
+.access-dialog legend { display: block; margin: .8rem 0 .35rem; font-weight: 800; }
+.access-dialog fieldset { margin: 1rem 0; padding: .9rem; border: 1px solid #dfe5e1; border-radius: .8rem; }
+.access-dialog fieldset > label { display: inline-flex; gap: .4rem; margin: .25rem .75rem .25rem 0; }
+.member-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; }
+.member-picker label { display: flex; gap: .55rem; padding: .55rem; border-radius: .55rem; background: #f5f7f5; }
+.member-picker small { display: block; color: #74837f; }
+.dialog-actions { justify-content: flex-end; margin-top: 1rem; }
+.confirm-dialog { width: min(30rem, 100%); }
+
+.access-audit { margin-top: 1.25rem; padding: 1.25rem; border: 1px solid #e0e3dc; border-radius: 1.25rem; background: rgba(255,255,255,.92); box-shadow: 0 16px 38px rgba(37, 63, 59, .08); }
+.access-audit > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.access-audit > header p { margin: 0; color: #337e76; font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.access-audit h2 { margin: .15rem 0 0; font-family: Georgia, serif; }
+.audit-table-wrap { overflow-x: auto; }
+.access-audit table { width: 100%; border-collapse: collapse; }
+.access-audit th,
+.access-audit td { padding: .65rem; border-bottom: 1px solid #e8ebe7; text-align: left; white-space: nowrap; }
+.access-audit th { color: #657772; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
+
+@media (max-width: 900px) {
+    .access-grid { grid-template-columns: 1fr; }
+    .access-admin-header { align-items: flex-start; flex-direction: column; }
+    .member-picker { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,111 @@
+@page "/account/confirm-email"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+
+@using System.Text
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Infrastructure.Persistence.Identity
+
+@inject UserManager<ApologiaIdentityUser> UserManager
+@inject TimeProvider TimeProvider
+
+<PageTitle>@Text("Confirmation", "Confirmation") · Apologia Studio</PageTitle>
+
+<h1>@Text("Confirmation de l’adresse", "Email confirmation")</h1>
+<IdentityStatusMessage Message="@_message" IsError="@_isError" />
+
+<div class="identity-links">
+    <a href="/account/login">@Text("Retour à la connexion", "Back to sign in")</a>
+</div>
+
+@code {
+    private string? _message;
+    private bool _isError;
+
+    [CascadingParameter]
+    private ApplicationLanguage InterfaceLanguage { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? UserId { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Code { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Guid.TryParse(UserId, out var userId) || string.IsNullOrWhiteSpace(Code))
+        {
+            Fail(Text(
+                "Ce lien de confirmation n’est pas valide.",
+                "This confirmation link is not valid."));
+            return;
+        }
+
+        var user = await UserManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            Fail(Text(
+                "Ce lien de confirmation n’est pas valide.",
+                "This confirmation link is not valid."));
+            return;
+        }
+
+        if (user.EmailConfirmed)
+        {
+            _message = Text(
+                "Votre adresse est déjà vérifiée. Votre demande attend la décision d’un administrateur.",
+                "Your email is already verified. Your request is awaiting an administrator’s decision.");
+            return;
+        }
+
+        string decodedCode;
+        try
+        {
+            decodedCode = Encoding.UTF8.GetString(
+                WebEncoders.Base64UrlDecode(Code));
+        }
+        catch (FormatException)
+        {
+            Fail(Text(
+                "Ce lien de confirmation n’est pas valide.",
+                "This confirmation link is not valid."));
+            return;
+        }
+
+        var result = await UserManager.ConfirmEmailAsync(user, decodedCode);
+        if (!result.Succeeded)
+        {
+            Fail(Text(
+                "Le lien est invalide ou a expiré.",
+                "The link is invalid or has expired."));
+            return;
+        }
+
+        user.RegistrationStatus = AccountRegistrationStatus.PendingApproval;
+        user.EmailVerifiedAtUtc = TimeProvider.GetUtcNow();
+        var update = await UserManager.UpdateAsync(user);
+        if (!update.Succeeded)
+        {
+            Fail(Text(
+                "L’adresse est vérifiée, mais la demande n’a pas pu être transmise. Contactez un administrateur.",
+                "The email was verified, but the request could not be submitted. Contact an administrator."));
+            return;
+        }
+
+        _message = Text(
+            "Votre adresse est vérifiée. Votre demande est maintenant en attente d’approbation.",
+            "Your email is verified. Your request is now awaiting approval.");
+    }
+
+    private void Fail(string message)
+    {
+        _message = message;
+        _isError = true;
+    }
+
+    private string Text(string french, string english) =>
+        InterfaceLanguage == ApplicationLanguage.English ? english : french;
+}

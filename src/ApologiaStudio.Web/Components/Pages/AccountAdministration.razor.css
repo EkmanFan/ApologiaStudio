@@ -1,0 +1,452 @@
+.account-admin-shell {
+    min-height: 100dvh;
+    padding: clamp(1rem, 3vw, 2.5rem);
+    background: #f5f2ea;
+    color: #222920;
+}
+
+.account-admin-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 80rem;
+    margin: 0 auto 1.5rem;
+}
+
+.account-admin-header p {
+    margin: 0 0 0.3rem;
+    color: #2b705d;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.account-admin-header h1 {
+    margin: 0;
+    font: 600 clamp(2rem, 4vw, 3rem) Georgia, serif;
+}
+
+.account-admin-header span {
+    display: block;
+    max-width: 52rem;
+    margin-top: 0.45rem;
+    color: #687067;
+}
+
+.account-admin-header a {
+    color: #245f50;
+    font-weight: 750;
+}
+
+.account-admin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.account-admin-header a.admin-section-link {
+    padding: 0.62rem 0.82rem;
+    border: 1px solid #c9d2cd;
+    border-radius: 0.7rem;
+    background: #fff;
+    text-decoration: none;
+}
+
+.account-admin-header a.admin-close {
+    display: grid;
+    place-items: center;
+    width: 2.65rem;
+    height: 2.65rem;
+    padding: 0;
+    border: 1px solid #c9d2cd;
+    border-radius: 0.7rem;
+    background: #fff;
+    color: #29483d;
+    font-size: 1.65rem;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.admin-message,
+.account-summary,
+.account-list {
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.admin-message {
+    padding: 0.85rem 1rem;
+    border-radius: 0.75rem;
+    background: #e5f1eb;
+}
+
+.admin-message.error {
+    background: #f8e5e2;
+    color: #96372f;
+}
+
+.account-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.account-summary article {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #ded8cc;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+
+.account-summary strong {
+    font-size: 1.45rem;
+}
+
+.account-summary span {
+    color: #6c726b;
+    font-size: 0.78rem;
+}
+
+.account-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.account-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid #ded8cc;
+    border-radius: 1rem;
+    background: #fff;
+}
+
+.account-avatar {
+    display: grid;
+    place-items: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    border-radius: 0.8rem;
+    background: #276b59;
+    color: #fff;
+    font-weight: 900;
+}
+
+.account-identity {
+    display: grid;
+    gap: 0.18rem;
+    min-width: 0;
+}
+
+.account-name-button {
+    justify-self: start;
+    padding: 0;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    font-weight: 800;
+    text-align: left;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.18rem;
+}
+
+.account-name-button:hover,
+.account-name-button:focus-visible {
+    color: #276b59;
+    text-decoration-color: currentColor;
+}
+
+.account-identity span,
+.account-identity small {
+    color: #6b716a;
+}
+
+.role-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+}
+
+.role-list span,
+.account-status {
+    padding: 0.24rem 0.55rem;
+    border-radius: 999px;
+    background: #e9eeeb;
+    color: #365547;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.status-pendingapproval { background: #fff0c9; color: #7d5b00; }
+.status-pendingemail { background: #edf0f3; color: #56606a; }
+.status-rejected,
+.status-suspended { background: #f8e3df; color: #96372f; }
+
+.account-reason {
+    margin: 0.35rem 0 0;
+    color: #913f37;
+    font-size: 0.82rem;
+}
+
+.account-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+button {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #c9d2cd;
+    border-radius: 0.6rem;
+    background: #fff;
+    color: #29483d;
+    font: inherit;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+button.primary {
+    border-color: #276b59;
+    background: #276b59;
+    color: #fff;
+}
+
+button.danger {
+    border-color: #e7c8c3;
+    color: #a03d34;
+}
+
+button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
+.admin-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(26, 31, 27, 0.48);
+}
+
+.admin-dialog {
+    display: grid;
+    gap: 0.85rem;
+    width: min(100%, 32rem);
+    padding: 1.35rem;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.22);
+}
+
+.admin-dialog h2,
+.admin-dialog p {
+    margin: 0;
+}
+
+.admin-dialog label {
+    font-weight: 800;
+}
+
+.admin-dialog input:not([type="checkbox"]),
+.admin-dialog textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    padding: 0.7rem;
+    border: 1px solid #c9c5bc;
+    border-radius: 0.6rem;
+    font: inherit;
+}
+
+.create-account-dialog {
+    width: min(100%, 38rem);
+}
+
+.account-access-dialog {
+    width: min(100%, 58rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+}
+
+.account-access-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.account-access-heading p,
+.account-access-heading h2 {
+    margin: 0;
+}
+
+.account-access-heading p {
+    color: #2b705d;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.account-access-heading span:not(.account-status),
+.account-access-explanation {
+    color: #687067;
+}
+
+.account-group-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    padding: 0.8rem;
+    border: 1px solid #ded8cc;
+    border-radius: 0.8rem;
+}
+
+.account-group-picker legend {
+    padding: 0 0.35rem;
+    font-weight: 900;
+}
+
+.account-group-picker label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.7rem;
+    border-radius: 0.65rem;
+    background: #f5f6f3;
+}
+
+.account-group-picker input {
+    margin-top: 0.2rem;
+}
+
+.account-group-picker label > span {
+    display: grid;
+    gap: 0.16rem;
+}
+
+.account-group-picker small {
+    color: #687067;
+    font-weight: 500;
+}
+
+.effective-access-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+}
+
+.effective-access-grid > div {
+    padding: 0.8rem;
+    border-radius: 0.75rem;
+    background: #f5f2ea;
+}
+
+.effective-access-grid h3 {
+    margin: 0 0 0.55rem;
+    font-size: 0.9rem;
+}
+
+.access-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.access-chip-list > span {
+    padding: 0.28rem 0.5rem;
+    border-radius: 999px;
+    background: #e0ebe5;
+    color: #2d5e4c;
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
+.access-chip-list.permissions > span {
+    background: #e7e9ee;
+    color: #4d5363;
+}
+
+.access-chip-list > span.empty-access,
+.access-chip-list.permissions > span.empty-access {
+    background: transparent;
+    color: #777d76;
+    font-weight: 500;
+}
+
+.account-access-warning {
+    padding: 0.7rem;
+    border-radius: 0.65rem;
+    background: #fff0c9;
+    color: #765600;
+}
+
+.bypass-verification-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.8rem;
+    border-radius: 0.7rem;
+    background: #f5f2ea;
+}
+
+.bypass-verification-option input {
+    margin-top: 0.25rem;
+}
+
+.bypass-verification-option span {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.bypass-verification-option small {
+    color: #687067;
+    font-weight: 500;
+}
+
+.admin-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+@media (max-width: 780px) {
+    .account-admin-header,
+    .account-row {
+        grid-template-columns: 1fr;
+    }
+
+    .account-admin-header {
+        display: grid;
+    }
+
+    .account-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .account-controls {
+        justify-content: flex-start;
+    }
+
+    .account-group-picker,
+    .effective-access-grid {
+        grid-template-columns: 1fr;
+    }
+}

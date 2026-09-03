@@ -1,0 +1,169 @@
+@page "/account/login"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Infrastructure.Persistence.Identity
+@using ApologiaStudio.Web.Identity
+
+@inject SignInManager<ApologiaIdentityUser> SignInManager
+@inject UserManager<ApologiaIdentityUser> UserManager
+@inject InterfaceLanguageResolver LanguageResolver
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>@Text("Connexion", "Sign in") · Apologia Studio</PageTitle>
+
+<h1>@Text("Connexion", "Sign in")</h1>
+<p class="account-intro">
+    @Text(
+        "Utilisez votre compte approuvé pour accéder à votre espace.",
+        "Use your approved account to access your workspace.")
+</p>
+
+<IdentityStatusMessage Message="@_message" IsError="true" />
+
+<EditForm EditContext="_editContext"
+          method="post"
+          OnSubmit="LoginAsync"
+          FormName="login"
+          class="identity-form">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="identity-field">
+        <label for="login-email">@Text("Adresse e-mail", "Email address")</label>
+        <InputText id="login-email"
+                   type="email"
+                   autocomplete="username"
+                   @bind-Value="Input.Email" />
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+
+    <div class="identity-field">
+        <label for="login-password">@Text("Mot de passe", "Password")</label>
+        <InputText id="login-password"
+                   type="password"
+                   autocomplete="current-password"
+                   @bind-Value="Input.Password" />
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+
+    <label class="identity-checkbox">
+        <InputCheckbox @bind-Value="Input.RememberMe" />
+        @Text("Rester connecté", "Keep me signed in")
+    </label>
+
+    <button class="identity-submit" type="submit">@Text("Se connecter", "Sign in")</button>
+</EditForm>
+
+<div class="identity-links">
+    <a href="/account/register">@Text("Créer un compte", "Create an account")</a>
+</div>
+
+@code {
+    private string? _message;
+    private EditContext _editContext = null!;
+
+    [CascadingParameter]
+    private ApplicationLanguage InterfaceLanguage { get; set; }
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = null!;
+
+    [SupplyParameterFromForm]
+    private LoginInput Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new LoginInput();
+        Input.Language = InterfaceLanguage;
+        _editContext = new EditContext(Input);
+
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    private async Task LoginAsync()
+    {
+        if (!_editContext.Validate())
+        {
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(
+            Input.Email.Trim(),
+            Input.Password,
+            Input.RememberMe,
+            lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            var user = await UserManager.FindByEmailAsync(Input.Email.Trim());
+            var language = user is null
+                ? InterfaceLanguage
+                : await LanguageResolver.ResolveAsync(user.Id);
+            InterfaceLanguageCookie.Write(HttpContext, language);
+            RedirectManager.RedirectTo(ReturnUrl);
+            return;
+        }
+
+        _message = result.IsLockedOut
+            ? Text(
+                "Ce compte est temporairement verrouillé après plusieurs échecs.",
+                "This account is temporarily locked after several failed attempts.")
+            : result.IsNotAllowed
+                ? Text(
+                    "Ce compte n’est pas encore autorisé à se connecter. Vérifiez votre e-mail ou attendez la décision d’un administrateur.",
+                    "This account is not yet allowed to sign in. Verify your email or wait for an administrator’s decision.")
+                : Text(
+                    "Adresse e-mail ou mot de passe incorrect.",
+                    "Incorrect email address or password.");
+    }
+
+    private string Text(string french, string english) =>
+        InterfaceLanguage == ApplicationLanguage.English ? english : french;
+
+    private sealed class LoginInput : IValidatableObject
+    {
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+
+        public ApplicationLanguage Language { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var english = Language == ApplicationLanguage.English;
+            if (string.IsNullOrWhiteSpace(Email))
+            {
+                yield return new ValidationResult(
+                    english ? "Email address is required." : "L’adresse e-mail est obligatoire.",
+                    [nameof(Email)]);
+            }
+            else if (!new EmailAddressAttribute().IsValid(Email))
+            {
+                yield return new ValidationResult(
+                    english ? "The email address is not valid." : "L’adresse e-mail n’est pas valide.",
+                    [nameof(Email)]);
+            }
+
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                yield return new ValidationResult(
+                    english ? "Password is required." : "Le mot de passe est obligatoire.",
+                    [nameof(Password)]);
+            }
+        }
+    }
+}

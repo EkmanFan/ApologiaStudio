@@ -3,6 +3,7 @@ using System;
 using ApologiaStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ApologiaStudio.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApologiaStudioDbContext))]
-    partial class ApologiaStudioDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902212945_AddIdentityFoundation")]
+    partial class AddIdentityFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1460,10 +1463,6 @@ namespace ApologiaStudio.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ActorUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Details")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
                     b.Property<DateTimeOffset>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1471,111 +1470,16 @@ namespace ApologiaStudio.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<Guid?>("TargetGroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("TargetRoleId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("TargetUserId")
+                    b.Property<Guid>("TargetUserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ActorUserId");
 
-                    b.HasIndex("TargetGroupId");
-
-                    b.HasIndex("TargetRoleId");
-
                     b.HasIndex("TargetUserId", "OccurredAtUtc");
 
                     b.ToTable("identity_administration_events", (string)null);
-                });
-
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsSystem")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("NormalizedName")
-                        .IsUnique();
-
-                    b.ToTable("identity_groups", (string)null);
-                });
-
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupMembershipEntity", b =>
-                {
-                    b.Property<Guid>("GroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("AddedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("AddedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("GroupId", "UserId");
-
-                    b.HasIndex("AddedByUserId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("identity_group_memberships", (string)null);
-                });
-
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupRoleEntity", b =>
-                {
-                    b.Property<Guid>("GroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("AssignedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("AssignedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("GroupId", "RoleId");
-
-                    b.HasIndex("AssignedByUserId");
-
-                    b.HasIndex("RoleId");
-
-                    b.ToTable("identity_group_roles", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
@@ -1815,67 +1719,9 @@ namespace ApologiaStudio.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupEntity", null)
-                        .WithMany()
-                        .HasForeignKey("TargetGroupId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
-                        .WithMany()
-                        .HasForeignKey("TargetRoleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.ApologiaIdentityUser", null)
                         .WithMany()
                         .HasForeignKey("TargetUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupEntity", b =>
-                {
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.ApologiaIdentityUser", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupMembershipEntity", b =>
-                {
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.ApologiaIdentityUser", null)
-                        .WithMany()
-                        .HasForeignKey("AddedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupEntity", null)
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.ApologiaIdentityUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupRoleEntity", b =>
-                {
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.ApologiaIdentityUser", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("ApologiaStudio.Infrastructure.Persistence.Identity.IdentityGroupEntity", null)
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
-                        .WithMany()
-                        .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
