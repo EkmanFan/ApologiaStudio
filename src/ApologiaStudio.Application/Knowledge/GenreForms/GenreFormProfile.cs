@@ -13,7 +13,7 @@ public static class GenreFormProfile
     public const string Version = "apologia-genre-form-profile-v1";
 
     /// <summary>
-    /// The thirteen terms approved for editorial assignment. The order is the
+    /// The fourteen terms approved for editorial assignment. The order is the
     /// approved specification order and becomes the profile display order.
     /// </summary>
     public static IReadOnlyList<string> SelectableLabels { get; } =
@@ -30,7 +30,8 @@ public static class GenreFormProfile
         "Prayers",
         "Biographies",
         "Academic theses",
-        "Essays"
+        "Essays",
+        "Commentaries"
     ];
 }
 

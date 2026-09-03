@@ -139,7 +139,7 @@ association carries no hierarchy or assignment semantics.
 
 ## Apologia Genre/Form Profile V1
 
-`GenreFormProfile` declares the thirteen approved terms **by preferred label**.
+`GenreFormProfile` declares the fourteen approved terms **by preferred label**.
 Authority identifiers are never hard-coded: the seeder resolves each label
 against the imported snapshot and fails closed when a label is absent or
 ambiguous, so the profile cannot drift from the authority it claims to follow.
@@ -155,7 +155,7 @@ the thesaurus happens to be for a given term. Applying it over the 2026-09-03
 snapshot yields:
 
 ```text
-selectable       13
+selectable       14
 structural only   8   Business correspondence, Correspondence,
                       Creative nonfiction, Discursive works,
                       Informational works,
@@ -166,6 +166,10 @@ structural only   8   Business correspondence, Correspondence,
 Six are direct parents of an approved term. `Correspondence` and
 `Records (Documents)` are reached transitively through
 `Business correspondence`, the ancestor of `Pastoral letters and charges`.
+
+`Commentaries` (`gf2025026014`, established February 2025) was activated in
+revision 2 of the profile specification. It adds no structural ancestor: its
+only broader term is `Discursive works`, already reached through `Sermons`.
 
 `Biographies` is both approved and an ancestor of `Hagiographies`; it stays
 selectable, and the redundancy is prevented at assignment time rather than by

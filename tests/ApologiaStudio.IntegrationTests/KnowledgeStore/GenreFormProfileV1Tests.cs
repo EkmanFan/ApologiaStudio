@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using ApologiaStudio.Application.Knowledge.GenreForms;
 using ApologiaStudio.Infrastructure.Knowledge.GenreForms;
 using ApologiaStudio.Infrastructure.Persistence.Knowledge;
@@ -16,7 +17,7 @@ namespace ApologiaStudio.IntegrationTests.KnowledgeStore;
 public sealed class GenreFormProfileV1Tests
 {
     [Fact]
-    public async Task Profile_selects_exactly_the_thirteen_approved_terms()
+    public async Task Profile_selects_exactly_the_approved_terms()
     {
         var connectionString = KnowledgeStoreTestConnection.Resolve();
         var options = await PrepareAsync(connectionString);
@@ -29,11 +30,11 @@ public sealed class GenreFormProfileV1Tests
         var applied = await seeder.ApplyAsync(CancellationToken.None);
 
         // AC-GF-01 and the approved set size.
-        Assert.Equal(13, applied.SelectableCount);
+        Assert.Equal(14, applied.SelectableCount);
 
         // Section 3: ancestors are derived, not declared, and the closure is
-        // transitive — Correspondence and Records (Documents) are reached
-        // through Business correspondence, not named in the specification.
+        // transitive. Commentaries adds none: its only broader term is
+        // Discursive works, already reached through Sermons.
         Assert.Equal(
             [
                 "Business correspondence",
@@ -51,7 +52,7 @@ public sealed class GenreFormProfileV1Tests
         var store = new PostgreSqlGenreFormAuthorityStore(context);
         var selectable = await store.GetSelectableTermsAsync(CancellationToken.None);
 
-        Assert.Equal(13, selectable.Count);
+        Assert.Equal(14, selectable.Count);
         Assert.Equal(
             GenreFormProfile.SelectableLabels.Order(StringComparer.Ordinal),
             selectable.Select(x => x.PreferredLabel).Order(StringComparer.Ordinal));
@@ -92,7 +93,7 @@ public sealed class GenreFormProfileV1Tests
                 .ApplyAsync(CancellationToken.None);
 
             Assert.False(again.Changed);
-            Assert.Equal(13, again.SelectableCount);
+            Assert.Equal(14, again.SelectableCount);
         }
     }
 
@@ -288,14 +289,20 @@ public sealed class GenreFormProfileV1Tests
             "Fixtures",
             "lcgft-profile-v1-fixture.jsonl");
 
-        await using var content = File.OpenRead(path);
+        // Snapshot identity is the fixture's own content hash, exactly as in
+        // production: editing the fixture yields a new snapshot and a real
+        // re-import instead of an idempotent no-op over stale data.
+        var payload = await File.ReadAllBytesAsync(path);
+        var sha256 = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
+
+        using var content = new MemoryStream(payload, writable: false);
         var dataset = new SkosJsonLdGenreFormDatasetReader().Read(content);
 
         await new PostgreSqlGenreFormAuthorityStore(context).ImportAsync(
             new GenreFormAuthoritySnapshot(
                 "lcgft",
                 "https://id.loc.gov/download/authorities/genreForms.skosrdf.jsonld.gz",
-                "fixture-profile-v1",
+                sha256,
                 new DateTimeOffset(2026, 9, 4, 0, 0, 0, TimeSpan.Zero),
                 "integration-fixture"),
             dataset,
