@@ -89,6 +89,9 @@ public static class DependencyInjection
         services.AddScoped<
             IGenreFormPolicyProvider,
             KnowledgeStoreGenreFormPolicyProvider>();
+        services.AddScoped<
+            IMetadataReviewAnalysisStore,
+            PostgreSqlMetadataReviewAnalysisStore>();
         services.AddSingleton<
             IGenreFormClassificationValidator,
             GenreFormClassificationValidator>();

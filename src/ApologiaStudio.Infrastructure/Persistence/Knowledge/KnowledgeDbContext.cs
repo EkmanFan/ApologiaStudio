@@ -58,6 +58,16 @@ public sealed class KnowledgeDbContext(
         EditorialDraftGenreForms =>
             Set<DocumentManagerEditorialDraftGenreFormEntity>();
 
+    internal DbSet<MetadataReviewAnalysisEntity> MetadataReviewAnalyses =>
+        Set<MetadataReviewAnalysisEntity>();
+
+    internal DbSet<MetadataReviewSuggestionEntity> MetadataReviewSuggestions =>
+        Set<MetadataReviewSuggestionEntity>();
+
+    internal DbSet<MetadataReviewSuggestionEvidenceEntity>
+        MetadataReviewSuggestionEvidence =>
+            Set<MetadataReviewSuggestionEvidenceEntity>();
+
     internal DbSet<DocumentManagerResultInboxEntity> DocumentManagerResults =>
         Set<DocumentManagerResultInboxEntity>();
 

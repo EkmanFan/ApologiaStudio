@@ -1,3 +1,4 @@
+using ApologiaStudio.Application.Abstractions.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Components.Web;
 using ApologiaStudio.Application.Knowledge.MetadataReview;
@@ -31,6 +32,10 @@ public partial class EditorialReviewPanel
     private bool _isAnalyzing;
 
     private string? _analysisError;
+
+    private Guid? _currentAnalysisId;
+
+    private IReadOnlyList<string> _suggestedAtAnalysis = [];
 
     [Parameter]
     public ApplicationLanguage Language { get; set; } = ApplicationLanguage.French;
@@ -144,6 +149,8 @@ public partial class EditorialReviewPanel
         _form = EditorialForm.FromDraft(_selectedDraft);
         _suggestions = null;
         _analysisError = null;
+        _currentAnalysisId = null;
+        _suggestedAtAnalysis = [];
         await LoadGenreFormVocabularyAsync();
     }
 
@@ -341,6 +348,12 @@ public partial class EditorialReviewPanel
             _selectedDraft = updated;
             _form = EditorialForm.FromDraft(updated);
             _pendingAction = null;
+
+            // The editorial save has committed; recording what the reviewer
+            // did with the proposal is evaluation data and cannot undo it.
+            await RecordReviewerOutcomeAsync(
+                updated.GenreForms.Select(x => x.AuthorityUri).ToList());
+
             await RefreshSummariesAsync(scope.ServiceProvider);
             ShowSuccess(action switch
             {
@@ -596,6 +609,8 @@ public partial class EditorialReviewPanel
         _analysisError = null;
         _suggestions = null;
 
+        var requestedAt = DateTimeOffset.UtcNow;
+
         try
         {
             await using var scope = ServiceScopeFactory.CreateAsyncScope();
@@ -609,25 +624,157 @@ public partial class EditorialReviewPanel
             if (validation.IsValid)
             {
                 _suggestions = validation.Result!.Suggested;
+                _suggestedAtAnalysis = _suggestions
+                    .Select(x => x.AuthorityUri)
+                    .ToList();
+
+                await RecordAnalysisAsync(validation.Result, requestedAt);
             }
             else
             {
-                // Invalid model output is discarded whole; nothing is shown as
-                // a suggestion and nothing is written.
+                // Invalid model output is discarded whole; it is recorded as a
+                // failed run and never becomes a persisted suggestion.
                 _analysisError = Text(
                     "La proposition de l\u2019assistant a été refusée par la validation.",
                     "The assistant's proposal was refused by validation.");
+
+                await RecordFailureAsync(
+                    string.Join(
+                        " ",
+                        validation.Errors.Select(x => x.Detail)),
+                    requestedAt);
             }
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             _analysisError = Text(
                 "L\u2019assistant est indisponible.",
                 "The assistant is unavailable.");
+
+            await RecordFailureAsync(exception.GetType().Name, requestedAt);
         }
         finally
         {
             _isAnalyzing = false;
+        }
+    }
+
+    /// <summary>
+    /// Advisory history is written in its own scope and transaction: failing
+    /// to record it must never affect the reviewer's editorial work.
+    /// </summary>
+    private async Task RecordAnalysisAsync(
+        GenreFormClassificationResult result,
+        DateTimeOffset requestedAt)
+    {
+        if (_selectedDraft is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var completedAt = DateTimeOffset.UtcNow;
+
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var store = scope.ServiceProvider
+                .GetRequiredService<IMetadataReviewAnalysisStore>();
+            var actor = scope.ServiceProvider
+                .GetRequiredService<ICurrentUser>().UserId.Value;
+
+            var analysis = await store.RecordAsync(
+                new RecordMetadataReviewAnalysisCommand(
+                    _selectedDraft.Id,
+                    actor,
+                    result,
+                    requestedAt,
+                    completedAt,
+                    (completedAt - requestedAt).TotalMilliseconds),
+                CancellationToken.None);
+
+            _currentAnalysisId = analysis.Id;
+        }
+        catch (Exception)
+        {
+            // Evaluation history is best effort; review continues regardless.
+            _currentAnalysisId = null;
+        }
+    }
+
+    private async Task RecordFailureAsync(
+        string reason,
+        DateTimeOffset requestedAt)
+    {
+        if (_selectedDraft is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var completedAt = DateTimeOffset.UtcNow;
+
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var store = scope.ServiceProvider
+                .GetRequiredService<IMetadataReviewAnalysisStore>();
+            var actor = scope.ServiceProvider
+                .GetRequiredService<ICurrentUser>().UserId.Value;
+
+            await store.RecordFailureAsync(
+                new RecordFailedMetadataReviewAnalysisCommand(
+                    _selectedDraft.Id,
+                    actor,
+                    reason,
+                    GenreFormProfile.Version,
+                    requestedAt,
+                    completedAt,
+                    (completedAt - requestedAt).TotalMilliseconds),
+                CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            // Diagnostics must never block the reviewer.
+        }
+
+        _currentAnalysisId = null;
+        _suggestedAtAnalysis = [];
+    }
+
+    /// <summary>
+    /// Records what the reviewer decided, after their editorial save has
+    /// already committed.
+    /// </summary>
+    private async Task RecordReviewerOutcomeAsync(
+        IReadOnlyList<string> confirmed)
+    {
+        if (_currentAnalysisId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var outcome = MetadataReviewOutcomeCalculator.Determine(
+                _suggestedAtAnalysis,
+                confirmed);
+
+            await using var scope = ServiceScopeFactory.CreateAsyncScope();
+            var store = scope.ServiceProvider
+                .GetRequiredService<IMetadataReviewAnalysisStore>();
+            var reviewer = scope.ServiceProvider
+                .GetRequiredService<ICurrentUser>().UserId.Value;
+
+            await store.RecordReviewerOutcomeAsync(
+                _currentAnalysisId.Value,
+                outcome,
+                reviewer,
+                DateTimeOffset.UtcNow,
+                CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            // The editorial save already succeeded; losing the outcome costs
+            // evaluation data, never metadata.
         }
     }
 

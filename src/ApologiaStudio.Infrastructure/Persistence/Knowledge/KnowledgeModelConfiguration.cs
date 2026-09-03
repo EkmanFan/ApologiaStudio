@@ -69,6 +69,12 @@ internal static class KnowledgeModelConfiguration
             modelBuilder.Entity<KnowledgeWorkGenreFormEntity>());
         ConfigureEditorialDraftGenreForm(
             modelBuilder.Entity<DocumentManagerEditorialDraftGenreFormEntity>());
+        ConfigureMetadataReviewAnalysis(
+            modelBuilder.Entity<MetadataReviewAnalysisEntity>());
+        ConfigureMetadataReviewSuggestion(
+            modelBuilder.Entity<MetadataReviewSuggestionEntity>());
+        ConfigureMetadataReviewSuggestionEvidence(
+            modelBuilder.Entity<MetadataReviewSuggestionEvidenceEntity>());
     }
 
     private static void ConfigureDocumentManagerResult(
@@ -2241,5 +2247,169 @@ internal static class KnowledgeModelConfiguration
         builder.HasIndex(x => new { x.DraftId, x.TermId })
             .IsUnique()
             .HasDatabaseName("ux_document_manager_editorial_draft_genre_forms");
+    }
+
+    private static void ConfigureMetadataReviewAnalysis(
+        EntityTypeBuilder<MetadataReviewAnalysisEntity> builder)
+    {
+        builder.ToTable(
+            "metadata_review_analyses",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_metadata_review_analysis_status",
+                    "status IN ('valid', 'failed')");
+                table.HasCheckConstraint(
+                    "ck_metadata_review_analysis_outcome",
+                    "reviewer_outcome IS NULL OR " +
+                    "reviewer_outcome IN ('accepted', 'modified', 'rejected')");
+                table.HasCheckConstraint(
+                    "ck_metadata_review_analysis_supersedes",
+                    "superseded_by_analysis_id IS NULL OR " +
+                    "superseded_by_analysis_id <> id");
+                table.HasCheckConstraint(
+                    "ck_metadata_review_analysis_failure",
+                    "(status = 'failed') = (failure_reason IS NOT NULL)");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.DraftId)
+            .HasColumnName("draft_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.Field)
+            .HasColumnName("field")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.Status)
+            .HasColumnName("status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.PolicyVersion)
+            .HasColumnName("policy_version")
+            .HasMaxLength(128);
+        builder.Property(x => x.PromptVersion)
+            .HasColumnName("prompt_version")
+            .HasMaxLength(128);
+        builder.Property(x => x.ModelProvider)
+            .HasColumnName("model_provider")
+            .HasMaxLength(64);
+        builder.Property(x => x.ModelName)
+            .HasColumnName("model_name")
+            .HasMaxLength(128);
+        builder.Property(x => x.InsufficientEvidence)
+            .HasColumnName("insufficient_evidence")
+            .IsRequired();
+        builder.Property(x => x.FailureReason)
+            .HasColumnName("failure_reason");
+        builder.Property(x => x.RequestedAtUtc)
+            .HasColumnName("requested_at_utc")
+            .IsRequired();
+        builder.Property(x => x.CompletedAtUtc)
+            .HasColumnName("completed_at_utc")
+            .IsRequired();
+        builder.Property(x => x.DurationMilliseconds)
+            .HasColumnName("duration_milliseconds");
+        builder.Property(x => x.ActorUserId)
+            .HasColumnName("actor_user_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.SupersededByAnalysisId)
+            .HasColumnName("superseded_by_analysis_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ReviewerOutcome)
+            .HasColumnName("reviewer_outcome")
+            .HasMaxLength(32);
+        builder.Property(x => x.ReviewerUserId)
+            .HasColumnName("reviewer_user_id")
+            .HasColumnType("uuid");
+        builder.Property(x => x.ReviewedAtUtc)
+            .HasColumnName("reviewed_at_utc");
+
+        builder.HasOne<DocumentManagerEditorialDraftEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.DraftId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<MetadataReviewAnalysisEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SupersededByAnalysisId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.DraftId, x.Field, x.SupersededByAnalysisId })
+            .HasDatabaseName("ix_metadata_review_analyses_current");
+        builder.HasIndex(x => new { x.DraftId, x.CompletedAtUtc })
+            .HasDatabaseName("ix_metadata_review_analyses_history");
+    }
+
+    private static void ConfigureMetadataReviewSuggestion(
+        EntityTypeBuilder<MetadataReviewSuggestionEntity> builder)
+    {
+        builder.ToTable(
+            "metadata_review_suggestions",
+            table => table.HasCheckConstraint(
+                "ck_metadata_review_suggestion_disposition",
+                "disposition IN ('suggested', 'considered_but_rejected')"));
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.AnalysisId)
+            .HasColumnName("analysis_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.TermId)
+            .HasColumnName("term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.Disposition)
+            .HasColumnName("disposition")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.Justification)
+            .HasColumnName("justification")
+            .IsRequired();
+
+        builder.HasOne<MetadataReviewAnalysisEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.AnalysisId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.AnalysisId, x.TermId })
+            .IsUnique()
+            .HasDatabaseName("ux_metadata_review_suggestions");
+    }
+
+    private static void ConfigureMetadataReviewSuggestionEvidence(
+        EntityTypeBuilder<MetadataReviewSuggestionEvidenceEntity> builder)
+    {
+        builder.ToTable("metadata_review_suggestion_evidence");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.SuggestionId)
+            .HasColumnName("suggestion_id")
+            .IsRequired();
+        builder.Property(x => x.Ordinal)
+            .HasColumnName("ordinal")
+            .IsRequired();
+        builder.Property(x => x.Reference)
+            .HasColumnName("reference")
+            .HasMaxLength(1024)
+            .IsRequired();
+
+        builder.HasOne(x => x.Suggestion)
+            .WithMany()
+            .HasForeignKey(x => x.SuggestionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new { x.SuggestionId, x.Ordinal })
+            .IsUnique()
+            .HasDatabaseName("ux_metadata_review_suggestion_evidence");
     }
 }
