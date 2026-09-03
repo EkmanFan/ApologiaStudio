@@ -203,6 +203,21 @@ An import rebuilds relations, variants and notes **only for the authority
 being imported**, and reviews only that authority's profile entries. Importing
 one authority never disturbs another's facts or editorial decisions.
 
+## Known V1 limitation — evidence references
+
+Suggestion evidence is stored as references rather than excerpts, but the
+references currently available are free strings produced by the model, not
+stable page or `DocumentElement` identifiers. The editorial workflow supplies
+metadata-level evidence only; the decoded DPEngine result does not reach the
+assistant on this path.
+
+The schema is ready for stable references — `metadata_review_suggestion_evidence`
+keeps them ordered per suggestion — and will carry them when decoded content
+becomes available. Until then, no page or element reference is fabricated.
+
+Measured quality is recorded in
+[the Genre/Form MRA baseline](genre-form-mra-baseline-2026-09-04.md).
+
 ## What this increment does not do
 
 ```text

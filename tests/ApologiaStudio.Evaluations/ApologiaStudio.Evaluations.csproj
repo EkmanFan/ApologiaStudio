@@ -38,4 +38,13 @@
     </None>
   </ItemGroup>
 
+
+  <ItemGroup>
+    <None Update="GenreForm\genre-form-evaluation-cases.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="GenreForm\lcgft-profile-v1-fixture.jsonl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
