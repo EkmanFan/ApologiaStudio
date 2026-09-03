@@ -1,7 +1,7 @@
 .administration-page-header {
     position: sticky;
     z-index: 50;
-    top: 0;
+    top: clamp(1.25rem, 4vw, 3rem);
     display: grid;
     gap: 0.9rem;
     width: 100%;
