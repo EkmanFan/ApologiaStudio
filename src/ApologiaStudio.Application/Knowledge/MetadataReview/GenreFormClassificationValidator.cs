@@ -8,9 +8,13 @@ namespace ApologiaStudio.Application.Knowledge.MetadataReview;
 /// than salvaging the acceptable part, because a model that invented one term
 /// gives no reason to trust the rest of the same response.
 /// </summary>
-public sealed class GenreFormClassificationValidator
+public sealed class GenreFormClassificationValidator(
+    MetadataReviewOptions? options = null)
     : IGenreFormClassificationValidator
 {
+    private readonly MetadataReviewOptions _options =
+        options ?? MetadataReviewOptions.Default;
+
     public GenreFormClassificationValidation Validate(
         RawGenreFormClassification raw,
         GenreFormPolicySnapshot policy,
@@ -25,7 +29,7 @@ public sealed class GenreFormClassificationValidator
         var suggested = ResolveSuggestions(raw, policy, errors);
         var rejected = ResolveRejections(raw, policy, errors);
 
-        ValidateCardinality(suggested, policy, errors);
+        ValidateCardinality(suggested, _options, errors);
         ValidateDisjoint(suggested, rejected, errors);
         ValidateHierarchy(suggested, policy, errors);
         ValidateInsufficientEvidence(raw, suggested, errors);
@@ -180,15 +184,15 @@ public sealed class GenreFormClassificationValidator
 
     private static void ValidateCardinality(
         List<GenreFormSuggestion> suggested,
-        GenreFormPolicySnapshot policy,
+        MetadataReviewOptions options,
         List<GenreFormValidationError> errors)
     {
-        if (suggested.Count > policy.MaximumSuggestions)
+        if (suggested.Count > options.MaximumSuggestions)
         {
             errors.Add(new GenreFormValidationError(
                 GenreFormValidationFailure.TooManySuggestions,
-                $"{suggested.Count} suggestions exceed the bound of " +
-                $"{policy.MaximumSuggestions}."));
+                $"{suggested.Count} suggestions exceed the assistant bound of " +
+                $"{options.MaximumSuggestions}."));
         }
     }
 

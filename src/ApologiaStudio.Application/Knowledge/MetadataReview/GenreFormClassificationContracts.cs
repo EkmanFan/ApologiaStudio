@@ -57,16 +57,8 @@ public sealed record GenreFormPolicyTerm(
 /// </summary>
 public sealed record GenreFormPolicySnapshot(
     string PolicyVersion,
-    IReadOnlyList<GenreFormPolicyTerm> Terms,
-    int MaximumSuggestions = GenreFormPolicySnapshot.DefaultMaximumSuggestions)
+    IReadOnlyList<GenreFormPolicyTerm> Terms)
 {
-    /// <summary>
-    /// Cardinality bound for one Work. The specification requires a bound
-    /// without fixing a number; four leaves room beyond the two-term reference
-    /// case while refusing a model that returns most of the vocabulary.
-    /// </summary>
-    public const int DefaultMaximumSuggestions = 4;
-
     public IEnumerable<GenreFormPolicyTerm> SelectableTerms =>
         Terms.Where(x => x.Usage == GenreFormPolicyUsage.Selectable);
 
@@ -165,6 +157,23 @@ public sealed record GenreFormClassificationValidation(
     bool IsValid,
     GenreFormClassificationResult? Result,
     IReadOnlyList<GenreFormValidationError> Errors);
+
+/// <summary>
+/// Guards owned by the Metadata Review Assistant. They bound what the
+/// assistant will accept from a model; they are not Genre/Form domain rules,
+/// and the vocabulary itself imposes no cardinality.
+/// </summary>
+public sealed record MetadataReviewOptions(
+    int MaximumSuggestions = MetadataReviewOptions.DefaultMaximumSuggestions)
+{
+    /// <summary>
+    /// Leaves room beyond the two-term reference case while refusing a model
+    /// that returns most of the vocabulary.
+    /// </summary>
+    public const int DefaultMaximumSuggestions = 4;
+
+    public static MetadataReviewOptions Default { get; } = new();
+}
 
 public interface IGenreFormClassificationValidator
 {

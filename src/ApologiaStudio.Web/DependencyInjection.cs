@@ -1,5 +1,6 @@
 using ApologiaStudio.AgentRuntime.Agents;
 using ApologiaStudio.AgentRuntime.Execution;
+using ApologiaStudio.Application.Knowledge.MetadataReview;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
@@ -293,6 +294,15 @@ public static class DependencyInjection
         services.AddSingleton<
             IOllamaRuntimeTelemetry,
             LoggingOllamaRuntimeTelemetry>();
+        services.AddSingleton<
+            IStructuredGenerationTelemetry,
+            LoggingStructuredGenerationTelemetry>();
+        services.AddScoped<
+            IStructuredGenerationRuntime,
+            OllamaStructuredGenerationRuntime>();
+        services.AddScoped<
+            IGenreFormClassifier,
+            StructuredGenreFormClassifier>();
 
         services.AddScoped<
             OllamaAgentRuntime>();
