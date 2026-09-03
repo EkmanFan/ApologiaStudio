@@ -13,71 +13,93 @@
 <DocumentLanguage Language="@SelectedInterfaceLanguage" />
 
 <main class="settings-shell">
-    <header class="settings-header">
-        <div>
-            <p class="settings-eyebrow">Apologia Studio</p>
-            <h1>@Text("Préférences", "Preferences")</h1>
-            <p>
-                @Text(
-                    "Personnalisez la langue, les dates et le comportement de votre espace.",
-                    "Customize the language, dates, and behavior of your workspace.")
-            </p>
-        </div>
-        <a class="settings-close"
-           href="/"
-           aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")"
-           title="@Text("Fermer", "Close")">×</a>
-    </header>
+    <section class="settings-page-header">
+        <header class="settings-header">
+            <div>
+                <p class="settings-eyebrow">Apologia Studio</p>
+                <h1>@Text("Préférences", "Preferences")</h1>
+                <p>
+                    @Text(
+                        "Personnalisez la langue, les dates et le comportement de votre espace.",
+                        "Customize the language, dates, and behavior of your workspace.")
+                </p>
+            </div>
+            <a class="settings-close"
+               href="/"
+               aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")"
+               title="@Text("Fermer", "Close")">×</a>
+        </header>
 
-    <nav class="settings-tabs"
-         role="tablist"
-         aria-label="@Text("Catégories de préférences", "Preference categories")">
-        <button id="settings-tab-languages"
-                type="button"
-                role="tab"
-                aria-selected="@(_activeTab == SettingsTab.Languages)"
-                aria-controls="settings-panel-languages"
-                class="@TabClass(SettingsTab.Languages)"
-                @onclick="() => SelectTab(SettingsTab.Languages)">
-            @Text("Langues", "Languages")
-        </button>
-        <button id="settings-tab-dates"
-                type="button"
-                role="tab"
-                aria-selected="@(_activeTab == SettingsTab.Dates)"
-                aria-controls="settings-panel-dates"
-                class="@TabClass(SettingsTab.Dates)"
-                @onclick="() => SelectTab(SettingsTab.Dates)">
-            @Text("Dates", "Dates")
-        </button>
-        <button id="settings-tab-behavior"
-                type="button"
-                role="tab"
-                aria-selected="@(_activeTab == SettingsTab.Behavior)"
-                aria-controls="settings-panel-behavior"
-                class="@TabClass(SettingsTab.Behavior)"
-                @onclick="() => SelectTab(SettingsTab.Behavior)">
-            @Text("Comportement", "Behavior")
-        </button>
-        <button id="settings-tab-themes"
-                type="button"
-                role="tab"
-                aria-selected="@(_activeTab == SettingsTab.Themes)"
-                aria-controls="settings-panel-themes"
-                class="@TabClass(SettingsTab.Themes)"
-                @onclick="() => SelectTab(SettingsTab.Themes)">
-            @Text("Thèmes", "Themes")
-        </button>
-        <button id="settings-tab-landing-page"
-                type="button"
-                role="tab"
-                aria-selected="@(_activeTab == SettingsTab.LandingPage)"
-                aria-controls="settings-panel-landing-page"
-                class="@TabClass(SettingsTab.LandingPage)"
-                @onclick="() => SelectTab(SettingsTab.LandingPage)">
-            @Text("Page d’accueil", "Landing page")
-        </button>
-    </nav>
+        <nav class="settings-tabs"
+             role="tablist"
+             aria-label="@Text("Catégories de préférences", "Preference categories")">
+            <button id="settings-tab-languages"
+                    type="button"
+                    role="tab"
+                    aria-selected="@(_activeTab == SettingsTab.Languages)"
+                    aria-controls="settings-panel-languages"
+                    class="@TabClass(SettingsTab.Languages)"
+                    @onclick="() => SelectTab(SettingsTab.Languages)">
+                @Text("Langues", "Languages")
+            </button>
+            <button id="settings-tab-dates"
+                    type="button"
+                    role="tab"
+                    aria-selected="@(_activeTab == SettingsTab.Dates)"
+                    aria-controls="settings-panel-dates"
+                    class="@TabClass(SettingsTab.Dates)"
+                    @onclick="() => SelectTab(SettingsTab.Dates)">
+                @Text("Dates", "Dates")
+            </button>
+            <button id="settings-tab-behavior"
+                    type="button"
+                    role="tab"
+                    aria-selected="@(_activeTab == SettingsTab.Behavior)"
+                    aria-controls="settings-panel-behavior"
+                    class="@TabClass(SettingsTab.Behavior)"
+                    @onclick="() => SelectTab(SettingsTab.Behavior)">
+                @Text("Comportement", "Behavior")
+            </button>
+            <button id="settings-tab-themes"
+                    type="button"
+                    role="tab"
+                    aria-selected="@(_activeTab == SettingsTab.Themes)"
+                    aria-controls="settings-panel-themes"
+                    class="@TabClass(SettingsTab.Themes)"
+                    @onclick="() => SelectTab(SettingsTab.Themes)">
+                @Text("Thèmes", "Themes")
+            </button>
+            <button id="settings-tab-landing-page"
+                    type="button"
+                    role="tab"
+                    aria-selected="@(_activeTab == SettingsTab.LandingPage)"
+                    aria-controls="settings-panel-landing-page"
+                    class="@TabClass(SettingsTab.LandingPage)"
+                    @onclick="() => SelectTab(SettingsTab.LandingPage)">
+                @Text("Page d’accueil", "Landing page")
+            </button>
+        </nav>
+
+        <ActionRibbon AriaLabel="@Text("Actions des préférences", "Preference actions")">
+            <ActionRibbonGroup Label="@Text("Modifications", "Changes")">
+                <button class="action-ribbon-command primary"
+                        type="button"
+                        disabled="@(_isLoading || _isSaving || !ActiveTabCanBeSaved)"
+                        title="@SaveButtonTitle"
+                        @onclick="SaveAsync">
+                    @(_isSaving ? Text("Enregistrement…", "Saving…") : Text("Enregistrer", "Save"))
+                </button>
+                @if (!string.IsNullOrWhiteSpace(_statusMessage))
+                {
+                    <span class="action-ribbon-note success" role="status">@_statusMessage</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                {
+                    <span class="action-ribbon-note error" role="alert">@_errorMessage</span>
+                }
+            </ActionRibbonGroup>
+        </ActionRibbon>
+    </section>
 
     <section id="settings-panel-languages"
              class="settings-tab-panel"
@@ -260,20 +282,4 @@
         </section>
     </section>
 
-    @if (_activeTab is not SettingsTab.Themes and not SettingsTab.LandingPage)
-    {
-        <section class="settings-save-area" aria-live="polite">
-            @if (!string.IsNullOrWhiteSpace(_statusMessage))
-            {
-                <p class="settings-status success">@_statusMessage</p>
-            }
-            @if (!string.IsNullOrWhiteSpace(_errorMessage))
-            {
-                <p class="settings-status error">@_errorMessage</p>
-            }
-            <button type="button" disabled="@(_isLoading || _isSaving)" @onclick="SaveAsync">
-                @(_isSaving ? Text("Enregistrement…", "Saving…") : Text("Enregistrer", "Save"))
-            </button>
-        </section>
-    }
 </main>

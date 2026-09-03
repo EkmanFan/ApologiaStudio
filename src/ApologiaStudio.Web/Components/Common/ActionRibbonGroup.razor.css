@@ -73,3 +73,11 @@
     font-size: 0.8rem;
     white-space: nowrap;
 }
+
+.action-ribbon-commands ::deep .action-ribbon-note.success {
+    color: #206a35;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-note.error {
+    color: #8b1a1a;
+}

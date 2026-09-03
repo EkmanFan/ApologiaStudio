@@ -2,10 +2,21 @@
     display: grid;
     align-content: start;
     gap: 1.5rem;
-    width: min(100%, 74rem);
+    width: min(100%, 92rem);
     min-height: 100dvh;
     margin: 0 auto;
     padding: clamp(1.25rem, 4vw, 3rem);
+}
+
+.settings-page-header {
+    position: sticky;
+    z-index: 50;
+    top: clamp(1.25rem, 4vw, 3rem);
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.35rem 0 0.75rem;
+    background: #fbfaf7;
+    box-shadow: 0 1rem 1.5rem -1.5rem rgba(32, 51, 49, 0.38);
 }
 
 .settings-header {
@@ -18,6 +29,11 @@
 .settings-header h1,
 .panel-heading h2 {
     margin: 0;
+}
+
+.settings-header h1 {
+    color: #203331;
+    font: 600 clamp(2rem, 3vw, 2.8rem)/1.08 Georgia, serif;
 }
 
 .settings-header p:not(.settings-eyebrow) {
@@ -52,34 +68,44 @@
 
 .settings-tabs {
     display: flex;
+    align-items: flex-end;
     gap: 0.25rem;
-    padding: 0.3rem;
+    min-height: 3.2rem;
+    padding: 0 0.35rem;
     overflow-x: auto;
-    border: 1px solid #d5d7da;
-    border-radius: 0.8rem;
-    background: #f3f4f2;
+    border-bottom: 1px solid #d5ded9;
+    background: transparent;
 }
 
 .settings-tab {
-    min-width: 7rem;
-    padding: 0.65rem 1rem;
-    border: 0;
-    border-radius: 0.6rem;
+    display: grid;
+    min-width: 0;
+    min-height: 2.85rem;
+    place-items: center;
+    padding: 0.65rem 1rem 0.6rem;
+    border: 1px solid transparent;
+    border-bottom: 3px solid transparent;
+    border-radius: 0.65rem 0.65rem 0 0;
     background: transparent;
-    color: #535d56;
+    color: #255f59;
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 .settings-tab:hover:not(:disabled) {
-    background: #e7eae6;
+    border-color: #cdd8d4;
+    border-bottom-color: #8ab5ae;
+    background: #fff;
 }
 
 .settings-tab.active {
-    background: var(--bs-body-bg);
+    border-color: #2d766e;
+    border-bottom-color: #2d766e;
+    background: #e8f3f0;
     color: #255f59;
-    box-shadow: 0 0.15rem 0.45rem rgba(34, 39, 35, 0.12);
+    box-shadow: none;
 }
 
 .settings-tab:focus-visible {
@@ -161,25 +187,6 @@
     background: #e8f3f0;
 }
 
-.settings-save-area {
-    display: grid;
-    justify-items: start;
-    gap: 0.75rem;
-}
-
-.settings-save-area button {
-    justify-self: start;
-    padding: 0.6rem 1.15rem;
-    border: 0;
-    border-radius: 0.5rem;
-    background: #2d766e;
-    color: white;
-}
-
-.settings-save-area button:hover:not(:disabled) {
-    background: #255f59;
-}
-
 .future-settings > p {
     margin: 0;
     color: #68737e;
@@ -187,14 +194,6 @@
 
 .settings-status {
     margin: 0;
-}
-
-.settings-status.success {
-    color: #206a35;
-}
-
-.settings-status.error {
-    color: #8b1a1a;
 }
 
 button:disabled {

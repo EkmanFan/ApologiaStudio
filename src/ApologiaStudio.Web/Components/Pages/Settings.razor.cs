@@ -41,6 +41,18 @@ public partial class Settings
     private bool _isLoading = true;
     private bool _isSaving;
 
+    private bool ActiveTabCanBeSaved =>
+        _activeTab is SettingsTab.Languages or
+            SettingsTab.Dates or
+            SettingsTab.Behavior;
+
+    private string SaveButtonTitle =>
+        ActiveTabCanBeSaved
+            ? Text("Enregistrer les préférences", "Save preferences")
+            : Text(
+                "Cette catégorie sera disponible prochainement.",
+                "This category will be available soon.");
+
     private ApplicationLanguage SelectedInterfaceLanguage =>
         ApplicationLanguageExtensions.TryParseLanguageTag(
             _interfaceLanguageCode,
