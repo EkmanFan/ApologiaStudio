@@ -30,6 +30,30 @@ public sealed class KnowledgeDbContext(
     internal DbSet<KnowledgeChunkEmbeddingEntity> ChunkEmbeddings =>
         Set<KnowledgeChunkEmbeddingEntity>();
 
+    internal DbSet<GenreFormAuthoritySnapshotEntity> GenreFormSnapshots =>
+        Set<GenreFormAuthoritySnapshotEntity>();
+
+    internal DbSet<GenreFormAuthorityTermEntity> GenreFormTerms =>
+        Set<GenreFormAuthorityTermEntity>();
+
+    internal DbSet<GenreFormAuthorityVariantEntity> GenreFormVariants =>
+        Set<GenreFormAuthorityVariantEntity>();
+
+    internal DbSet<GenreFormAuthorityNoteEntity> GenreFormNotes =>
+        Set<GenreFormAuthorityNoteEntity>();
+
+    internal DbSet<GenreFormBroaderRelationEntity> GenreFormBroaderRelations =>
+        Set<GenreFormBroaderRelationEntity>();
+
+    internal DbSet<GenreFormRelatedRelationEntity> GenreFormRelatedRelations =>
+        Set<GenreFormRelatedRelationEntity>();
+
+    internal DbSet<GenreFormProfileEntryEntity> GenreFormProfileEntries =>
+        Set<GenreFormProfileEntryEntity>();
+
+    internal DbSet<KnowledgeWorkGenreFormEntity> WorkGenreForms =>
+        Set<KnowledgeWorkGenreFormEntity>();
+
     internal DbSet<DocumentManagerResultInboxEntity> DocumentManagerResults =>
         Set<DocumentManagerResultInboxEntity>();
 

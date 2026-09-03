@@ -51,6 +51,22 @@ internal static class KnowledgeModelConfiguration
             modelBuilder.Entity<KnowledgeEpistemicFrameworkAssertionEntity>());
         ConfigureEvidenceRole(modelBuilder.Entity<KnowledgeEvidenceRoleEntity>());
         ConfigureEvidenceRoleAssertion(modelBuilder.Entity<KnowledgeEvidenceRoleAssertionEntity>());
+        ConfigureGenreFormAuthoritySnapshot(
+            modelBuilder.Entity<GenreFormAuthoritySnapshotEntity>());
+        ConfigureGenreFormAuthorityTerm(
+            modelBuilder.Entity<GenreFormAuthorityTermEntity>());
+        ConfigureGenreFormAuthorityVariant(
+            modelBuilder.Entity<GenreFormAuthorityVariantEntity>());
+        ConfigureGenreFormAuthorityNote(
+            modelBuilder.Entity<GenreFormAuthorityNoteEntity>());
+        ConfigureGenreFormBroaderRelation(
+            modelBuilder.Entity<GenreFormBroaderRelationEntity>());
+        ConfigureGenreFormRelatedRelation(
+            modelBuilder.Entity<GenreFormRelatedRelationEntity>());
+        ConfigureGenreFormProfileEntry(
+            modelBuilder.Entity<GenreFormProfileEntryEntity>());
+        ConfigureKnowledgeWorkGenreForm(
+            modelBuilder.Entity<KnowledgeWorkGenreFormEntity>());
     }
 
     private static void ConfigureDocumentManagerResult(
@@ -1905,5 +1921,293 @@ internal static class KnowledgeModelConfiguration
         supportingSegmentId
             .HasColumnName("supporting_segment_id")
             .HasColumnType("uuid");
+    }
+
+    private static void ConfigureGenreFormAuthoritySnapshot(
+        EntityTypeBuilder<GenreFormAuthoritySnapshotEntity> builder)
+    {
+        builder.ToTable("genre_form_authority_snapshots");
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.Authority)
+            .HasColumnName("authority")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.SourceUri)
+            .HasColumnName("source_uri")
+            .HasMaxLength(1024)
+            .IsRequired();
+        builder.Property(x => x.ContentSha256)
+            .HasColumnName("content_sha256")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.RetrievedAt)
+            .HasColumnName("retrieved_at")
+            .IsRequired();
+        builder.Property(x => x.ImporterVersion)
+            .HasColumnName("importer_version")
+            .HasMaxLength(64);
+        builder.Property(x => x.TermCount)
+            .HasColumnName("term_count")
+            .IsRequired();
+
+        builder.HasIndex(x => new { x.Authority, x.ContentSha256 })
+            .IsUnique()
+            .HasDatabaseName("ux_genre_form_authority_snapshots_content");
+    }
+
+    private static void ConfigureGenreFormAuthorityTerm(
+        EntityTypeBuilder<GenreFormAuthorityTermEntity> builder)
+    {
+        builder.ToTable(
+            "genre_form_authority_terms",
+            table => table.HasCheckConstraint(
+                "ck_genre_form_authority_term_status",
+                "authority_status IN ('active', 'deprecated')"));
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.Authority)
+            .HasColumnName("authority")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.AuthorityIdentifier)
+            .HasColumnName("authority_identifier")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.AuthorityUri)
+            .HasColumnName("authority_uri")
+            .HasMaxLength(1024)
+            .IsRequired();
+        builder.Property(x => x.PreferredLabel)
+            .HasColumnName("preferred_label")
+            .HasMaxLength(512)
+            .IsRequired();
+        builder.Property(x => x.LanguageCode)
+            .HasColumnName("language_code")
+            .HasMaxLength(35);
+        builder.Property(x => x.AuthorityStatus)
+            .HasColumnName("authority_status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.SnapshotId)
+            .HasColumnName("snapshot_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+
+        builder.HasOne<GenreFormAuthoritySnapshotEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.SnapshotId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.AuthorityUri)
+            .IsUnique()
+            .HasDatabaseName("ux_genre_form_authority_terms_uri");
+        builder.HasIndex(x => new { x.Authority, x.AuthorityStatus })
+            .HasDatabaseName("ix_genre_form_authority_terms_status");
+    }
+
+    private static void ConfigureGenreFormAuthorityVariant(
+        EntityTypeBuilder<GenreFormAuthorityVariantEntity> builder)
+    {
+        builder.ToTable("genre_form_authority_variants");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.TermId)
+            .HasColumnName("term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.Label)
+            .HasColumnName("label")
+            .HasMaxLength(512)
+            .IsRequired();
+        builder.Property(x => x.LanguageCode)
+            .HasColumnName("language_code")
+            .HasMaxLength(35);
+
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new { x.TermId, x.Label })
+            .IsUnique()
+            .HasDatabaseName("ux_genre_form_authority_variants");
+    }
+
+    private static void ConfigureGenreFormAuthorityNote(
+        EntityTypeBuilder<GenreFormAuthorityNoteEntity> builder)
+    {
+        builder.ToTable(
+            "genre_form_authority_notes",
+            table => table.HasCheckConstraint(
+                "ck_genre_form_authority_note_type",
+                "note_type IN ('general', 'history', 'example')"));
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.TermId)
+            .HasColumnName("term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.NoteType)
+            .HasColumnName("note_type")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.Text)
+            .HasColumnName("text")
+            .IsRequired();
+
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new { x.TermId, x.NoteType })
+            .HasDatabaseName("ix_genre_form_authority_notes");
+    }
+
+    private static void ConfigureGenreFormBroaderRelation(
+        EntityTypeBuilder<GenreFormBroaderRelationEntity> builder)
+    {
+        builder.ToTable(
+            "genre_form_broader_relations",
+            table => table.HasCheckConstraint(
+                "ck_genre_form_broader_distinct",
+                "narrower_term_id <> broader_term_id"));
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.NarrowerTermId)
+            .HasColumnName("narrower_term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.BroaderTermId)
+            .HasColumnName("broader_term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.NarrowerTermId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.BroaderTermId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.NarrowerTermId, x.BroaderTermId })
+            .IsUnique()
+            .HasDatabaseName("ux_genre_form_broader_relations");
+        builder.HasIndex(x => x.BroaderTermId)
+            .HasDatabaseName("ix_genre_form_broader_relations_broader");
+    }
+
+    private static void ConfigureGenreFormRelatedRelation(
+        EntityTypeBuilder<GenreFormRelatedRelationEntity> builder)
+    {
+        builder.ToTable(
+            "genre_form_related_relations",
+            table => table.HasCheckConstraint(
+                "ck_genre_form_related_canonical",
+                "term_id_a < term_id_b"));
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.TermIdA)
+            .HasColumnName("term_id_a")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.TermIdB)
+            .HasColumnName("term_id_b")
+            .HasColumnType("uuid")
+            .IsRequired();
+
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermIdA)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermIdB)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.TermIdA, x.TermIdB })
+            .IsUnique()
+            .HasDatabaseName("ux_genre_form_related_relations");
+    }
+
+    private static void ConfigureGenreFormProfileEntry(
+        EntityTypeBuilder<GenreFormProfileEntryEntity> builder)
+    {
+        builder.ToTable(
+            "genre_form_profile_entries",
+            table => table.HasCheckConstraint(
+                "ck_genre_form_profile_usage",
+                "usage_status IN ('excluded', 'structural_only', 'selectable')"));
+
+        builder.HasKey(x => x.TermId);
+
+        builder.Property(x => x.TermId)
+            .HasColumnName("term_id")
+            .HasColumnType("uuid")
+            .ValueGeneratedNever();
+        builder.Property(x => x.UsageStatus)
+            .HasColumnName("usage_status")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.DisplayOrder)
+            .HasColumnName("display_order");
+        builder.Property(x => x.ProfileVersion)
+            .HasColumnName("profile_version")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.UpdatedAt)
+            .HasColumnName("updated_at")
+            .IsRequired();
+
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.UsageStatus)
+            .HasDatabaseName("ix_genre_form_profile_entries_usage");
+    }
+
+    private static void ConfigureKnowledgeWorkGenreForm(
+        EntityTypeBuilder<KnowledgeWorkGenreFormEntity> builder)
+    {
+        builder.ToTable("knowledge_work_genre_forms");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.WorkId)
+            .HasColumnName("work_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.TermId)
+            .HasColumnName("term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+
+        builder.HasOne<KnowledgeWorkEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<GenreFormAuthorityTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.TermId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.WorkId, x.TermId })
+            .IsUnique()
+            .HasDatabaseName("ux_knowledge_work_genre_forms");
     }
 }

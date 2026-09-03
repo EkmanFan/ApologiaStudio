@@ -28,6 +28,11 @@ LCGFT for genre/form and MARC Relators for contributor roles, all through a
 closed Apologia application profile. It supersedes the WEMI, contributor-role
 and `SourceKind` parts of ADR 0002.
 
+The Genre/Form half of that profile is implemented as an authority snapshot
+separate from Apologia's usage policy; see
+[LCGFT authority and Genre/Form profile v1](docs/knowledge-ingestion/lcgft-authority-v1.md)
+for the ingestion source, snapshot semantics and the closed-profile boundary.
+
 Text recovery for pages without an extractable text layer is decided in
 [ADR 0003: Raster page text recovery](docs/adr/0003-raster-page-text-recovery.md):
 character recognition stays a DocumentProcessingEngine responsibility, where it

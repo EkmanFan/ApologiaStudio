@@ -7,10 +7,12 @@ using ApologiaStudio.Application.Abstractions.Preferences;
 using ApologiaStudio.Application.Abstractions.Navigation;
 using ApologiaStudio.Application.Abstractions.Projects;
 using ApologiaStudio.Application.BibleCorpora.Ingestion;
+using ApologiaStudio.Application.Knowledge.GenreForms;
 using ApologiaStudio.Application.Knowledge.Ingestion;
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Infrastructure.BibleCorpora.Ingestion;
 using ApologiaStudio.Infrastructure.Knowledge.DocumentProcessing;
+using ApologiaStudio.Infrastructure.Knowledge.GenreForms;
 using ApologiaStudio.Infrastructure.Knowledge.Ingestion;
 using ApologiaStudio.Infrastructure.Persistence;
 using ApologiaStudio.Infrastructure.Persistence.Knowledge;
@@ -70,6 +72,12 @@ public static class DependencyInjection
         services.AddScoped<
             IDocumentManagerResultInbox,
             PostgreSqlDocumentManagerResultInbox>();
+        services.AddScoped<
+            IGenreFormAuthorityStore,
+            PostgreSqlGenreFormAuthorityStore>();
+        services.AddSingleton<
+            IGenreFormAuthorityDatasetReader,
+            SkosJsonLdGenreFormDatasetReader>();
         services.AddScoped<
             IDocumentManagerSubmissionAssemblyReader,
             PostgreSqlDocumentManagerSubmissionAssemblyReader>();
