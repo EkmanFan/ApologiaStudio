@@ -5,6 +5,9 @@ public sealed record DocumentManagerUiOptions(Uri Address)
     private const string ConfigurationKey =
         "DocumentManager:UiUrl";
 
+    public Uri SessionBridgeAddress { get; } =
+        new("/document-manager/connect", UriKind.Relative);
+
     public static DocumentManagerUiOptions FromConfiguration(
         IConfiguration configuration)
     {

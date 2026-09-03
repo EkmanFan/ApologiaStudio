@@ -65,5 +65,7 @@ public static class SystemPermissions
 public static class SystemPolicies
 {
     public const string ManageAccess = "identity.access.administration";
+    public const string ViewIdentityAdministration =
+        "identity.administration.identity.view";
     public const string ViewAdministration = "identity.administration.view";
 }

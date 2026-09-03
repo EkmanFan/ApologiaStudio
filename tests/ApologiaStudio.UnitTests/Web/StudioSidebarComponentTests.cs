@@ -283,12 +283,17 @@ public sealed class StudioSidebarComponentTests
         Assert.Contains("popovertarget=\"local-account-menu\"", markup);
         Assert.Contains("class=\"account-menu-popover\"", markup);
         Assert.Contains("popover=\"auto\"", markup);
-        Assert.Contains("Local account", markup);
-        Assert.Contains("Secure session", markup);
+        Assert.Contains("Mallory", markup);
+        Assert.Contains("Admin", markup);
+        Assert.Contains("mallory@example.com", markup);
+        Assert.Contains("title=\"mallory@example.com\"", markup);
+        Assert.Contains("class=\"account-email\"", markup);
         Assert.Contains("href=\"/settings\"", markup);
         Assert.Contains("Settings", markup);
         Assert.Contains("href=\"/administration/accounts\"", markup);
         Assert.Contains("href=\"/administration/access\"", markup);
+        Assert.Contains("href=\"/administration/ai\"", markup);
+        Assert.Contains("href=\"/administration/agents\"", markup);
         Assert.Contains("class=\"account-admin-submenu\"", markup);
         Assert.Contains("class=\"account-menu-item account-admin-submenu-trigger\"", markup);
         Assert.Contains("href=\"/administration/accounts\" aria-haspopup=\"menu\"", markup);
@@ -298,6 +303,23 @@ public sealed class StudioSidebarComponentTests
         Assert.Contains(">Groups and permissions<", markup);
         Assert.DoesNotContain("Upgrade plan", markup);
         Assert.Contains("Sign out", markup);
+    }
+
+    [Fact]
+    public async Task Sidebar_ShouldExposePersonalSettingsButNotAdministrationToReader()
+    {
+        var markup = await RenderAsync(
+            Array.Empty<StudioSidebarBibleEdition>(),
+            Array.Empty<StudioSidebarConversation>(),
+            ApplicationLanguage.English,
+            permissions: [SystemPermissions.AccessStudio],
+            roles: [SystemRoles.Reader]);
+
+        Assert.Contains("href=\"/settings\"", markup);
+        Assert.Contains(">Settings<", markup);
+        Assert.DoesNotContain(">Administration<", markup);
+        Assert.DoesNotContain("href=\"/administration/", markup);
+        Assert.Contains("Reader", markup);
     }
 
     [Fact]
@@ -323,7 +345,9 @@ public sealed class StudioSidebarComponentTests
         IReadOnlyList<StudioSidebarPinnedItem>? pinnedItems = null,
         IReadOnlyList<StudioSidebarProject>? projects = null,
         IReadOnlyList<StudioSidebarDeletedConversation>?
-            deletedConversations = null)
+            deletedConversations = null,
+        IReadOnlyList<string>? permissions = null,
+        IReadOnlyList<string>? roles = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -348,7 +372,7 @@ public sealed class StudioSidebarComponentTests
                         SystemPermissions.ClaimType,
                         SystemPermissions.ManageRoles)));
             options.AddPolicy(
-                SystemPolicies.ViewAdministration,
+                SystemPolicies.ViewIdentityAdministration,
                 policy => policy.RequireAssertion(context =>
                     context.User.HasClaim(
                         SystemPermissions.ClaimType,
@@ -359,6 +383,21 @@ public sealed class StudioSidebarComponentTests
                     context.User.HasClaim(
                         SystemPermissions.ClaimType,
                         SystemPermissions.ManageRoles)));
+            options.AddPolicy(
+                SystemPolicies.ViewAdministration,
+                policy => policy.RequireAssertion(context =>
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageAccounts) ||
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageGroups) ||
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageRoles) ||
+                    context.User.HasClaim(
+                        SystemPermissions.ClaimType,
+                        SystemPermissions.ManageSettings)));
         });
 
         using var serviceProvider =
@@ -396,12 +435,17 @@ public sealed class StudioSidebarComponentTests
                         };
 
                 var identity = new ClaimsIdentity(
-                    SystemPermissions.All.Select(permission =>
+                    (permissions ?? SystemPermissions.All).Select(permission =>
                         new Claim(SystemPermissions.ClaimType, permission)),
                     authenticationType: "Test",
                     nameType: ClaimTypes.Name,
                     roleType: ClaimTypes.Role);
-                identity.AddClaim(new Claim(ClaimTypes.Name, "Local account"));
+                identity.AddClaim(new Claim(ClaimTypes.Name, "Mallory"));
+                identity.AddClaim(new Claim(ClaimTypes.Email, "mallory@example.com"));
+                foreach (var role in roles ?? [SystemRoles.Administrator])
+                {
+                    identity.AddClaim(new Claim(ClaimTypes.Role, role));
+                }
                 var authenticationState = Task.FromResult(
                     new AuthenticationState(new ClaimsPrincipal(identity)));
                 RenderFragment childContent = builder =>

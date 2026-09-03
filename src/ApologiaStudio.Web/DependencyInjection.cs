@@ -138,7 +138,7 @@ public static class DependencyInjection
                     SystemPermissions.ClaimType,
                     SystemPermissions.ManageRoles)));
         authorization.AddPolicy(
-            SystemPolicies.ViewAdministration,
+            SystemPolicies.ViewIdentityAdministration,
             policy => policy.RequireAssertion(context =>
                 context.User.HasClaim(
                     SystemPermissions.ClaimType,
@@ -149,6 +149,21 @@ public static class DependencyInjection
                 context.User.HasClaim(
                     SystemPermissions.ClaimType,
                     SystemPermissions.ManageRoles)));
+        authorization.AddPolicy(
+            SystemPolicies.ViewAdministration,
+            policy => policy.RequireAssertion(context =>
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageAccounts) ||
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageGroups) ||
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageRoles) ||
+                context.User.HasClaim(
+                    SystemPermissions.ClaimType,
+                    SystemPermissions.ManageSettings)));
 
         services.AddSingleton(
             IdentityBootstrapOptions.FromConfiguration(configuration));
@@ -156,9 +171,15 @@ public static class DependencyInjection
         services.AddScoped<AccountAdministrationService>();
         services.AddScoped<AccessAdministrationService>();
 
-        services.AddSingleton(
-            DocumentManagerUiOptions.FromConfiguration(
-                configuration));
+        var documentManagerUiOptions =
+            DocumentManagerUiOptions.FromConfiguration(configuration);
+        services.AddSingleton(documentManagerUiOptions);
+        var documentManagerSessionBridgeOptions =
+            DocumentManagerSessionBridgeOptions.FromConfiguration(
+                configuration,
+                documentManagerUiOptions);
+        services.AddSingleton(documentManagerSessionBridgeOptions);
+        services.AddSingleton<DocumentManagerSessionTicketIssuer>();
         services.AddSingleton(
             DocumentManagerAdministrationOptions.FromConfiguration(
                 configuration));

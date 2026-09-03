@@ -1,0 +1,47 @@
+@using ApologiaStudio.Domain.Users
+
+<header class="administration-page-header">
+    <div class="administration-title-row">
+        <div class="administration-title-copy">
+            <p>@Text("Administration", "Administration")</p>
+            <h1>@Title</h1>
+            <span>@Description</span>
+        </div>
+        <a class="administration-close"
+           href="/"
+           aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")"
+           title="@Text("Fermer", "Close")">×</a>
+    </div>
+
+    <div class="administration-navigation-bar">
+        <AdministrationSectionLinks Language="@Language"
+                                    CurrentSection="@CurrentSection" />
+    </div>
+
+    @if (Actions is not null)
+    {
+        <ActionRibbon AriaLabel="@Text("Actions de la page", "Page actions")">
+            @Actions
+        </ActionRibbon>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public ApplicationLanguage Language { get; set; }
+
+    [Parameter, EditorRequired]
+    public string CurrentSection { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Description { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    private string Text(string french, string english) =>
+        Language == ApplicationLanguage.English ? english : french;
+}

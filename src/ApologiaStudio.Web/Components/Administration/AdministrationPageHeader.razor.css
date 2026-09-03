@@ -1,0 +1,75 @@
+.administration-page-header {
+    position: sticky;
+    z-index: 50;
+    top: 0;
+    display: grid;
+    gap: 0.9rem;
+    width: 100%;
+    padding: 0.35rem 0 0.75rem;
+    background: #fbfaf7;
+    box-shadow: 0 1rem 1.5rem -1.5rem rgba(32, 51, 49, 0.38);
+}
+
+.administration-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.administration-title-copy {
+    min-width: 0;
+}
+
+.administration-title-copy p {
+    margin: 0 0 0.35rem;
+    color: #2d766e;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.administration-title-copy h1 {
+    margin: 0;
+    color: #203331;
+    font: 600 clamp(2rem, 3vw, 2.8rem)/1.08 Georgia, serif;
+}
+
+.administration-title-copy span {
+    display: block;
+    max-width: 52rem;
+    margin-top: 0.45rem;
+    color: #65716d;
+    text-wrap: balance;
+}
+
+.administration-close {
+    display: grid;
+    flex: 0 0 auto;
+    width: 2.65rem;
+    height: 2.65rem;
+    place-items: center;
+    border: 1px solid #cdd8d4;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: #255f59;
+    font-size: 1.65rem;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.administration-navigation-bar {
+    min-width: 0;
+    background: transparent;
+}
+
+@media (max-width: 760px) {
+    .administration-title-row {
+        gap: 1rem;
+    }
+
+    .administration-title-copy h1 {
+        font-size: clamp(1.75rem, 9vw, 2.25rem);
+    }
+}

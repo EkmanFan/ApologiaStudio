@@ -84,7 +84,7 @@ else
 
         @if (IsDocumentManagerRoute())
         {
-            <DocumentManagerPanel ManagerUrl="@DocumentManagerUiOptions.Address"
+            <DocumentManagerPanel ManagerUrl="@DocumentManagerUiOptions.SessionBridgeAddress"
                                   Language="@_interfaceLanguage"
                                   SidebarIsOpen="@_isSidebarOpen"
                                   OnOpenSidebar="OpenSidebar" />

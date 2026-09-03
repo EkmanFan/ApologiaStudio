@@ -1,0 +1,37 @@
+@using ApologiaStudio.Domain.Users
+
+<nav class="administration-section-navigation"
+     aria-label="@Text("Sections d’administration", "Administration sections")">
+    <AuthorizeView Policy="@SystemPolicies.ViewIdentityAdministration" Context="identityContext">
+        <AuthorizeView Policy="@SystemPermissions.ManageAccounts" Context="accountsContext">
+            <a class="@LinkClass("accounts")" href="/administration/accounts">
+                @Text("Comptes", "Accounts")
+            </a>
+        </AuthorizeView>
+        <AuthorizeView Policy="@SystemPolicies.ManageAccess" Context="accessContext">
+            <a class="@LinkClass("access")" href="/administration/access">
+                @Text("Groupes et droits", "Groups and permissions")
+            </a>
+        </AuthorizeView>
+    </AuthorizeView>
+    <AuthorizeView Policy="@SystemPermissions.ManageSettings" Context="settingsContext">
+        <a class="@LinkClass("ai")" href="/administration/ai">@Text("IA", "AI")</a>
+        <a class="@LinkClass("agents")" href="/administration/agents">@Text("Agents", "Agents")</a>
+    </AuthorizeView>
+</nav>
+
+@code {
+    [Parameter, EditorRequired]
+    public ApplicationLanguage Language { get; set; }
+
+    [Parameter, EditorRequired]
+    public string CurrentSection { get; set; } = string.Empty;
+
+    private string LinkClass(string section) =>
+        section.Equals(CurrentSection, StringComparison.Ordinal)
+            ? "administration-section-link active"
+            : "administration-section-link";
+
+    private string Text(string french, string english) =>
+        Language == ApplicationLanguage.English ? english : french;
+}

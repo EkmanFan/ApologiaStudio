@@ -374,8 +374,20 @@ public sealed class AccountAdministrationService(
         Guid targetUserId,
         Guid actorUserId,
         string reason,
+        CancellationToken cancellationToken) =>
+        SuspendManyAsync(
+            [targetUserId],
+            actorUserId,
+            reason,
+            cancellationToken);
+
+    public async Task SuspendManyAsync(
+        IReadOnlyCollection<Guid> targetUserIds,
+        Guid actorUserId,
+        string reason,
         CancellationToken cancellationToken)
     {
+        await EnsureAdministratorAsync(actorUserId);
         reason = reason.Trim();
         if (reason.Length is < 3 or > 2000)
         {
@@ -383,15 +395,89 @@ public sealed class AccountAdministrationService(
                 "Le motif de suspension doit contenir entre 3 et 2000 caractères.");
         }
 
-        return ChangeAsync(
-            targetUserId,
-            actorUserId,
-            AccountRegistrationStatus.Active,
-            AccountRegistrationStatus.Suspended,
-            "suspend",
-            reason,
-            assignReaderGroup: false,
-            cancellationToken);
+        var targetIds = targetUserIds.Distinct().ToArray();
+        if (targetIds.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "Sélectionnez au moins un compte actif à suspendre.");
+        }
+
+        var users = await userManager.Users
+            .Where(user => targetIds.Contains(user.Id))
+            .ToArrayAsync(cancellationToken);
+        if (users.Length != targetIds.Length)
+        {
+            throw new InvalidOperationException(
+                "Un compte sélectionné n’existe plus. Rechargez la liste avant de recommencer.");
+        }
+
+        if (users.Any(user =>
+                user.RegistrationStatus != AccountRegistrationStatus.Active))
+        {
+            throw new InvalidOperationException(
+                "Un compte sélectionné a changé d’état. Rechargez la liste avant de recommencer.");
+        }
+
+        var activeUsers = await userManager.Users
+            .Where(user =>
+                user.RegistrationStatus == AccountRegistrationStatus.Active)
+            .ToArrayAsync(cancellationToken);
+        var activeAdministratorCount = 0;
+        var selectedAdministratorCount = 0;
+        var selectedIds = targetIds.ToHashSet();
+        foreach (var user in activeUsers)
+        {
+            if (!await accessService.HasRoleAsync(
+                    user,
+                    SystemRoles.Administrator,
+                    cancellationToken))
+            {
+                continue;
+            }
+
+            activeAdministratorCount++;
+            if (selectedIds.Contains(user.Id))
+            {
+                selectedAdministratorCount++;
+            }
+        }
+
+        if (activeAdministratorCount - selectedAdministratorCount < 1)
+        {
+            throw new InvalidOperationException(
+                "Le dernier administrateur actif ne peut pas être suspendu.");
+        }
+
+        await using var transaction = await database.Database
+            .BeginTransactionAsync(cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        foreach (var user in users)
+        {
+            user.RegistrationStatus = AccountRegistrationStatus.Suspended;
+            user.ReviewedAtUtc = now;
+            user.ReviewedByUserId = actorUserId;
+            user.RejectionReason = null;
+
+            EnsureSucceeded(
+                await userManager.UpdateAsync(user),
+                "mettre à jour le compte");
+            EnsureSucceeded(
+                await userManager.UpdateSecurityStampAsync(user),
+                "révoquer les sessions du compte");
+
+            database.IdentityAdministrationEvents.Add(
+                new IdentityAdministrationEventEntity
+                {
+                    TargetUserId = user.Id,
+                    ActorUserId = actorUserId,
+                    Action = "suspend",
+                    Reason = reason,
+                    OccurredAtUtc = now
+                });
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public Task ReactivateAsync(
@@ -445,35 +531,6 @@ public sealed class AccountAdministrationService(
         {
             throw new InvalidOperationException(
                 "Le compte a changé d’état. Rechargez la liste avant de recommencer.");
-        }
-
-        if (newStatus == AccountRegistrationStatus.Suspended &&
-            await accessService.HasRoleAsync(
-                user,
-                SystemRoles.Administrator,
-                cancellationToken))
-        {
-            var activeUsers = await userManager.Users
-                .Where(candidate => candidate.RegistrationStatus ==
-                                    AccountRegistrationStatus.Active)
-                .ToArrayAsync(cancellationToken);
-            var activeAdministratorCount = 0;
-            foreach (var candidate in activeUsers)
-            {
-                if (await accessService.HasRoleAsync(
-                        candidate,
-                        SystemRoles.Administrator,
-                        cancellationToken))
-                {
-                    activeAdministratorCount++;
-                }
-            }
-
-            if (activeAdministratorCount <= 1)
-            {
-                throw new InvalidOperationException(
-                    "Le dernier administrateur actif ne peut pas être suspendu.");
-            }
         }
 
         await using var transaction = await database.Database

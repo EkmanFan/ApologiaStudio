@@ -26,18 +26,24 @@
     color: #59636e;
 }
 
-.settings-header a {
+.settings-header a.settings-close {
+    display: grid;
     flex: 0 0 auto;
-    padding: 0.55rem 0.8rem;
-    border: 1px solid #adb5bd;
-    border-radius: 0.5rem;
-    color: inherit;
+    width: 2.65rem;
+    height: 2.65rem;
+    place-items: center;
+    border: 1px solid #cdd8d4;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: #255f59;
+    font-size: 1.65rem;
+    line-height: 1;
     text-decoration: none;
 }
 
 .settings-eyebrow {
     margin: 0 0 0.35rem;
-    color: #2457a6;
+    color: #2d766e;
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -72,12 +78,12 @@
 
 .settings-tab.active {
     background: var(--bs-body-bg);
-    color: #2457a6;
+    color: #255f59;
     box-shadow: 0 0.15rem 0.45rem rgba(34, 39, 35, 0.12);
 }
 
 .settings-tab:focus-visible {
-    outline: 3px solid rgba(36, 87, 166, 0.2);
+    outline: 3px solid rgba(45, 118, 110, 0.22);
     outline-offset: 1px;
 }
 
@@ -133,6 +139,11 @@
     color: var(--bs-body-color);
 }
 
+.settings-field select:focus-visible {
+    border-color: #2d766e;
+    outline: 3px solid rgba(45, 118, 110, 0.18);
+}
+
 .settings-field p {
     max-width: 44rem;
     margin: 0;
@@ -147,16 +158,31 @@
     gap: 1rem;
     padding: 0.8rem 1rem;
     border-radius: 0.55rem;
-    background: #eef3f8;
+    background: #e8f3f0;
 }
 
-.settings-card button {
+.settings-save-area {
+    display: grid;
+    justify-items: start;
+    gap: 0.75rem;
+}
+
+.settings-save-area button {
     justify-self: start;
     padding: 0.6rem 1.15rem;
     border: 0;
     border-radius: 0.5rem;
-    background: #2457a6;
+    background: #2d766e;
     color: white;
+}
+
+.settings-save-area button:hover:not(:disabled) {
+    background: #255f59;
+}
+
+.future-settings > p {
+    margin: 0;
+    color: #68737e;
 }
 
 .settings-status {

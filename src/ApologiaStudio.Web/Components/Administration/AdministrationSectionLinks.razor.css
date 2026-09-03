@@ -1,0 +1,44 @@
+.administration-section-navigation {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.25rem;
+    min-width: 0;
+    min-height: 3.2rem;
+    overflow-x: auto;
+    padding: 0 0.35rem;
+    border-bottom: 1px solid #d5ded9;
+}
+
+.administration-section-link {
+    display: grid;
+    min-height: 2.85rem;
+    place-items: center;
+    padding: 0.65rem 1rem 0.6rem;
+    border: 1px solid transparent;
+    border-bottom: 3px solid transparent;
+    border-radius: 0.65rem 0.65rem 0 0;
+    background: transparent;
+    color: #255f59;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.administration-section-link:hover {
+    border-color: #cdd8d4;
+    border-bottom-color: #8ab5ae;
+    background: #fff;
+}
+
+.administration-section-link.active {
+    border-color: #2d766e;
+    border-bottom-color: #2d766e;
+    background: #e8f3f0;
+}
+
+@media (max-width: 760px) {
+    .administration-section-navigation {
+        padding-right: 0;
+        padding-left: 0;
+    }
+}

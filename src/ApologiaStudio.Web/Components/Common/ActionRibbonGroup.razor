@@ -1,0 +1,14 @@
+<div class="action-ribbon-group">
+    <div class="action-ribbon-commands">
+        @ChildContent
+    </div>
+    <span class="action-ribbon-label">@Label</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+}

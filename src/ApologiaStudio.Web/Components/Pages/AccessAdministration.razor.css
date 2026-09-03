@@ -1,14 +1,17 @@
 .access-admin-shell {
-    min-height: 100vh;
-    padding: clamp(1.25rem, 3vw, 3rem);
-    background: #f6f3ec;
+    display: grid;
+    align-content: start;
+    gap: 1.5rem;
+    width: min(100%, 92rem);
+    min-height: 100dvh;
+    margin: 0 auto;
+    padding: clamp(1.25rem, 4vw, 3rem);
+    background: #fbfaf7;
     color: #203331;
 }
 
-.access-admin-header,
 .access-panel > header,
 .access-item,
-.role-card > header,
 .inline-create,
 .dialog-actions {
     display: flex;
@@ -52,8 +55,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 
 .access-item-list,
 .role-list { display: grid; gap: .8rem; }
-.access-item,
-.role-card { padding: .9rem; border: 1px solid #e2e6e0; border-radius: .9rem; background: #fff; }
+.access-item { padding: .9rem; border: 1px solid #e2e6e0; border-radius: .9rem; background: #fff; }
 .access-item { align-items: flex-start; }
 .access-item p { margin: .35rem 0; color: #667772; }
 .access-item small,
@@ -61,7 +63,34 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .item-actions { display: flex; flex-direction: column; gap: .4rem; }
 .system-badge { display: inline-block; margin-left: .4rem; padding: .15rem .42rem; border-radius: 999px; background: #e4f2ef; color: #267168; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
 
-.role-card > header { align-items: flex-start; }
+.role-card {
+    overflow: hidden;
+    border: 1px solid #e2e6e0;
+    border-radius: .9rem;
+    background: #fff;
+}
+.role-card-summary {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .9rem;
+    cursor: pointer;
+    list-style: none;
+}
+.role-card-summary::-webkit-details-marker { display: none; }
+.role-card-chevron {
+    width: .65rem;
+    height: .65rem;
+    margin: .3rem .2rem 0 0;
+    border-right: 2px solid #5d716b;
+    border-bottom: 2px solid #5d716b;
+    transform: rotate(45deg);
+    transition: transform .16s ease;
+}
+.role-card[open] .role-card-chevron { transform: rotate(225deg); }
+.role-card-body { padding: 0 .9rem .9rem; border-top: 1px solid #e2e6e0; }
+.role-card-actions { display: flex; justify-content: flex-end; padding-top: .45rem; }
 .permission-list { display: grid; gap: .42rem; margin: .85rem 0; }
 .permission-list label { display: grid; grid-template-columns: auto 1fr; column-gap: .55rem; padding: .48rem; border-radius: .5rem; background: #f7f8f6; }
 .permission-list input { grid-row: span 2; margin-top: .2rem; }

@@ -27,10 +27,31 @@ using ApologiaStudio.Application.AiRuntime.Settings;
 
 namespace ApologiaStudio.Web.Components.Pages;
 
+public sealed record AgentCreationActionState(
+    int ActiveAgentCount,
+    int MaximumActiveAgents,
+    bool HasDraft,
+    bool IsBusy,
+    bool IsLoading)
+{
+    public static AgentCreationActionState Loading { get; } =
+        new(0, AgentSettingsPolicy.MaximumActiveAgents, false, false, true);
+
+    public bool CanAddAgent =>
+        !IsLoading &&
+        !IsBusy &&
+        !HasDraft &&
+        ActiveAgentCount < MaximumActiveAgents;
+}
+
 public partial class AgentSettingsPanel
 {
     [Parameter]
     public int ActivationVersion { get; set; }
+
+    [Parameter]
+    public EventCallback<AgentCreationActionState>
+        CreationActionStateChanged { get; set; }
 
     private IReadOnlyList<OllamaLocalModel> _models =
         Array.Empty<OllamaLocalModel>();
@@ -55,13 +76,6 @@ public partial class AgentSettingsPanel
         ActiveAgentCount < AgentSettingsPolicy.MaximumActiveAgents &&
         !_agentEditors.Any(editor => editor.IsNew) &&
         _savingAgentIds.Count == 0;
-
-    private string AddAgentButtonTitle =>
-        ActiveAgentCount >= AgentSettingsPolicy.MaximumActiveAgents
-            ? $"Maximum de {AgentSettingsPolicy.MaximumActiveAgents} agents atteint."
-            : _agentEditors.Any(editor => editor.IsNew)
-                ? "Terminez ou annulez le nouvel agent en cours."
-                : "Ajouter un agent personnalisé";
 
     protected override async Task OnInitializedAsync()
     {
@@ -96,6 +110,7 @@ public partial class AgentSettingsPanel
             _lastActivationVersion = ActivationVersion;
             _initialized = true;
             _isLoadingSettings = false;
+            await NotifyCreationActionStateAsync();
         }
     }
 
@@ -270,6 +285,7 @@ public partial class AgentSettingsPanel
         finally
         {
             _savingAgentIds.Remove(operationId);
+            await NotifyCreationActionStateAsync();
         }
     }
 
@@ -316,10 +332,11 @@ public partial class AgentSettingsPanel
         finally
         {
             _savingAgentIds.Remove(operationId);
+            await NotifyCreationActionStateAsync();
         }
     }
 
-    private void AddAgent()
+    public async Task RequestAddAgentAsync()
     {
         if (!CanAddAgent)
         {
@@ -329,9 +346,10 @@ public partial class AgentSettingsPanel
         var temporaryId = ApologiaStudio.Domain.Agents.AgentId.New();
         _agentEditors.Add(
             AgentEditor.NewDraft(temporaryId));
+        await NotifyCreationActionStateAsync();
     }
 
-    private void CancelNewAgent(AgentEditor editor)
+    private async Task CancelNewAgent(AgentEditor editor)
     {
         if (!editor.IsNew ||
             _savingAgentIds.Contains(editor.AgentId.Value))
@@ -340,7 +358,17 @@ public partial class AgentSettingsPanel
         }
 
         _agentEditors.Remove(editor);
+        await NotifyCreationActionStateAsync();
     }
+
+    private Task NotifyCreationActionStateAsync() =>
+        CreationActionStateChanged.InvokeAsync(
+            new AgentCreationActionState(
+                ActiveAgentCount,
+                AgentSettingsPolicy.MaximumActiveAgents,
+                _agentEditors.Any(editor => editor.IsNew),
+                _savingAgentIds.Count > 0,
+                _isLoadingSettings));
 
     private void ValidateSelectedModel(AgentEditor editor)
     {

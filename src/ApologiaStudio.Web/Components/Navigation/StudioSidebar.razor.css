@@ -383,7 +383,27 @@
 }
 
 .account-copy strong {
+    overflow: hidden;
     font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-details {
+    display: flex;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.account-role {
+    flex: 0 0 auto;
+}
+
+.account-email {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .account-trigger-chevron {

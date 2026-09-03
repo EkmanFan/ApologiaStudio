@@ -1,0 +1,75 @@
+.action-ribbon-group {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-rows: 1fr auto;
+    gap: 0.35rem;
+    min-width: 7rem;
+    padding: 0 0.7rem;
+    border-right: 1px solid var(--action-ribbon-border, #d5ded9);
+}
+
+.action-ribbon-commands {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.action-ribbon-label {
+    color: #77817c;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-command {
+    min-height: 2.65rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid #bfcfc9;
+    border-radius: 0.7rem;
+    background: #fff;
+    color: #255f59;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-command.primary {
+    border-color: #2d766e;
+    background: #2d766e;
+    color: #fff;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-command.danger {
+    border-color: #e7c8c3;
+    background: #fff7f5;
+    color: #a03d34;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-command:hover:not(:disabled) {
+    border-color: #2d766e;
+    background: #e8f3f0;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-command.primary:hover:not(:disabled) {
+    background: #255f59;
+    color: #fff;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-command.danger:hover:not(:disabled) {
+    border-color: #c86156;
+    background: #fbe9e6;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-command:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.action-ribbon-commands ::deep .action-ribbon-note {
+    color: #65716d;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}

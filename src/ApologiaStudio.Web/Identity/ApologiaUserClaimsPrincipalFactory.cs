@@ -20,6 +20,25 @@ public sealed class ApologiaUserClaimsPrincipalFactory(
         ApologiaIdentityUser user)
     {
         var identity = await base.GenerateClaimsAsync(user);
+        var currentNameClaim = identity.FindFirst(identity.NameClaimType);
+        if (currentNameClaim is not null)
+        {
+            identity.RemoveClaim(currentNameClaim);
+        }
+
+        var displayName = string.IsNullOrWhiteSpace(user.DisplayName)
+            ? user.Email ?? user.UserName ?? "Account"
+            : user.DisplayName.Trim();
+        identity.AddClaim(
+            new Claim(identity.NameClaimType, displayName));
+
+        if (!string.IsNullOrWhiteSpace(user.Email))
+        {
+            AddIfMissing(
+                identity,
+                new Claim(ClaimTypes.Email, user.Email.Trim()));
+        }
+
         var groups = await accessService.GetGroupsAsync(user.Id);
         var roles = await accessService.GetEffectiveRolesAsync(user);
         var permissions = await accessService.GetEffectivePermissionsAsync(user);

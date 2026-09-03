@@ -13,17 +13,30 @@
 <DocumentLanguage Language="@_interfaceLanguage" />
 
 <main class="access-admin-shell">
-    <header class="access-admin-header">
-        <div>
-            <p>@Text("Administration", "Administration")</p>
-            <h1>@Text("Groupes, rôles et droits", "Groups, roles, and permissions")</h1>
-            <span>@Text("Les comptes héritent des rôles de leurs groupes. Les rôles ne peuvent utiliser que les droits connus de l’application.", "Accounts inherit roles from their groups. Roles can only use permissions known to the application.")</span>
-        </div>
-        <div class="access-admin-header-actions">
-            <a class="admin-section-link" href="/administration/accounts">@Text("Comptes", "Accounts")</a>
-            <a class="admin-close" href="/" aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")" title="@Text("Fermer", "Close")">×</a>
-        </div>
-    </header>
+    <AdministrationPageHeader
+        Language="@_interfaceLanguage"
+        CurrentSection="access"
+        Title="@Text("Groupes, rôles et droits", "Groups, roles, and permissions")"
+        Description="@Text(
+            "Les comptes héritent des rôles de leurs groupes. Les rôles ne peuvent utiliser que les droits connus de l’application.",
+            "Accounts inherit roles from their groups. Roles can only use permissions known to the application.")">
+        <Actions>
+            <ActionRibbonGroup Label="@Text("Créer", "Create")">
+                <button class="action-ribbon-command primary"
+                        type="button"
+                        disabled="@_isSaving"
+                        @onclick="OpenCreateGroupDialog">
+                    @Text("Ajouter un groupe", "Add group")
+                </button>
+                <button class="action-ribbon-command primary"
+                        type="button"
+                        disabled="@_isSaving"
+                        @onclick="OpenCreateRoleDialog">
+                    @Text("Ajouter un rôle", "Add role")
+                </button>
+            </ActionRibbonGroup>
+        </Actions>
+    </AdministrationPageHeader>
 
     @if (_message is not null)
     {
@@ -46,15 +59,6 @@
                     </div>
                     <strong>@_snapshot.Groups.Count</strong>
                 </header>
-
-                <div class="create-access-item">
-                    <label for="new-group-name">@Text("Nouveau groupe", "New group")</label>
-                    <input id="new-group-name" maxlength="120" placeholder="@Text("Ex. Comité éditorial", "E.g. Editorial committee")" @bind="_newGroupName" />
-                    <textarea maxlength="500" rows="2" placeholder="@Text("Description facultative", "Optional description")" @bind="_newGroupDescription"></textarea>
-                    <button class="primary" type="button" disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newGroupName))" @onclick="CreateGroupAsync">
-                        @Text("Créer le groupe", "Create group")
-                    </button>
-                </div>
 
                 <div class="access-item-list">
                     @foreach (var group in _snapshot.Groups)
@@ -93,19 +97,11 @@
                     <strong>@_snapshot.Roles.Count</strong>
                 </header>
 
-                <div class="create-access-item compact">
-                    <label for="new-role-name">@Text("Nouveau rôle", "New role")</label>
-                    <div class="inline-create">
-                        <input id="new-role-name" maxlength="120" placeholder="@Text("Ex. Validateur", "E.g. Reviewer")" @bind="_newRoleName" />
-                        <button class="primary" type="button" disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newRoleName))" @onclick="CreateRoleAsync">@Text("Créer", "Create")</button>
-                    </div>
-                </div>
-
                 <div class="role-list">
                     @foreach (var role in _snapshot.Roles)
                     {
-                        <article class="role-card">
-                            <header>
+                        <details class="role-card">
+                            <summary class="role-card-summary">
                                 <div>
                                     <strong>@role.Name</strong>
                                     @if (role.IsSystem)
@@ -114,36 +110,42 @@
                                     }
                                     <small>@role.GroupCount @Text("groupe(s)", "group(s)")</small>
                                 </div>
+                                <span class="role-card-chevron" aria-hidden="true"></span>
+                            </summary>
+
+                            <div class="role-card-body">
                                 @if (!role.IsSystem)
                                 {
-                                    <button class="danger-link" type="button" disabled="@_isSaving" @onclick="() => AskDeleteRole(role)">@Text("Supprimer", "Delete")</button>
+                                    <div class="role-card-actions">
+                                        <button class="danger-link" type="button" disabled="@_isSaving" @onclick="() => AskDeleteRole(role)">@Text("Supprimer", "Delete")</button>
+                                    </div>
                                 }
-                            </header>
 
-                            <div class="permission-list">
-                                @foreach (var permission in _snapshot.PermissionCatalog)
+                                <div class="permission-list">
+                                    @foreach (var permission in _snapshot.PermissionCatalog)
+                                    {
+                                        var locked = role.Name == SystemRoles.Administrator;
+                                        <label>
+                                            <input type="checkbox"
+                                                   checked="@RoleHasPermission(role.Id, permission)"
+                                                   disabled="@(_isSaving || locked)"
+                                                   @onchange="args => TogglePermission(role.Id, permission, args.Value is true)" />
+                                            <span>@PermissionLabel(permission)</span>
+                                            <code>@permission</code>
+                                        </label>
+                                    }
+                                </div>
+
+                                @if (role.Name == SystemRoles.Administrator)
                                 {
-                                    var locked = role.Name == SystemRoles.Administrator;
-                                    <label>
-                                        <input type="checkbox"
-                                               checked="@RoleHasPermission(role.Id, permission)"
-                                               disabled="@(_isSaving || locked)"
-                                               @onchange="args => TogglePermission(role.Id, permission, args.Value is true)" />
-                                        <span>@PermissionLabel(permission)</span>
-                                        <code>@permission</code>
-                                    </label>
+                                    <small class="locked-note">@Text("Le rôle Administrator conserve toujours tous les droits.", "The Administrator role always retains all permissions.")</small>
+                                }
+                                else
+                                {
+                                    <button type="button" disabled="@_isSaving" @onclick="() => SaveRoleAsync(role.Id)">@Text("Enregistrer les droits", "Save permissions")</button>
                                 }
                             </div>
-
-                            @if (role.Name == SystemRoles.Administrator)
-                            {
-                                <small class="locked-note">@Text("Le rôle Administrator conserve toujours tous les droits.", "The Administrator role always retains all permissions.")</small>
-                            }
-                            else
-                            {
-                                <button type="button" disabled="@_isSaving" @onclick="() => SaveRoleAsync(role.Id)">@Text("Enregistrer les droits", "Save permissions")</button>
-                            }
-                        </article>
+                        </details>
                     }
                 </div>
             </article>
@@ -186,6 +188,44 @@
         </section>
     }
 </main>
+
+@if (_isCreatingGroup)
+{
+    <div class="access-dialog-backdrop" @onclick="CancelCreateDialogs">
+        <section class="access-dialog" role="dialog" aria-modal="true" aria-labelledby="create-group-dialog-title" @onclick:stopPropagation>
+            <header>
+                <p>@Text("Création", "Create")</p>
+                <h2 id="create-group-dialog-title">@Text("Ajouter un groupe", "Add group")</h2>
+            </header>
+            <label for="new-group-name">@Text("Nom", "Name")</label>
+            <input id="new-group-name" maxlength="120" placeholder="@Text("Ex. Comité éditorial", "E.g. Editorial committee")" disabled="@_isSaving" @bind="_newGroupName" />
+            <label for="new-group-description">@Text("Description", "Description")</label>
+            <textarea id="new-group-description" maxlength="500" rows="3" placeholder="@Text("Description facultative", "Optional description")" disabled="@_isSaving" @bind="_newGroupDescription"></textarea>
+            <div class="dialog-actions">
+                <button type="button" disabled="@_isSaving" @onclick="CancelCreateDialogs">@Text("Annuler", "Cancel")</button>
+                <button class="primary" type="button" disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newGroupName))" @onclick="CreateGroupAsync">@Text("Créer le groupe", "Create group")</button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (_isCreatingRole)
+{
+    <div class="access-dialog-backdrop" @onclick="CancelCreateDialogs">
+        <section class="access-dialog" role="dialog" aria-modal="true" aria-labelledby="create-role-dialog-title" @onclick:stopPropagation>
+            <header>
+                <p>@Text("Création", "Create")</p>
+                <h2 id="create-role-dialog-title">@Text("Ajouter un rôle", "Add role")</h2>
+            </header>
+            <label for="new-role-name">@Text("Nom", "Name")</label>
+            <input id="new-role-name" maxlength="120" placeholder="@Text("Ex. Validateur", "E.g. Reviewer")" disabled="@_isSaving" @bind="_newRoleName" />
+            <div class="dialog-actions">
+                <button type="button" disabled="@_isSaving" @onclick="CancelCreateDialogs">@Text("Annuler", "Cancel")</button>
+                <button class="primary" type="button" disabled="@(_isSaving || string.IsNullOrWhiteSpace(_newRoleName))" @onclick="CreateRoleAsync">@Text("Créer le rôle", "Create role")</button>
+            </div>
+        </section>
+    </div>
+}
 
 @if (_editedGroup is not null && _snapshot is not null)
 {
@@ -290,6 +330,8 @@
     private bool _messageIsError;
     private bool _isLoading = true;
     private bool _isSaving;
+    private bool _isCreatingGroup;
+    private bool _isCreatingRole;
 
     protected override async Task OnInitializedAsync()
     {
@@ -332,21 +374,55 @@
 
     private async Task CreateGroupAsync()
     {
-        await RunMutationAsync(async service =>
+        var created = await RunMutationAsync(async service =>
         {
             await service.CreateGroupAsync(_actorUserId, _newGroupName, _newGroupDescription, CancellationToken.None);
             _newGroupName = string.Empty;
             _newGroupDescription = string.Empty;
         }, Text("Le groupe a été créé.", "The group was created."));
+        if (created)
+        {
+            _isCreatingGroup = false;
+        }
     }
 
     private async Task CreateRoleAsync()
     {
-        await RunMutationAsync(async service =>
+        var created = await RunMutationAsync(async service =>
         {
             await service.CreateRoleAsync(_actorUserId, _newRoleName, CancellationToken.None);
             _newRoleName = string.Empty;
         }, Text("Le rôle a été créé sans droit. Vous pouvez maintenant le composer.", "The role was created without permissions. You can now configure it."));
+        if (created)
+        {
+            _isCreatingRole = false;
+        }
+    }
+
+    private void OpenCreateGroupDialog()
+    {
+        _newGroupName = string.Empty;
+        _newGroupDescription = string.Empty;
+        _isCreatingRole = false;
+        _isCreatingGroup = true;
+    }
+
+    private void OpenCreateRoleDialog()
+    {
+        _newRoleName = string.Empty;
+        _isCreatingGroup = false;
+        _isCreatingRole = true;
+    }
+
+    private void CancelCreateDialogs()
+    {
+        if (_isSaving)
+        {
+            return;
+        }
+
+        _isCreatingGroup = false;
+        _isCreatingRole = false;
     }
 
     private void EditGroup(AccessGroupView group)
@@ -426,13 +502,13 @@
         _deleteRole = null;
     }
 
-    private async Task RunMutationAsync(
+    private async Task<bool> RunMutationAsync(
         Func<AccessAdministrationService, Task> mutation,
         string successMessage)
     {
         if (_isSaving)
         {
-            return;
+            return false;
         }
 
         _isSaving = true;
@@ -443,10 +519,12 @@
             await mutation(service);
             ShowSuccess(successMessage);
             await LoadAsync();
+            return true;
         }
         catch (Exception exception)
         {
             ShowError(exception.Message);
+            return false;
         }
         finally
         {

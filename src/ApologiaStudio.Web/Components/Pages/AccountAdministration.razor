@@ -20,26 +20,57 @@
 <DocumentLanguage Language="@_interfaceLanguage" />
 
 <main class="account-admin-shell">
-    <header class="account-admin-header">
-        <div>
-            <p>@Text("Administration", "Administration")</p>
-            <h1>@Text("Comptes et inscriptions", "Accounts and registrations")</h1>
-            <span>
-                @Text(
-                    "Vérifiez les demandes, approuvez les utilisateurs et révoquez immédiatement les comptes problématiques.",
-                    "Review requests, approve users, and immediately revoke problematic accounts.")
-            </span>
-        </div>
-        <div class="account-admin-header-actions">
-            <a class="admin-section-link" href="/administration/access">
-                @Text("Groupes et droits", "Groups and permissions")
-            </a>
-            <button class="primary" type="button" @onclick="OpenCreateDialog">
-                @Text("Ajouter un compte", "Add account")
-            </button>
-            <a class="admin-close" href="/" aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")" title="@Text("Fermer", "Close")">×</a>
-        </div>
-    </header>
+    <AdministrationPageHeader
+        Language="@_interfaceLanguage"
+        CurrentSection="accounts"
+        Title="@Text("Comptes et inscriptions", "Accounts and registrations")"
+        Description="@Text(
+            "Vérifiez les demandes, approuvez les utilisateurs et révoquez immédiatement les comptes problématiques.",
+            "Review requests, approve users, and immediately revoke problematic accounts.")">
+        <Actions>
+            <ActionRibbonGroup Label="@Text("Comptes", "Accounts")">
+                <button class="action-ribbon-command primary"
+                        type="button"
+                        disabled="@_isSaving"
+                        @onclick="OpenCreateDialog">
+                    @Text("Ajouter un compte", "Add account")
+                </button>
+            </ActionRibbonGroup>
+            <ActionRibbonGroup Label="@Text("Sélection", "Selection")">
+                <span class="action-ribbon-note">@SelectionLabel()</span>
+                <button class="action-ribbon-command"
+                        type="button"
+                        disabled="@(!CanRunSelected(AdminAction.Approve))"
+                        @onclick="() => AskSelected(AdminAction.Approve)">
+                    @Text("Approuver", "Approve")
+                </button>
+                <button class="action-ribbon-command danger"
+                        type="button"
+                        disabled="@(!CanRunSelected(AdminAction.Reject))"
+                        @onclick="() => AskSelected(AdminAction.Reject)">
+                    @Text("Refuser", "Reject")
+                </button>
+                <button class="action-ribbon-command danger"
+                        type="button"
+                        disabled="@(!CanRunSelected(AdminAction.Suspend))"
+                        @onclick="() => AskSelected(AdminAction.Suspend)">
+                    @Text("Suspendre", "Suspend")
+                </button>
+                <button class="action-ribbon-command"
+                        type="button"
+                        disabled="@(!CanRunSelected(AdminAction.Reactivate))"
+                        @onclick="() => AskSelected(AdminAction.Reactivate)">
+                    @Text("Réactiver", "Reactivate")
+                </button>
+                <button class="action-ribbon-command"
+                        type="button"
+                        disabled="@(!CanRunSelected(AdminAction.Unlock))"
+                        @onclick="() => AskSelected(AdminAction.Unlock)">
+                    @Text("Déverrouiller", "Unlock")
+                </button>
+            </ActionRibbonGroup>
+        </Actions>
+    </AdministrationPageHeader>
 
     @if (_message is not null)
     {
@@ -68,7 +99,14 @@
         <section class="account-list" aria-label="@Text("Liste des comptes", "Account list")">
             @foreach (var account in OrderedAccounts())
             {
-                <article class="account-row">
+                <article class="account-row @(_selectedAccountIds.Contains(account.Id) ? "selected" : null)">
+                    <label class="account-selection">
+                        <input type="checkbox"
+                               checked="@_selectedAccountIds.Contains(account.Id)"
+                               disabled="@_isSaving"
+                               aria-label="@Text($"Sélectionner {account.DisplayName}", $"Select {account.DisplayName}")"
+                               @onchange="args => ToggleAccountSelection(account.Id, args.Value is true)" />
+                    </label>
                     <div class="account-avatar" aria-hidden="true">
                         @Initial(account.DisplayName)
                     </div>
@@ -109,35 +147,6 @@
                         <span class="account-status status-@account.Status.ToString().ToLowerInvariant()">
                             @StatusLabel(account.Status)
                         </span>
-
-                        @if (account.Status == AccountRegistrationStatus.PendingApproval)
-                        {
-                            <button type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Approve)">
-                                @Text("Approuver", "Approve")
-                            </button>
-                            <button class="danger" type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Reject)">
-                                @Text("Refuser", "Reject")
-                            </button>
-                        }
-                        else if (account.Status == AccountRegistrationStatus.Active)
-                        {
-                            <button class="danger" type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Suspend)">
-                                @Text("Suspendre", "Suspend")
-                            </button>
-                        }
-                        else if (account.Status == AccountRegistrationStatus.Suspended)
-                        {
-                            <button type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Reactivate)">
-                                @Text("Réactiver", "Reactivate")
-                            </button>
-                        }
-
-                        @if (account.LockoutEnd > DateTimeOffset.UtcNow)
-                        {
-                            <button type="button" disabled="@_isSaving" @onclick="() => Ask(account, AdminAction.Unlock)">
-                                @Text("Déverrouiller", "Unlock")
-                            </button>
-                        }
                     </div>
                 </article>
             }
@@ -287,12 +296,12 @@
     </div>
 }
 
-@if (_pendingAccount is not null)
+@if (_pendingAccounts.Count > 0)
 {
     <div class="admin-dialog-backdrop" @onclick="Cancel">
         <section class="admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-dialog-title" @onclick:stopPropagation>
             <h2 id="admin-dialog-title">@ActionTitle(_pendingAction)</h2>
-            <p>@ActionExplanation(_pendingAction, _pendingAccount.DisplayName)</p>
+            <p>@ActionExplanation(_pendingAction, _pendingAccounts)</p>
 
             @if (_pendingAction is AdminAction.Reject or AdminAction.Suspend)
             {
@@ -319,8 +328,9 @@
 
 @code {
     private IReadOnlyList<AccountAdministrationView> _accounts = [];
-    private AccountAdministrationView? _pendingAccount;
+    private IReadOnlyList<AccountAdministrationView> _pendingAccounts = [];
     private AccountAccessDetailsView? _accessDetails;
+    private readonly HashSet<Guid> _selectedAccountIds = [];
     private readonly HashSet<Guid> _selectedGroupIds = [];
     private AdminAction _pendingAction;
     private Guid _actorUserId;
@@ -563,9 +573,57 @@
         }
     }
 
-    private void Ask(AccountAdministrationView account, AdminAction action)
+    private void ToggleAccountSelection(Guid accountId, bool selected)
     {
-        _pendingAccount = account;
+        if (selected)
+        {
+            _selectedAccountIds.Add(accountId);
+        }
+        else
+        {
+            _selectedAccountIds.Remove(accountId);
+        }
+    }
+
+    private IReadOnlyList<AccountAdministrationView> SelectedAccounts() =>
+        _accounts
+            .Where(account => _selectedAccountIds.Contains(account.Id))
+            .ToArray();
+
+    private bool CanRunSelected(AdminAction action)
+    {
+        if (_isSaving)
+        {
+            return false;
+        }
+
+        var selected = SelectedAccounts();
+        return action switch
+        {
+            AdminAction.Approve or AdminAction.Reject =>
+                selected.Count == 1 &&
+                selected[0].Status == AccountRegistrationStatus.PendingApproval,
+            AdminAction.Suspend =>
+                selected.Count > 0 &&
+                selected.All(account => account.Status == AccountRegistrationStatus.Active),
+            AdminAction.Reactivate =>
+                selected.Count == 1 &&
+                selected[0].Status == AccountRegistrationStatus.Suspended,
+            AdminAction.Unlock =>
+                selected.Count == 1 &&
+                selected[0].LockoutEnd > DateTimeOffset.UtcNow,
+            _ => false
+        };
+    }
+
+    private void AskSelected(AdminAction action)
+    {
+        if (!CanRunSelected(action))
+        {
+            return;
+        }
+
+        _pendingAccounts = SelectedAccounts();
         _pendingAction = action;
         _reason = string.Empty;
         _message = null;
@@ -575,14 +633,14 @@
     {
         if (!_isSaving)
         {
-            _pendingAccount = null;
+            _pendingAccounts = [];
             _reason = string.Empty;
         }
     }
 
     private async Task ConfirmAsync()
     {
-        if (_pendingAccount is null || _isSaving)
+        if (_pendingAccounts.Count == 0 || _isSaving)
         {
             return;
         }
@@ -592,29 +650,42 @@
         {
             await using var scope = ServiceScopeFactory.CreateAsyncScope();
             var service = scope.ServiceProvider.GetRequiredService<AccountAdministrationService>();
-            switch (_pendingAction)
+            if (_pendingAction == AdminAction.Suspend)
             {
-                case AdminAction.Approve:
-                    await service.ApproveAsync(_pendingAccount.Id, _actorUserId, CancellationToken.None);
-                    break;
-                case AdminAction.Reject:
-                    await service.RejectAsync(_pendingAccount.Id, _actorUserId, _reason, CancellationToken.None);
-                    break;
-                case AdminAction.Suspend:
-                    await service.SuspendAsync(_pendingAccount.Id, _actorUserId, _reason, CancellationToken.None);
-                    break;
-                case AdminAction.Reactivate:
-                    await service.ReactivateAsync(_pendingAccount.Id, _actorUserId, CancellationToken.None);
-                    break;
-                case AdminAction.Unlock:
-                    await service.UnlockAsync(_pendingAccount.Id, _actorUserId, CancellationToken.None);
-                    break;
+                await service.SuspendManyAsync(
+                    _pendingAccounts.Select(account => account.Id).ToArray(),
+                    _actorUserId,
+                    _reason,
+                    CancellationToken.None);
+            }
+            else
+            {
+                var account = _pendingAccounts[0];
+                switch (_pendingAction)
+                {
+                    case AdminAction.Approve:
+                        await service.ApproveAsync(account.Id, _actorUserId, CancellationToken.None);
+                        break;
+                    case AdminAction.Reject:
+                        await service.RejectAsync(account.Id, _actorUserId, _reason, CancellationToken.None);
+                        break;
+                    case AdminAction.Reactivate:
+                        await service.ReactivateAsync(account.Id, _actorUserId, CancellationToken.None);
+                        break;
+                    case AdminAction.Unlock:
+                        await service.UnlockAsync(account.Id, _actorUserId, CancellationToken.None);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
             }
 
             var completedAction = _pendingAction;
-            _pendingAccount = null;
+            var completedCount = _pendingAccounts.Count;
+            _pendingAccounts = [];
+            _selectedAccountIds.Clear();
             _reason = string.Empty;
-            ShowSuccess(ActionSuccess(completedAction));
+            ShowSuccess(ActionSuccess(completedAction, completedCount));
             await LoadAsync();
         }
         catch (Exception exception)
@@ -664,40 +735,63 @@
     private static bool RequiresReason(AdminAction action) =>
         action is AdminAction.Reject or AdminAction.Suspend;
 
+    private string SelectionLabel() =>
+        Text(
+            $"{_selectedAccountIds.Count} sélectionné(s)",
+            $"{_selectedAccountIds.Count} selected");
+
     private string ActionTitle(AdminAction action) => action switch
     {
         AdminAction.Approve => Text("Approuver cette inscription ?", "Approve this registration?"),
         AdminAction.Reject => Text("Refuser cette inscription ?", "Reject this registration?"),
+        AdminAction.Suspend when _pendingAccounts.Count > 1 => Text(
+            $"Suspendre ces {_pendingAccounts.Count} comptes ?",
+            $"Suspend these {_pendingAccounts.Count} accounts?"),
         AdminAction.Suspend => Text("Suspendre ce compte ?", "Suspend this account?"),
         AdminAction.Reactivate => Text("Réactiver ce compte ?", "Reactivate this account?"),
         AdminAction.Unlock => Text("Déverrouiller ce compte ?", "Unlock this account?"),
         _ => throw new ArgumentOutOfRangeException(nameof(action))
     };
 
-    private string ActionExplanation(AdminAction action, string name) => action switch
+    private string ActionExplanation(
+        AdminAction action,
+        IReadOnlyList<AccountAdministrationView> accounts)
     {
-        AdminAction.Approve => Text($"{name} pourra se connecter avec le rôle Reader, sans droit sensible.", $"{name} will be able to sign in with the Reader role and no sensitive permission."),
-        AdminAction.Reject => Text($"{name} ne pourra pas se connecter. La décision et son motif seront conservés.", $"{name} will not be able to sign in. The decision and its reason will be retained."),
-        AdminAction.Suspend => Text($"Les sessions de {name} seront révoquées et le compte ne pourra plus se connecter.", $"{name}’s sessions will be revoked and the account will no longer be able to sign in."),
-        AdminAction.Reactivate => Text($"{name} retrouvera ses rôles précédents et pourra se reconnecter.", $"{name} will regain their previous roles and will be able to sign in again."),
-        AdminAction.Unlock => Text($"Le compteur d’échecs de {name} sera remis à zéro.", $"{name}’s failed sign-in counter will be reset."),
-        _ => throw new ArgumentOutOfRangeException(nameof(action))
-    };
+        var name = accounts[0].DisplayName;
+        return action switch
+        {
+            AdminAction.Approve => Text($"{name} pourra se connecter avec le rôle Reader, sans droit sensible.", $"{name} will be able to sign in with the Reader role and no sensitive permission."),
+            AdminAction.Reject => Text($"{name} ne pourra pas se connecter. La décision et son motif seront conservés.", $"{name} will not be able to sign in. The decision and its reason will be retained."),
+            AdminAction.Suspend when accounts.Count > 1 => Text(
+                $"Les sessions de ces {accounts.Count} comptes seront révoquées et ils ne pourront plus se connecter.",
+                $"The sessions of these {accounts.Count} accounts will be revoked and they will no longer be able to sign in."),
+            AdminAction.Suspend => Text($"Les sessions de {name} seront révoquées et le compte ne pourra plus se connecter.", $"{name}’s sessions will be revoked and the account will no longer be able to sign in."),
+            AdminAction.Reactivate => Text($"{name} retrouvera ses rôles précédents et pourra se reconnecter.", $"{name} will regain their previous roles and will be able to sign in again."),
+            AdminAction.Unlock => Text($"Le compteur d’échecs de {name} sera remis à zéro.", $"{name}’s failed sign-in counter will be reset."),
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        };
+    }
 
     private string ConfirmLabel(AdminAction action) => action switch
     {
         AdminAction.Approve => Text("Confirmer l’approbation", "Confirm approval"),
         AdminAction.Reject => Text("Confirmer le refus", "Confirm rejection"),
+        AdminAction.Suspend when _pendingAccounts.Count > 1 => Text(
+            "Confirmer les suspensions",
+            "Confirm suspensions"),
         AdminAction.Suspend => Text("Confirmer la suspension", "Confirm suspension"),
         AdminAction.Reactivate => Text("Confirmer la réactivation", "Confirm reactivation"),
         AdminAction.Unlock => Text("Confirmer le déverrouillage", "Confirm unlock"),
         _ => throw new ArgumentOutOfRangeException(nameof(action))
     };
 
-    private string ActionSuccess(AdminAction action) => action switch
+    private string ActionSuccess(AdminAction action, int accountCount) => action switch
     {
         AdminAction.Approve => Text("Le compte a été approuvé avec le rôle Reader.", "The account was approved with the Reader role."),
         AdminAction.Reject => Text("La demande a été refusée.", "The request was rejected."),
+        AdminAction.Suspend when accountCount > 1 => Text(
+            $"{accountCount} comptes ont été suspendus.",
+            $"{accountCount} accounts were suspended."),
         AdminAction.Suspend => Text("Le compte a été suspendu.", "The account was suspended."),
         AdminAction.Reactivate => Text("Le compte a été réactivé.", "The account was reactivated."),
         AdminAction.Unlock => Text("Le compte a été déverrouillé.", "The account was unlocked."),

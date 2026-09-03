@@ -51,6 +51,12 @@ public sealed class CompositionRootTests
         AssertLifetime<DocumentManagerUiOptions>(
             services,
             ServiceLifetime.Singleton);
+        AssertLifetime<DocumentManagerSessionBridgeOptions>(
+            services,
+            ServiceLifetime.Singleton);
+        AssertLifetime<DocumentManagerSessionTicketIssuer>(
+            services,
+            ServiceLifetime.Singleton);
     }
 
     [Fact]
@@ -102,7 +108,9 @@ public sealed class CompositionRootTests
                             "Database=apologia_knowledge_architecture_test;" +
                             "Username=apologia;Password=not-used",
                         ["DocumentManager:UiUrl"] =
-                            "http://localhost:5092/"
+                            "http://localhost:5092/",
+                        ["DocumentManager:SessionBridge:SharedSecret"] =
+                            "architecture-tests-session-bridge-secret"
                     })
                 .Build();
 

@@ -98,10 +98,19 @@ replacement for the production e-mail workflow.
 ### Administration UI workflow
 
 The authenticated account menu exposes one `Administration` entry. Hovering it
-opens the `Accounts` and `Groups and permissions` submenu; selecting the parent
-entry directly opens `Accounts`. Both administration screens link to each other
-and use the close control to return to Studio. All labels inherit the user's
-Apologia Studio interface language.
+opens the authorized `Accounts`, `Groups and permissions`, `AI` and `Agents`
+entries. Selecting the parent entry directly opens the first administration
+section the current principal is allowed to use. Administration screens link to
+each other and use the close control to return to Studio. All labels inherit the
+user's Apologia Studio interface language.
+
+`/settings` is not an administration surface. It contains only personal
+preferences owned by the current active account: languages, date and time
+formats, composer behavior and the reserved future `Themes` and `Landing page`
+sections. Every account with `studio.access`, including a `Reader`, may use it.
+Global AI runtime and agent profile configuration remains protected by
+`settings.manage` and lives under `/administration/ai` and
+`/administration/agents`.
 
 From `Accounts`, an administrator can:
 
@@ -157,9 +166,16 @@ administration UI.
 `AS-ID-03` applies named permission policies to every Apologia page and command,
 replacing development feature flags for sensitive editorial operations.
 
-`AS-ID-04` shares the authenticated session with the embedded Manager UI and
-enforces Manager operation, replay and permanent-custody-deletion permissions
-while retaining independent service credentials for backend integration.
+`AS-ID-04` uses a signed, short-lived, one-use handoff ticket to establish a
+separate HTTP-only session in the embedded Manager UI. It enforces Manager
+operation, replay and permanent-custody-deletion permissions while retaining
+independent service credentials for backend integration.
+
+The handoff is initiated by authenticated `POST`-body navigation through
+`/document-manager/connect`; the bearer artifact is never placed in the URL.
+Only `manager.operate`, `manager.delivery.replay` and
+`manager.custody.purge` are projected into the ticket. Apologia passwords,
+general Studio permissions and backend service keys never cross this boundary.
 
 ## Implemented administration surfaces
 
@@ -167,14 +183,44 @@ while retaining independent service credentials for backend integration.
   suspension, reactivation and lockout reset;
 - `/administration/access`: group membership, group-to-role composition,
   custom roles, role-to-permission composition and recent security events;
+- `/administration/ai`: shared AI runtime, model and execution configuration;
+- `/administration/agents`: shared agent profiles and behavior;
 - the account menu exposes those screens only when the current principal owns
   the corresponding permission, under a single nested `Administration` entry;
-- both administration screens inherit the user's Apologia Studio interface
+- administration screens inherit the user's Apologia Studio interface
   language and use a close control to return to Studio;
-- the two administration screens provide direct navigation to each other;
+- administration screens provide permission-filtered navigation to each other;
 - each administration service reloads the actor and effective permissions from
   PostgreSQL before changing state. The UI is therefore not the security
   boundary.
+
+### Administration interaction model
+
+All administration pages use the same centered page width and persistent top
+area. The title, close control and permission-filtered section navigation stay
+visible while page content scrolls. Section navigation is deliberately separate
+from commands: changing page never looks like changing application state.
+
+Page-level commands are supplied through the reusable `ActionRibbon` and
+`ActionRibbonGroup` components. These components contain no administration or
+identity logic and can be reused by future Studio pages. A page owns the
+availability, confirmation and execution of each command.
+
+The account screen follows a select-then-act workflow:
+
+- accounts are selected explicitly with checkboxes;
+- approval, rejection, suspension, reactivation and lockout reset are exposed
+  only in the action ribbon and are enabled only for compatible selections;
+- suspension accepts one or several active accounts, requires a reason, revokes
+  their sessions and writes one administration event per account;
+- a batch suspension validates every target before changing state, executes in
+  one transaction and cannot suspend the last active administrator.
+
+Group and role creation are launched from the action ribbon and completed in
+dedicated dialogs. Role permissions are collapsed by default and expanded per
+role, keeping the catalog compact without hiding the protected Administrator
+invariant. Agent creation is likewise exposed through the action ribbon; its
+enabled state and maximum-agent count remain synchronized with the agent editor.
 
 ## Deliberately unresolved before production exposure
 

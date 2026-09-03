@@ -1,0 +1,10 @@
+.action-ribbon {
+    display: flex;
+    align-items: stretch;
+    min-height: 4.75rem;
+    overflow-x: auto;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--action-ribbon-border, #d5ded9);
+    border-radius: 0.8rem;
+    background: var(--action-ribbon-background, #f1f4f1);
+}

@@ -83,6 +83,7 @@ app.MapRazorComponents<App>()
 
 app.MapBibleCorpusEndpoints();
 app.MapDocumentManagerNotificationEndpoint();
+app.MapDocumentManagerSessionEndpoints();
 app.MapIdentitySessionEndpoints();
 
 app.Run();

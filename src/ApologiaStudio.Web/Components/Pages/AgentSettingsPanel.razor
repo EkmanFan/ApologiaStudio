@@ -60,17 +60,6 @@
                         quand sélectionner l’agent.
                     </p>
                 </div>
-                <div class="agent-list-actions">
-                    <span class="agent-count">
-                        @ActiveAgentCount / @AgentSettingsPolicy.MaximumActiveAgents agents
-                    </span>
-                    <button type="button"
-                            disabled="@(!CanAddAgent)"
-                            title="@AddAgentButtonTitle"
-                            @onclick="AddAgent">
-                        + Ajouter un agent
-                    </button>
-                </div>
             </div>
 
             <div class="agent-stack">

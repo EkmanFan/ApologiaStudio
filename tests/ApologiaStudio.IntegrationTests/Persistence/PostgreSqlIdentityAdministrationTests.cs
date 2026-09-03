@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ApologiaStudio.Domain.Users;
 using ApologiaStudio.Infrastructure.Persistence;
 using ApologiaStudio.Infrastructure.Persistence.Identity;
@@ -86,6 +87,10 @@ public sealed class PostgreSqlIdentityAdministrationTests
             var principalFactory = scope.ServiceProvider
                 .GetRequiredService<IUserClaimsPrincipalFactory<ApologiaIdentityUser>>();
             var administratorPrincipal = await principalFactory.CreateAsync(administrator);
+            Assert.Equal("Integration Administrator", administratorPrincipal.Identity?.Name);
+            Assert.Equal(
+                "admin.integration@apologia.local",
+                administratorPrincipal.FindFirstValue(ClaimTypes.Email));
             Assert.True(administratorPrincipal.IsInRole(SystemRoles.Administrator));
             Assert.Contains(
                 administratorPrincipal.Claims,
@@ -179,6 +184,48 @@ public sealed class PostgreSqlIdentityAdministrationTests
             Assert.Contains(
                 SystemPermissions.ReviewEditorial,
                 await access.GetEffectivePermissionsAsync(directlyActivated.User));
+
+            await accounts.SuspendManyAsync(
+                [reader.Id, directlyActivated.User.Id],
+                administrator.Id,
+                "Integration batch suspension",
+                CancellationToken.None);
+            reader = await users.FindByIdAsync(reader.Id.ToString());
+            var suspendedDirectReader = await users.FindByIdAsync(
+                directlyActivated.User.Id.ToString());
+            Assert.NotNull(reader);
+            Assert.NotNull(suspendedDirectReader);
+            Assert.Equal(
+                AccountRegistrationStatus.Suspended,
+                reader.RegistrationStatus);
+            Assert.Equal(
+                AccountRegistrationStatus.Suspended,
+                suspendedDirectReader.RegistrationStatus);
+
+            await accounts.ReactivateAsync(
+                reader.Id,
+                administrator.Id,
+                CancellationToken.None);
+            await accounts.ReactivateAsync(
+                directlyActivated.User.Id,
+                administrator.Id,
+                CancellationToken.None);
+
+            var protectedBatchSuspension =
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    accounts.SuspendManyAsync(
+                        [reader.Id, administrator.Id],
+                        administrator.Id,
+                        "Must preserve one active administrator",
+                        CancellationToken.None));
+            Assert.Contains(
+                "dernier administrateur",
+                protectedBatchSuspension.Message);
+            reader = await users.FindByIdAsync(reader.Id.ToString());
+            Assert.NotNull(reader);
+            Assert.Equal(
+                AccountRegistrationStatus.Active,
+                reader.RegistrationStatus);
 
             var administratorDetails = await accounts.GetAccessDetailsAsync(
                 administrator.Id,

@@ -1,5 +1,5 @@
 @page "/settings"
-@attribute [Authorize(Policy = SystemPermissions.ManageSettings)]
+@attribute [Authorize(Policy = SystemPermissions.AccessStudio)]
 
 @using Microsoft.Extensions.DependencyInjection
 @using ApologiaStudio.Application.Preferences
@@ -19,52 +19,71 @@
             <h1>@Text("Préférences", "Preferences")</h1>
             <p>
                 @Text(
-                    "Configurez l’application, le runtime d’IA et les profils des agents.",
-                    "Configure the application, AI runtime, and agent profiles.")
+                    "Personnalisez la langue, les dates et le comportement de votre espace.",
+                    "Customize the language, dates, and behavior of your workspace.")
             </p>
         </div>
-        <a href="/">
-            @Text("Retour aux conversations", "Back to conversations")
-        </a>
+        <a class="settings-close"
+           href="/"
+           aria-label="@Text("Fermer et revenir à Apologia Studio", "Close and return to Apologia Studio")"
+           title="@Text("Fermer", "Close")">×</a>
     </header>
 
     <nav class="settings-tabs"
          role="tablist"
-         aria-label="@Text("Catégories de préférences", "Settings categories")">
-        <button id="settings-tab-general"
+         aria-label="@Text("Catégories de préférences", "Preference categories")">
+        <button id="settings-tab-languages"
                 type="button"
                 role="tab"
-                aria-selected="@(_activeTab == SettingsTab.General)"
-                aria-controls="settings-panel-general"
-                class="@TabClass(SettingsTab.General)"
-                @onclick="() => SelectTab(SettingsTab.General)">
-            @Text("Général", "General")
+                aria-selected="@(_activeTab == SettingsTab.Languages)"
+                aria-controls="settings-panel-languages"
+                class="@TabClass(SettingsTab.Languages)"
+                @onclick="() => SelectTab(SettingsTab.Languages)">
+            @Text("Langues", "Languages")
         </button>
-        <button id="settings-tab-ai"
+        <button id="settings-tab-dates"
                 type="button"
                 role="tab"
-                aria-selected="@(_activeTab == SettingsTab.Ai)"
-                aria-controls="settings-panel-ai"
-                class="@TabClass(SettingsTab.Ai)"
-                @onclick="() => SelectTab(SettingsTab.Ai)">
-            @Text("IA", "AI")
+                aria-selected="@(_activeTab == SettingsTab.Dates)"
+                aria-controls="settings-panel-dates"
+                class="@TabClass(SettingsTab.Dates)"
+                @onclick="() => SelectTab(SettingsTab.Dates)">
+            @Text("Dates", "Dates")
         </button>
-        <button id="settings-tab-agents"
+        <button id="settings-tab-behavior"
                 type="button"
                 role="tab"
-                aria-selected="@(_activeTab == SettingsTab.Agents)"
-                aria-controls="settings-panel-agents"
-                class="@TabClass(SettingsTab.Agents)"
-                @onclick="() => SelectTab(SettingsTab.Agents)">
-            @Text("Agents", "Agents")
+                aria-selected="@(_activeTab == SettingsTab.Behavior)"
+                aria-controls="settings-panel-behavior"
+                class="@TabClass(SettingsTab.Behavior)"
+                @onclick="() => SelectTab(SettingsTab.Behavior)">
+            @Text("Comportement", "Behavior")
+        </button>
+        <button id="settings-tab-themes"
+                type="button"
+                role="tab"
+                aria-selected="@(_activeTab == SettingsTab.Themes)"
+                aria-controls="settings-panel-themes"
+                class="@TabClass(SettingsTab.Themes)"
+                @onclick="() => SelectTab(SettingsTab.Themes)">
+            @Text("Thèmes", "Themes")
+        </button>
+        <button id="settings-tab-landing-page"
+                type="button"
+                role="tab"
+                aria-selected="@(_activeTab == SettingsTab.LandingPage)"
+                aria-controls="settings-panel-landing-page"
+                class="@TabClass(SettingsTab.LandingPage)"
+                @onclick="() => SelectTab(SettingsTab.LandingPage)">
+            @Text("Page d’accueil", "Landing page")
         </button>
     </nav>
 
-    <section id="settings-panel-general"
+    <section id="settings-panel-languages"
              class="settings-tab-panel"
              role="tabpanel"
-             aria-labelledby="settings-tab-general"
-             hidden="@(_activeTab != SettingsTab.General)">
+             aria-labelledby="settings-tab-languages"
+             hidden="@(_activeTab != SettingsTab.Languages)">
         @if (_isLoading)
         {
             <p class="settings-status">
@@ -74,20 +93,20 @@
         else
         {
             <section class="settings-card"
-                     aria-labelledby="general-settings-title">
+                     aria-labelledby="languages-settings-title">
                 <header class="panel-heading">
                     <div>
                         <p class="settings-eyebrow">
-                            @Text("Application", "Application")
+                            @Text("Langues", "Languages")
                         </p>
-                        <h2 id="general-settings-title">
-                            @Text("Paramètres généraux", "General settings")
+                        <h2 id="languages-settings-title">
+                            @Text("Langues de votre espace", "Workspace languages")
                         </h2>
                     </div>
                     <p>
                         @Text(
-                            "Langues, saisie et affichage des conversations.",
-                            "Languages, input, and conversation display.")
+                            "Choisissez la langue de l’interface et celle utilisée par défaut pour la Bible et les réponses théologiques.",
+                            "Choose the interface language and the default language for Bible content and theological answers.")
                     </p>
                 </header>
 
@@ -132,81 +151,6 @@
                     </p>
                 </div>
 
-                <div class="settings-field">
-                    <label for="composer-enter-behavior">
-                        @Text(
-                            "Comportement de la touche Entrée",
-                            "Enter key behavior")
-                    </label>
-                    <select id="composer-enter-behavior"
-                            @bind="_composerEnterBehavior"
-                            disabled="@_isSaving">
-                        <option value="@ComposerEnterBehavior.NewLine">
-                            @Text(
-                                "Entrée ajoute une nouvelle ligne",
-                                "Enter inserts a new line")
-                        </option>
-                        <option value="@ComposerEnterBehavior.SendMessage">
-                            @Text(
-                                "Entrée envoie le message",
-                                "Enter sends the message")
-                        </option>
-                    </select>
-                    <p>
-                        @Text(
-                            "Lorsque Entrée envoie le message, Ctrl+Entrée ajoute une nouvelle ligne.",
-                            "When Enter sends the message, Ctrl+Enter inserts a new line.")
-                    </p>
-                </div>
-                <div class="settings-field">
-                    <label for="message-date-format">
-                        @Text("Format de date", "Date format")
-                    </label>
-                    <select id="message-date-format"
-                            @bind="_messageDateFormat"
-                            disabled="@_isSaving">
-                        <option value="@MessageTimestampFormats.DayMonthYear">
-                            @Text("JJ/MM/YYYY — 23/08/2026", "DD/MM/YYYY — 23/08/2026")
-                        </option>
-                        <option value="@MessageTimestampFormats.MonthDayYear">
-                            @Text("MM/JJ/YYYY — 08/23/2026", "MM/DD/YYYY — 08/23/2026")
-                        </option>
-                        <option value="@MessageTimestampFormats.IsoYearMonthDay">
-                            YYYY-MM-DD — 2026-08-23
-                        </option>
-                    </select>
-                    <p>
-                        @Text(
-                            "Format de la date affichée dans les bulles de messages.",
-                            "Date format displayed in conversation message bubbles.")
-                    </p>
-                </div>
-                <div class="settings-field">
-                    <label for="message-time-format">
-                        @Text("Format de l’heure", "Time format")
-                    </label>
-                    <select id="message-time-format"
-                            @bind="_messageTimeFormat"
-                            disabled="@_isSaving">
-                        <option value="@MessageTimestampFormats.TwentyFourHourWithSeconds">
-                            HH:mm:ss — 23:45:38
-                        </option>
-                        <option value="@MessageTimestampFormats.TwentyFourHour">
-                            HH:mm — 23:45
-                        </option>
-                        <option value="@MessageTimestampFormats.TwelveHourWithSeconds">
-                            hh:mm:ss tt — 11:45:38 PM
-                        </option>
-                        <option value="@MessageTimestampFormats.TwelveHour">
-                            hh:mm tt — 11:45 PM
-                        </option>
-                    </select>
-                    <p>
-                        @Text(
-                            "Format de l’heure affichée dans les bulles de messages.",
-                            "Time format displayed in conversation message bubbles.")
-                    </p>
-                </div>
                 <div class="effective-language">
                     <span>
                         @Text(
@@ -216,44 +160,120 @@
                     <strong>@EffectiveTheologicalLanguageLabel</strong>
                 </div>
 
-                @if (!string.IsNullOrWhiteSpace(_statusMessage))
-                {
-                    <p class="settings-status success">
-                        @_statusMessage
-                    </p>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(_errorMessage))
-                {
-                    <p class="settings-status error">
-                        @_errorMessage
-                    </p>
-                }
-
-                <button type="button"
-                        disabled="@_isSaving"
-                        @onclick="SaveAsync">
-                    @(_isSaving
-                        ? Text("Enregistrement…", "Saving…")
-                        : Text("Enregistrer", "Save"))
-                </button>
             </section>
         }
     </section>
 
-    <section id="settings-panel-ai"
+    <section id="settings-panel-dates"
              class="settings-tab-panel"
              role="tabpanel"
-             aria-labelledby="settings-tab-ai"
-             hidden="@(_activeTab != SettingsTab.Ai)">
-        <OllamaRuntimeSettingsPanel />
+             aria-labelledby="settings-tab-dates"
+             hidden="@(_activeTab != SettingsTab.Dates)">
+        <section class="settings-card" aria-labelledby="dates-settings-title">
+            <header class="panel-heading">
+                <div>
+                    <p class="settings-eyebrow">@Text("Dates", "Dates")</p>
+                    <h2 id="dates-settings-title">@Text("Date et heure", "Date and time")</h2>
+                </div>
+                <p>@Text("Adaptez les horodatages des conversations à vos habitudes.", "Adapt conversation timestamps to your preferences.")</p>
+            </header>
+
+            <div class="settings-field">
+                <label for="message-date-format">@Text("Format de date", "Date format")</label>
+                <select id="message-date-format" @bind="_messageDateFormat" disabled="@(_isLoading || _isSaving)">
+                    <option value="@MessageTimestampFormats.DayMonthYear">@Text("JJ/MM/YYYY — 23/08/2026", "DD/MM/YYYY — 23/08/2026")</option>
+                    <option value="@MessageTimestampFormats.MonthDayYear">@Text("MM/JJ/YYYY — 08/23/2026", "MM/DD/YYYY — 08/23/2026")</option>
+                    <option value="@MessageTimestampFormats.IsoYearMonthDay">YYYY-MM-DD — 2026-08-23</option>
+                </select>
+                <p>@Text("Format de la date affichée dans les bulles de messages.", "Date format displayed in conversation message bubbles.")</p>
+            </div>
+
+            <div class="settings-field">
+                <label for="message-time-format">@Text("Format de l’heure", "Time format")</label>
+                <select id="message-time-format" @bind="_messageTimeFormat" disabled="@(_isLoading || _isSaving)">
+                    <option value="@MessageTimestampFormats.TwentyFourHourWithSeconds">HH:mm:ss — 23:45:38</option>
+                    <option value="@MessageTimestampFormats.TwentyFourHour">HH:mm — 23:45</option>
+                    <option value="@MessageTimestampFormats.TwelveHourWithSeconds">hh:mm:ss tt — 11:45:38 PM</option>
+                    <option value="@MessageTimestampFormats.TwelveHour">hh:mm tt — 11:45 PM</option>
+                </select>
+                <p>@Text("Format de l’heure affichée dans les bulles de messages.", "Time format displayed in conversation message bubbles.")</p>
+            </div>
+        </section>
     </section>
 
-    <section id="settings-panel-agents"
+    <section id="settings-panel-behavior"
              class="settings-tab-panel"
              role="tabpanel"
-             aria-labelledby="settings-tab-agents"
-             hidden="@(_activeTab != SettingsTab.Agents)">
-        <AgentSettingsPanel ActivationVersion="@_agentActivationVersion" />
+             aria-labelledby="settings-tab-behavior"
+             hidden="@(_activeTab != SettingsTab.Behavior)">
+        <section class="settings-card" aria-labelledby="behavior-settings-title">
+            <header class="panel-heading">
+                <div>
+                    <p class="settings-eyebrow">@Text("Comportement", "Behavior")</p>
+                    <h2 id="behavior-settings-title">@Text("Saisie des messages", "Message input")</h2>
+                </div>
+                <p>@Text("Choisissez ce que fait la touche Entrée dans le compositeur.", "Choose what the Enter key does in the composer.")</p>
+            </header>
+
+            <div class="settings-field">
+                <label for="composer-enter-behavior">@Text("Comportement de la touche Entrée", "Enter key behavior")</label>
+                <select id="composer-enter-behavior" @bind="_composerEnterBehavior" disabled="@(_isLoading || _isSaving)">
+                    <option value="@ComposerEnterBehavior.NewLine">@Text("Entrée ajoute une nouvelle ligne", "Enter inserts a new line")</option>
+                    <option value="@ComposerEnterBehavior.SendMessage">@Text("Entrée envoie le message", "Enter sends the message")</option>
+                </select>
+                <p>@Text("Lorsque Entrée envoie le message, Ctrl+Entrée ajoute une nouvelle ligne.", "When Enter sends the message, Ctrl+Enter inserts a new line.")</p>
+            </div>
+        </section>
     </section>
+
+    <section id="settings-panel-themes"
+             class="settings-tab-panel"
+             role="tabpanel"
+             aria-labelledby="settings-tab-themes"
+             hidden="@(_activeTab != SettingsTab.Themes)">
+        <section class="settings-card future-settings" aria-labelledby="themes-settings-title">
+            <header class="panel-heading">
+                <div>
+                    <p class="settings-eyebrow">@Text("Thèmes", "Themes")</p>
+                    <h2 id="themes-settings-title">@Text("Apparence", "Appearance")</h2>
+                </div>
+                <p>@Text("La personnalisation visuelle sera bientôt disponible ici.", "Visual customization will soon be available here.")</p>
+            </header>
+            <p>@Text("Les futurs thèmes resteront une préférence propre à chaque compte.", "Future themes will remain specific to each account.")</p>
+        </section>
+    </section>
+
+    <section id="settings-panel-landing-page"
+             class="settings-tab-panel"
+             role="tabpanel"
+             aria-labelledby="settings-tab-landing-page"
+             hidden="@(_activeTab != SettingsTab.LandingPage)">
+        <section class="settings-card future-settings" aria-labelledby="landing-page-settings-title">
+            <header class="panel-heading">
+                <div>
+                    <p class="settings-eyebrow">@Text("Page d’accueil", "Landing page")</p>
+                    <h2 id="landing-page-settings-title">@Text("Ouverture de Studio", "Opening Studio")</h2>
+                </div>
+                <p>@Text("Le choix de la page affichée à l’ouverture sera bientôt disponible ici.", "The choice of the page shown when Studio opens will soon be available here.")</p>
+            </header>
+            <p>@Text("Cet emplacement est prêt pour la future option de page d’accueil.", "This area is ready for the future landing-page option.")</p>
+        </section>
+    </section>
+
+    @if (_activeTab is not SettingsTab.Themes and not SettingsTab.LandingPage)
+    {
+        <section class="settings-save-area" aria-live="polite">
+            @if (!string.IsNullOrWhiteSpace(_statusMessage))
+            {
+                <p class="settings-status success">@_statusMessage</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <p class="settings-status error">@_errorMessage</p>
+            }
+            <button type="button" disabled="@(_isLoading || _isSaving)" @onclick="SaveAsync">
+                @(_isSaving ? Text("Enregistrement…", "Saving…") : Text("Enregistrer", "Save"))
+            </button>
+        </section>
+    }
 </main>

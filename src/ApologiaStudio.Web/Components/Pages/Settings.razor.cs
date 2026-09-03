@@ -27,8 +27,7 @@ namespace ApologiaStudio.Web.Components.Pages;
 
 public partial class Settings
 {
-    private SettingsTab _activeTab = SettingsTab.General;
-    private int _agentActivationVersion;
+    private SettingsTab _activeTab = SettingsTab.Languages;
     private string _interfaceLanguageCode = "fr";
     private string _theologicalLanguageCode = string.Empty;
     private ComposerEnterBehavior _composerEnterBehavior =
@@ -108,10 +107,6 @@ public partial class Settings
         }
 
         _activeTab = tab;
-        if (tab == SettingsTab.Agents)
-        {
-            _agentActivationVersion++;
-        }
     }
 
     private string TabClass(SettingsTab tab)
@@ -187,8 +182,10 @@ public partial class Settings
 
     private enum SettingsTab
     {
-        General,
-        Ai,
-        Agents
+        Languages,
+        Dates,
+        Behavior,
+        Themes,
+        LandingPage
     }
 }

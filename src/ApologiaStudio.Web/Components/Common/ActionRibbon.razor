@@ -1,0 +1,11 @@
+<section class="action-ribbon" aria-label="@AriaLabel">
+    @ChildContent
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string AriaLabel { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+}

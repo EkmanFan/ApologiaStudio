@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using static Microsoft.AspNetCore.Components.Web.RenderMode;
 using Microsoft.AspNetCore.Components.Web.Virtualization;
 using ApologiaStudio.Web;
@@ -429,6 +430,82 @@ public partial class StudioSidebar
             : languageTag.Equals("en", StringComparison.OrdinalIgnoreCase)
                 ? Text("Anglais", "English")
                 : languageTag;
+    }
+
+    private string GetAccountDisplayName(ClaimsPrincipal user)
+    {
+        return string.IsNullOrWhiteSpace(user.Identity?.Name)
+            ? Text("Compte", "Account")
+            : user.Identity.Name;
+    }
+
+    private string GetAccountEmail(ClaimsPrincipal user)
+    {
+        var email = user.FindFirstValue(ClaimTypes.Email);
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            return email;
+        }
+
+        var name = user.Identity?.Name;
+        return name?.Contains('@', StringComparison.Ordinal) == true
+            ? name
+            : Text("E-mail indisponible", "Email unavailable");
+    }
+
+    private string GetPrimaryRoleLabel(ClaimsPrincipal user)
+    {
+        if (user.IsInRole(SystemRoles.Administrator))
+        {
+            return "Admin";
+        }
+
+        if (user.IsInRole(SystemRoles.DocumentOperator))
+        {
+            return Text("Opérateur documents", "Document operator");
+        }
+
+        if (user.IsInRole(SystemRoles.Editor))
+        {
+            return Text("Éditeur", "Editor");
+        }
+
+        if (user.IsInRole(SystemRoles.Reader))
+        {
+            return Text("Lecteur", "Reader");
+        }
+
+        return Text("Compte", "Account");
+    }
+
+    private static string GetAdministrationLanding(ClaimsPrincipal user)
+    {
+        if (user.HasClaim(
+                SystemPermissions.ClaimType,
+                SystemPermissions.ManageAccounts))
+        {
+            return "/administration/accounts";
+        }
+
+        if (user.HasClaim(
+                SystemPermissions.ClaimType,
+                SystemPermissions.ManageGroups) ||
+            user.HasClaim(
+                SystemPermissions.ClaimType,
+                SystemPermissions.ManageRoles))
+        {
+            return "/administration/access";
+        }
+
+        return "/administration/ai";
+    }
+
+    private string GetAccountInitial(ClaimsPrincipal user)
+    {
+        var displayName = GetAccountDisplayName(user).Trim();
+        return displayName.Length == 0
+            ? "A"
+            : displayName[..1].ToUpper(CultureInfo.CurrentCulture);
     }
 
     private string Text(string french, string english)

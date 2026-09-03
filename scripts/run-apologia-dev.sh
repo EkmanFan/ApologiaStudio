@@ -48,6 +48,7 @@ export DocumentManagerConsumer__NotificationSecret="${DPE_MANAGER_NOTIFICATION_S
 export DocumentManagerConsumer__DeliveryReplayApiKey="${DPE_MANAGER_DELIVERY_REPLAY_API_KEY:-dpengine-delivery-replay-local-development-key-2026}"
 export DocumentManagerConsumer__ReconciliationSeconds="${DocumentManagerConsumer__ReconciliationSeconds:-300}"
 export DocumentManagerConsumer__RetrySeconds="${DocumentManagerConsumer__RetrySeconds:-10}"
+export DocumentManager__SessionBridge__SharedSecret="${APOLOGIA_MANAGER_SESSION_BRIDGE_KEY:-apologia-manager-session-bridge-local-development-2026}"
 export IdentityBootstrap__Enabled="${IdentityBootstrap__Enabled:-true}"
 export IdentityBootstrap__Email="${APOLOGIA_BOOTSTRAP_ADMIN_EMAIL:-admin@apologia.local}"
 export IdentityBootstrap__Password="${APOLOGIA_BOOTSTRAP_ADMIN_PASSWORD:-Apologia-Local-Admin-2026!}"

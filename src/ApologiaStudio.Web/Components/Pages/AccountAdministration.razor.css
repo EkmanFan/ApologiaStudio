@@ -1,8 +1,13 @@
 .account-admin-shell {
+    display: grid;
+    align-content: start;
+    gap: 1.5rem;
+    width: min(100%, 92rem);
     min-height: 100dvh;
-    padding: clamp(1rem, 3vw, 2.5rem);
-    background: #f5f2ea;
-    color: #222920;
+    margin: 0 auto;
+    padding: clamp(1.25rem, 4vw, 3rem);
+    background: #fbfaf7;
+    color: #203331;
 }
 
 .account-admin-header {
@@ -73,9 +78,7 @@
 .admin-message,
 .account-summary,
 .account-list {
-    max-width: 80rem;
-    margin-left: auto;
-    margin-right: auto;
+    width: 100%;
 }
 
 .admin-message {
@@ -121,13 +124,30 @@
 
 .account-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 1rem;
     padding: 1rem;
     border: 1px solid #ded8cc;
     border-radius: 1rem;
     background: #fff;
+}
+
+.account-row.selected {
+    border-color: #5b9b90;
+    background: #f2faf7;
+    box-shadow: 0 0 0 2px rgba(45, 118, 110, 0.1);
+}
+
+.account-selection {
+    display: grid;
+    place-items: center;
+}
+
+.account-selection input {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: #2d766e;
 }
 
 .account-avatar {

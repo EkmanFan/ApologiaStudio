@@ -1,0 +1,50 @@
+@page "/administration/ai"
+@attribute [Authorize(Policy = SystemPermissions.ManageSettings)]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@using System.Security.Claims
+@using ApologiaStudio.Application.Preferences
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Web.Identity
+@using Microsoft.Extensions.DependencyInjection
+
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>@Text("Configuration de l’IA", "AI configuration") · Apologia Studio</PageTitle>
+<DocumentLanguage Language="@_interfaceLanguage" />
+
+<main class="administration-settings-shell">
+    <AdministrationPageHeader
+        Language="@_interfaceLanguage"
+        CurrentSection="ai"
+        Title="@Text("Configuration de l’IA", "AI configuration")"
+        Description="@Text(
+            "Configurez le runtime, les modèles et les limites partagés par l’application.",
+            "Configure the runtime, models, and limits shared by the application.")" />
+
+    <OllamaRuntimeSettingsPanel />
+</main>
+
+@code {
+    private ApplicationLanguage _interfaceLanguage =
+        UserPreferences.DefaultInterfaceLanguage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (!Guid.TryParse(
+                state.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var userId))
+        {
+            return;
+        }
+
+        await using var scope = ServiceScopeFactory.CreateAsyncScope();
+        var resolver = scope.ServiceProvider.GetRequiredService<InterfaceLanguageResolver>();
+        _interfaceLanguage = await resolver.ResolveAsync(userId, CancellationToken.None);
+    }
+
+    private string Text(string french, string english) =>
+        _interfaceLanguage == ApplicationLanguage.English ? english : french;
+}

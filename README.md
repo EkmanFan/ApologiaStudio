@@ -73,7 +73,10 @@ The accepted public-registration, administrator-approval and permission model
 is defined in
 [Authentication and Authorization V1](docs/security/authentication-and-authorization-v1.md).
 Apologia is the authority for human accounts; Document Manager keeps separate
-service credentials and does not own another user directory.
+service credentials and does not own another user directory. Opening the
+embedded or full-screen Manager now uses a signed, short-lived, one-use ticket
+to establish a separate Manager session containing only the relevant Manager
+permissions.
 
 ## Bible corpus query API
 

@@ -1,0 +1,104 @@
+@page "/administration/agents"
+@attribute [Authorize(Policy = SystemPermissions.ManageSettings)]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@using System.Security.Claims
+@using ApologiaStudio.Application.Preferences
+@using ApologiaStudio.Domain.Users
+@using ApologiaStudio.Web.Identity
+@using Microsoft.Extensions.DependencyInjection
+
+@inject IServiceScopeFactory ServiceScopeFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>@Text("Configuration des agents", "Agent configuration") · Apologia Studio</PageTitle>
+<DocumentLanguage Language="@_interfaceLanguage" />
+
+<main class="administration-agents-shell">
+    <AdministrationPageHeader
+        Language="@_interfaceLanguage"
+        CurrentSection="agents"
+        Title="@Text("Configuration des agents", "Agent configuration")"
+        Description="@Text(
+            "Configurez les profils et le comportement des agents disponibles dans Studio.",
+            "Configure the profiles and behavior of agents available in Studio.")">
+        <Actions>
+            <ActionRibbonGroup Label="@Text("Agents", "Agents")">
+                <span class="action-ribbon-note">
+                    @_agentCreationState.ActiveAgentCount / @_agentCreationState.MaximumActiveAgents
+                </span>
+                <button class="action-ribbon-command primary"
+                        type="button"
+                        disabled="@(!_agentCreationState.CanAddAgent)"
+                        title="@AgentCreationTitle()"
+                        @onclick="AddAgentFromRibbonAsync">
+                    @Text("Ajouter un agent", "Add agent")
+                </button>
+            </ActionRibbonGroup>
+        </Actions>
+    </AdministrationPageHeader>
+
+    <AgentSettingsPanel @ref="_agentSettingsPanel"
+                        ActivationVersion="1"
+                        CreationActionStateChanged="HandleAgentCreationStateChanged" />
+</main>
+
+@code {
+    private AgentSettingsPanel? _agentSettingsPanel;
+    private AgentCreationActionState _agentCreationState =
+        AgentCreationActionState.Loading;
+    private ApplicationLanguage _interfaceLanguage =
+        UserPreferences.DefaultInterfaceLanguage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (!Guid.TryParse(
+                state.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var userId))
+        {
+            return;
+        }
+
+        await using var scope = ServiceScopeFactory.CreateAsyncScope();
+        var resolver = scope.ServiceProvider.GetRequiredService<InterfaceLanguageResolver>();
+        _interfaceLanguage = await resolver.ResolveAsync(userId, CancellationToken.None);
+    }
+
+    private string Text(string french, string english) =>
+        _interfaceLanguage == ApplicationLanguage.English ? english : french;
+
+    private Task AddAgentFromRibbonAsync() =>
+        _agentSettingsPanel?.RequestAddAgentAsync() ?? Task.CompletedTask;
+
+    private void HandleAgentCreationStateChanged(
+        AgentCreationActionState state) =>
+        _agentCreationState = state;
+
+    private string AgentCreationTitle()
+    {
+        if (_agentCreationState.IsLoading)
+        {
+            return Text("Chargement des agents…", "Loading agents…");
+        }
+
+        if (_agentCreationState.ActiveAgentCount >=
+            _agentCreationState.MaximumActiveAgents)
+        {
+            return Text(
+                $"Maximum de {_agentCreationState.MaximumActiveAgents} agents atteint.",
+                $"Maximum of {_agentCreationState.MaximumActiveAgents} agents reached.");
+        }
+
+        if (_agentCreationState.HasDraft)
+        {
+            return Text(
+                "Terminez ou annulez le nouvel agent en cours.",
+                "Finish or cancel the current new agent.");
+        }
+
+        return Text(
+            "Ajouter un agent personnalisé",
+            "Add a custom agent");
+    }
+}
