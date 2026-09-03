@@ -20,6 +20,13 @@ PostgreSQL + pgvector Knowledge Store, retrieval projections, and citation
 grounding is recorded in
 [ADR 0002: Knowledge Store and RAG architecture](docs/adr/0002-knowledge-store-and-rag-architecture.md).
 
+Text recovery for pages without an extractable text layer is decided in
+[ADR 0003: Raster page text recovery](docs/adr/0003-raster-page-text-recovery.md):
+recognition stays a Document Manager responsibility and reaches Apologia Studio
+as a distinct `ocr` artifact, rather than growing a second extraction pipeline
+here. The measurements behind that decision are recorded in the
+[Docling spike v1](docs/knowledge-ingestion/docling-spike-v1.md).
+
 Completed DPEngine results enter Apologia Studio through the durable,
 hash-verified Document Manager inbox described in
 [Document Manager consumer v1](docs/knowledge-ingestion/document-manager-consumer-v1.md).
