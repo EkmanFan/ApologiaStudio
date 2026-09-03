@@ -31,17 +31,22 @@ public sealed class GenreFormProfileV1Tests
         // AC-GF-01 and the approved set size.
         Assert.Equal(13, applied.SelectableCount);
 
-        // Section 3: the required ancestors are derived, not declared.
+        // Section 3: ancestors are derived, not declared, and the closure is
+        // transitive — Correspondence and Records (Documents) are reached
+        // through Business correspondence, not named in the specification.
         Assert.Equal(
             [
                 "Business correspondence",
+                "Correspondence",
                 "Creative nonfiction",
                 "Discursive works",
                 "Informational works",
                 "Instructional and educational works",
+                "Records (Documents)",
                 "Religious materials"
             ],
             applied.StructuralOnlyLabels);
+        Assert.Equal(8, applied.StructuralOnlyCount);
 
         var store = new PostgreSqlGenreFormAuthorityStore(context);
         var selectable = await store.GetSelectableTermsAsync(CancellationToken.None);

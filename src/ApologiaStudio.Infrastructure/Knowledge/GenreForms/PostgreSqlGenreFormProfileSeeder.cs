@@ -42,17 +42,22 @@ public sealed class PostgreSqlGenreFormProfileSeeder(
             }
         }
 
+        var structuralLabels = structural
+            .Where(x => !selectableIds.Values.Contains(x.Key))
+            .Select(x => x.Value)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
+
+        // Counted before applying: ApplyEntriesAsync consumes the dictionary.
+        var structuralCount = desired.Count(x => x.Value.Usage == "structural_only");
+
         var changed = await ApplyEntriesAsync(desired, cancellationToken);
 
         return new GenreFormProfileSeedResult(
             GenreFormProfile.Version,
             GenreFormProfile.SelectableLabels.Count,
-            desired.Count(x => x.Value.Usage == "structural_only"),
-            structural
-                .Where(x => !selectableIds.Values.Contains(x.Key))
-                .Select(x => x.Value)
-                .OrderBy(x => x, StringComparer.Ordinal)
-                .ToList(),
+            structuralCount,
+            structuralLabels,
             changed);
     }
 
@@ -97,18 +102,31 @@ public sealed class PostgreSqlGenreFormProfileSeeder(
         return resolved;
     }
 
+    /// <summary>
+    /// Full transitive broader closure: every ancestor of an approved term is
+    /// structural unless it is itself approved. Deterministic, and independent
+    /// of how deep the thesaurus happens to be for a given term.
+    /// </summary>
     private async Task<Dictionary<Guid, string>> DeriveStructuralAncestorsAsync(
         IReadOnlyList<Guid> selectableIds,
         CancellationToken cancellationToken)
     {
-        // Direct ancestors only: they are what a reader needs to situate an
-        // approved term. Deeper ancestors stay imported but unprofiled.
-        var ancestorIds = await context.GenreFormBroaderRelations
-            .AsNoTracking()
-            .Where(x => selectableIds.Contains(x.NarrowerTermId))
-            .Select(x => x.BroaderTermId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var ancestorIds = new HashSet<Guid>();
+        var frontier = selectableIds.ToList();
+
+        while (frontier.Count > 0)
+        {
+            var parents = await context.GenreFormBroaderRelations
+                .AsNoTracking()
+                .Where(x => frontier.Contains(x.NarrowerTermId))
+                .Select(x => x.BroaderTermId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            // Adding returns false for an ancestor already seen, which also
+            // terminates the walk if the authority ever contains a cycle.
+            frontier = parents.Where(ancestorIds.Add).ToList();
+        }
 
         var ancestors = await context.GenreFormTerms
             .AsNoTracking()

@@ -144,20 +144,32 @@ Authority identifiers are never hard-coded: the seeder resolves each label
 against the imported snapshot and fails closed when a label is absent or
 ambiguous, so the profile cannot drift from the authority it claims to follow.
 
-The required structural ancestors are **derived** from the imported hierarchy
-rather than declared. Applying the profile over the 2026-09-03 snapshot yields:
+The structural ancestors are **derived** from the imported hierarchy rather
+than declared, by one deterministic rule:
+
+> every ancestor of a selectable term is structural, unless it is itself
+> selectable.
+
+The closure is transitive, so profile membership does not depend on how deep
+the thesaurus happens to be for a given term. Applying it over the 2026-09-03
+snapshot yields:
 
 ```text
 selectable       13
-structural only   6   Business correspondence, Creative nonfiction,
-                      Discursive works, Informational works,
-                      Instructional and educational works, Religious materials
+structural only   8   Business correspondence, Correspondence,
+                      Creative nonfiction, Discursive works,
+                      Informational works,
+                      Instructional and educational works,
+                      Records (Documents), Religious materials
 ```
 
-Those six are exactly the direct ancestors of an approved term that are not
-themselves approved. `Biographies` is both approved and an ancestor of
-`Hagiographies`; it stays selectable, and the redundancy is prevented at
-assignment time rather than by demoting it.
+Six are direct parents of an approved term. `Correspondence` and
+`Records (Documents)` are reached transitively through
+`Business correspondence`, the ancestor of `Pastoral letters and charges`.
+
+`Biographies` is both approved and an ancestor of `Hagiographies`; it stays
+selectable, and the redundancy is prevented at assignment time rather than by
+demoting it.
 
 Apply the profile as an explicit maintenance operation:
 
