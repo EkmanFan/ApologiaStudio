@@ -38,7 +38,16 @@ internal sealed class GenreFormEvaluationHarness
         _telemetry = telemetry;
     }
 
+    /// <summary>
+    /// The output budget the product actually configures. A framing whose
+    /// response does not fit inside it is truncated into invalid JSON, which
+    /// would otherwise be misread as a quality result.
+    /// </summary>
+    public const int ProductionMaximumOutputTokens = 800;
+
     public string Model { get; private init; } = string.Empty;
+
+    public int MaximumOutputTokens { get; private init; } = ProductionMaximumOutputTokens;
 
     public IStructuredGenerationRuntime Runtime { get; private init; } = null!;
 
@@ -51,18 +60,18 @@ internal sealed class GenreFormEvaluationHarness
     /// </summary>
     public static GenreFormEvaluationHarness CreateWithTermOrder(
         string model,
-        Func<IReadOnlyList<GenreFormPolicyTerm>, IReadOnlyList<GenreFormPolicyTerm>> order)
+        Func<IReadOnlyList<GenreFormPolicyTerm>, IReadOnlyList<GenreFormPolicyTerm>> order,
+        GenreFormClassifierFactory? condition = null,
+        int? maximumOutputTokens = null)
     {
-        var baseline = Create(model);
+        var baseline = Create(model, maximumOutputTokens: maximumOutputTokens);
         var reordered = new GenreFormPolicySnapshot(
             baseline.Policy.PolicyVersion,
             order(baseline.Policy.Terms));
 
-        var classifier = new StructuredGenreFormClassifier(
+        var classifier = (condition ?? GenreFormConditions.JointSubsetSelection)(
             baseline.Runtime,
-            new StaticGenreFormPolicyProvider(reordered),
-            new GenreFormClassificationValidator(),
-            TimeProvider.System);
+            reordered);
 
         return new GenreFormEvaluationHarness(
             reordered,
@@ -70,11 +79,20 @@ internal sealed class GenreFormEvaluationHarness
             baseline._telemetry)
         {
             Model = model,
-            Runtime = baseline.Runtime
+            Runtime = baseline.Runtime,
+            MaximumOutputTokens = baseline.MaximumOutputTokens
         };
     }
 
-    public static GenreFormEvaluationHarness Create(string model)
+    /// <summary>
+    /// EVAL-5: the framing under test is injected, so every condition is scored
+    /// by the same runner, the same cases and the same deterministic policy
+    /// validation. Only the prompt and response shape differ.
+    /// </summary>
+    public static GenreFormEvaluationHarness Create(
+        string model,
+        GenreFormClassifierFactory? condition = null,
+        int? maximumOutputTokens = null)
     {
         var policy = LoadPolicy();
         var telemetry = new RecordingStructuredGenerationTelemetry();
@@ -89,7 +107,7 @@ internal sealed class GenreFormEvaluationHarness
             "5m",
             24,
             24_000,
-            800,
+            maximumOutputTokens ?? ProductionMaximumOutputTokens,
             DateTimeOffset.UtcNow,
             new Dictionary<Guid, string>());
 
@@ -98,16 +116,15 @@ internal sealed class GenreFormEvaluationHarness
             new EvaluationOllamaHttpClientFactory(),
             telemetry);
 
-        var classifier = new StructuredGenreFormClassifier(
+        var classifier = (condition ?? GenreFormConditions.JointSubsetSelection)(
             runtime,
-            new StaticGenreFormPolicyProvider(policy),
-            new GenreFormClassificationValidator(),
-            TimeProvider.System);
+            policy);
 
         return new GenreFormEvaluationHarness(policy, classifier, telemetry)
         {
             Model = model,
-            Runtime = runtime
+            Runtime = runtime,
+            MaximumOutputTokens = maximumOutputTokens ?? ProductionMaximumOutputTokens
         };
     }
 
@@ -282,15 +299,6 @@ internal sealed class GenreFormEvaluationHarness
     public string LabelFor(string authorityUri) =>
         _policy.Find(authorityUri)?.PreferredLabel ?? authorityUri;
 
-    private sealed class StaticGenreFormPolicyProvider(
-        GenreFormPolicySnapshot policy)
-        : IGenreFormPolicyProvider
-    {
-        public Task<GenreFormPolicySnapshot> GetActivePolicyAsync(
-            CancellationToken cancellationToken) =>
-            Task.FromResult(policy);
-    }
-
     private sealed class RecordingStructuredGenerationTelemetry
         : IStructuredGenerationTelemetry
     {
@@ -310,6 +318,47 @@ internal sealed class GenreFormEvaluationHarness
         {
         }
     }
+}
+
+internal sealed class StaticGenreFormPolicyProvider(
+    GenreFormPolicySnapshot policy)
+    : IGenreFormPolicyProvider
+{
+    public Task<GenreFormPolicySnapshot> GetActivePolicyAsync(
+        CancellationToken cancellationToken) =>
+        Task.FromResult(policy);
+}
+
+/// <summary>
+/// Builds the classifier under test for one experimental condition. The policy
+/// is passed in rather than resolved, so a reordered candidate list reaches the
+/// prompt of every condition identically.
+/// </summary>
+internal delegate IGenreFormClassifier GenreFormClassifierFactory(
+    IStructuredGenerationRuntime runtime,
+    GenreFormPolicySnapshot policy);
+
+/// <summary>
+/// EVAL-5 conditions. Only A is production behaviour; B exists in this project
+/// alone and is not proposed as production framing until it passes the gate.
+/// </summary>
+internal static class GenreFormConditions
+{
+    /// <summary>A — current joint subset-selection framing.</summary>
+    public static GenreFormClassifierFactory JointSubsetSelection { get; } =
+        (runtime, policy) => new StructuredGenreFormClassifier(
+            runtime,
+            new StaticGenreFormPolicyProvider(policy),
+            new GenreFormClassificationValidator(),
+            TimeProvider.System);
+
+    /// <summary>B — independent decision matrix, single inference.</summary>
+    public static GenreFormClassifierFactory IndependentDecisionMatrix { get; } =
+        (runtime, policy) => new GenreFormDecisionMatrixClassifier(
+            runtime,
+            policy,
+            new GenreFormClassificationValidator(),
+            TimeProvider.System);
 }
 
 internal sealed class GenreFormEvaluationCase
