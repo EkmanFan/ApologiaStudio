@@ -33,8 +33,9 @@ internal sealed record GenreFormStabilityReport(
         builder.AppendLine("## Per case");
         builder.AppendLine();
         builder.AppendLine(
-            "| Case | Expected | Exact | Insufficient | Failures | Latency ms (min/med/max) |");
-        builder.AppendLine("|---|---|---:|---:|---:|---|");
+            "| Case | Expected | Exact | Insufficient | Failures | Payload | " +
+            "Latency ms (min/med/max) |");
+        builder.AppendLine("|---|---|---:|---:|---:|---:|---|");
 
         foreach (var item in Cases)
         {
@@ -49,6 +50,7 @@ internal sealed record GenreFormStabilityReport(
                 $"| {item.ExactCount}/{item.Results.Count} " +
                 $"| {item.InsufficientCount} " +
                 $"| {item.ContractFailures + item.InferenceFailures} " +
+                $"| {item.Case.PayloadCharacters} " +
                 $"| {latencies[0]:F0} / {latencies[latencies.Count / 2]:F0} / {latencies[^1]:F0} |");
         }
 

@@ -16,8 +16,11 @@ public sealed class GenreFormEvaluationTests
         // Deterministic: the case set is checked without any model.
         var cases = GenreFormEvaluationCase.Load();
 
+        // The eleven approved reference cases are the immutable corpus;
+        // enrichment variants are carried alongside, never in place of them.
         Assert.Equal(11, cases.Count(x => x.Kind == "reference"));
         Assert.NotEmpty(cases.Where(x => x.Kind == "adversarial"));
+        Assert.NotEmpty(cases.Where(x => x.Kind == "enrichment"));
 
         Assert.All(
             cases,
@@ -25,7 +28,11 @@ public sealed class GenreFormEvaluationTests
             {
                 Assert.False(string.IsNullOrWhiteSpace(x.Id));
                 Assert.False(string.IsNullOrWhiteSpace(x.Title));
-                Assert.Equal("curated", x.Source);
+
+                // Curated and source-supported evidence must stay
+                // distinguishable: a conclusion drawn from the work itself is
+                // not the same kind of evidence as one written for the test.
+                Assert.Contains(x.Source, new[] { "curated", "source-supported" });
             });
 
         Assert.Equal(
@@ -142,6 +149,114 @@ public sealed class GenreFormEvaluationTests
         Console.WriteLine($"report written to {output}");
 
         Assert.Equal(StabilityCaseIds.Length, report.Cases.Count);
+    }
+
+    /// <summary>
+    /// EVAL-3: only the evidence changes. Same model, prompt, policy, options,
+    /// validator and repetition count as EVAL-2, so the delta is attributable
+    /// to the payload alone. Controls are carried unchanged so a recall gain
+    /// bought with false positives would be visible.
+    /// </summary>
+    private static readonly string[] EnrichmentCaseIds =
+    [
+        "de-decretis",
+        "de-decretis-enriched",
+        "papacy-essay",
+        "papacy-essay-enriched",
+        "contra-gentes",
+        "bauckham-eyewitnesses"
+    ];
+
+    [Fact]
+    public async Task Genre_form_evidence_enrichment_is_measured()
+    {
+        if (!LocalModelEvaluationSupport.IsEnabled())
+        {
+            return;
+        }
+
+        var model = Environment.GetEnvironmentVariable("OLLAMA_GENRE_FORM_MODEL")
+                    ?? LocalModelEvaluationSupport.GetResponseModel();
+
+        var repetitions = int.TryParse(
+            Environment.GetEnvironmentVariable("GENRE_FORM_STABILITY_REPETITIONS"),
+            out var configured)
+            ? configured
+            : 10;
+
+        var harness = GenreFormEvaluationHarness.Create(model);
+        var all = GenreFormEvaluationCase.Load();
+
+        var cases = new List<GenreFormStabilityCase>();
+
+        foreach (var id in EnrichmentCaseIds)
+        {
+            var evaluationCase = all.Single(x => x.Id == id);
+
+            var results = await harness.RepeatAsync(
+                evaluationCase,
+                repetitions,
+                CancellationToken.None);
+
+            cases.Add(new GenreFormStabilityCase(
+                evaluationCase,
+                results[0].Expected,
+                results));
+        }
+
+        var report = new GenreFormStabilityReport(
+            model,
+            StructuredGenreFormClassifier.PromptVersion,
+            GenreFormProfile.Version,
+            repetitions,
+            DateTimeOffset.UtcNow,
+            cases);
+
+        var markdown = report.ToMarkdown(harness.LabelFor);
+
+        var output = Environment.GetEnvironmentVariable("GENRE_FORM_ENRICHMENT_REPORT")
+                     ?? Path.Combine(
+                         AppContext.BaseDirectory,
+                         "genre-form-enrichment-report.md");
+
+        await File.WriteAllTextAsync(output, markdown);
+
+        Console.WriteLine(markdown);
+        Console.WriteLine($"report written to {output}");
+
+        Assert.Equal(EnrichmentCaseIds.Length, report.Cases.Count);
+    }
+
+    [Fact]
+    public void Enriched_evidence_never_names_the_expected_label()
+    {
+        // The payload must describe the work, not tell the model the answer.
+        var enriched = GenreFormEvaluationCase.Load()
+            .Where(x => x.Kind == "enrichment")
+            .ToList();
+
+        Assert.NotEmpty(enriched);
+
+        string[] forbidden =
+        [
+            "apologetic", "apologétique", "apologie",
+            "essay", "essai",
+            "academic thesis", "textbook", "sacred work"
+        ];
+
+        foreach (var evaluationCase in enriched)
+        {
+            var payload = string.Join(
+                " ",
+                new[] { evaluationCase.Title, evaluationCase.Description }
+                    .Concat(evaluationCase.Sections.Select(x => x.Text)))
+                .ToLowerInvariant();
+
+            foreach (var term in forbidden)
+            {
+                Assert.DoesNotContain(term, payload, StringComparison.Ordinal);
+            }
+        }
     }
 
     [Fact]

@@ -309,6 +309,20 @@ internal sealed class GenreFormEvaluationCase
     [JsonPropertyName("description")]
     public string? Description { get; init; }
 
+    [JsonPropertyName("sections")]
+    public IReadOnlyList<GenreFormEvaluationSection> Sections { get; init; } = [];
+
+    /// <summary>
+    /// Rough size of the evidence actually sent, so an enrichment experiment
+    /// can be reported against its payload cost.
+    /// </summary>
+    public int PayloadCharacters =>
+        (Title?.Length ?? 0) +
+        Contributors.Sum(x => x.Length) +
+        (EditionStatement?.Length ?? 0) +
+        (Description?.Length ?? 0) +
+        Sections.Sum(x => x.Text.Length);
+
     public MetadataReviewEvidence ToEvidence() =>
         new(
             Title,
@@ -319,7 +333,12 @@ internal sealed class GenreFormEvaluationCase
             null,
             null,
             Description,
-            []);
+            Sections
+                .Select(x => new MetadataReviewEvidenceSection(
+                    x.Kind,
+                    x.Reference,
+                    x.Text))
+                .ToList());
 
     public static IReadOnlyList<GenreFormEvaluationCase> Load()
     {
@@ -334,6 +353,18 @@ internal sealed class GenreFormEvaluationCase
                ?? throw new InvalidOperationException(
                    "The evaluation case set could not be read.");
     }
+}
+
+internal sealed class GenreFormEvaluationSection
+{
+    [JsonPropertyName("kind")]
+    public string Kind { get; init; } = string.Empty;
+
+    [JsonPropertyName("reference")]
+    public string? Reference { get; init; }
+
+    [JsonPropertyName("text")]
+    public string Text { get; init; } = string.Empty;
 }
 
 internal enum GenreFormCaseStatus

@@ -77,6 +77,16 @@ No term was ever proposed.
 - Output tokens: min 52, median 83, max 517
 
 
+## Corrected by EVAL-3
+
+The claim below that `de-decretis` fails systematically does not hold.
+[EVAL-3](genre-form-mra-enrichment-2026-09-04.md) re-ran the identical payload
+and observed 3 successes in 10. Ten repetitions separate 10/10 from 0/10; they
+do not characterise anything in between. Read the `de-decretis` result here as
+low-success and high-variance, not as never.
+
+The `papacy-essay` finding does hold: 0 of 20 runs across two payloads.
+
 ## What the repetition settles
 
 **Two of the three baseline misses are systematic, not bad luck.**
