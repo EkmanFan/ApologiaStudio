@@ -163,6 +163,25 @@ internal sealed class GenreFormEvaluationHarness
             results);
     }
 
+    /// <summary>
+    /// Repeats one case unchanged. Inference parameters are untouched, so any
+    /// variation observed is the model's own sampling, not configuration.
+    /// </summary>
+    public async Task<IReadOnlyList<GenreFormCaseResult>> RepeatAsync(
+        GenreFormEvaluationCase evaluationCase,
+        int repetitions,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<GenreFormCaseResult>();
+
+        for (var index = 0; index < repetitions; index++)
+        {
+            results.Add(await RunCaseAsync(evaluationCase, cancellationToken));
+        }
+
+        return results;
+    }
+
     private async Task<GenreFormCaseResult> RunCaseAsync(
         GenreFormEvaluationCase evaluationCase,
         CancellationToken cancellationToken)

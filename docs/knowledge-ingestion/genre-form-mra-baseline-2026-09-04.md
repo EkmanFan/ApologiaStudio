@@ -117,6 +117,15 @@ Three misses on `qwen3.8:27b`:
 **Latency is bimodal.** Median 3.8 s, but the two hardest cases took 18.4 s and
 11.6 s. Both are misses. Long generation correlates with hesitation here.
 
+## Qualified by the stability study
+
+The repeated-inference study in
+[EVAL-2](genre-form-mra-stability-2026-09-04.md) refines two figures here.
+`de-decretis` and `papacy-essay` fail systematically rather than by chance,
+while the `adversarial-translated-sacred-work` miss was the unlucky run of
+nine successes in ten. And the FP=0 above is a single-sample result: one false
+positive appears over eighty repeated inferences.
+
 ## Known limitations of this baseline
 
 Evidence is **curated metadata-level fixtures**, not end-to-end real documents.
