@@ -40,6 +40,40 @@ internal sealed class GenreFormEvaluationHarness
 
     public string Model { get; private init; } = string.Empty;
 
+    public IStructuredGenerationRuntime Runtime { get; private init; } = null!;
+
+    public GenreFormPolicySnapshot Policy => _policy;
+
+    /// <summary>
+    /// EVAL-4B: the production prompt lists candidate terms in policy order,
+    /// so reordering the policy reorders the prompt without touching any
+    /// production code.
+    /// </summary>
+    public static GenreFormEvaluationHarness CreateWithTermOrder(
+        string model,
+        Func<IReadOnlyList<GenreFormPolicyTerm>, IReadOnlyList<GenreFormPolicyTerm>> order)
+    {
+        var baseline = Create(model);
+        var reordered = new GenreFormPolicySnapshot(
+            baseline.Policy.PolicyVersion,
+            order(baseline.Policy.Terms));
+
+        var classifier = new StructuredGenreFormClassifier(
+            baseline.Runtime,
+            new StaticGenreFormPolicyProvider(reordered),
+            new GenreFormClassificationValidator(),
+            TimeProvider.System);
+
+        return new GenreFormEvaluationHarness(
+            reordered,
+            classifier,
+            baseline._telemetry)
+        {
+            Model = model,
+            Runtime = baseline.Runtime
+        };
+    }
+
     public static GenreFormEvaluationHarness Create(string model)
     {
         var policy = LoadPolicy();
@@ -72,7 +106,8 @@ internal sealed class GenreFormEvaluationHarness
 
         return new GenreFormEvaluationHarness(policy, classifier, telemetry)
         {
-            Model = model
+            Model = model,
+            Runtime = runtime
         };
     }
 
