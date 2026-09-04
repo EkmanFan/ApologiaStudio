@@ -1,8 +1,15 @@
 # Genre/Form classifier — architecture review post-EVAL-5 — 2026-09-04
 
-Status: review. No decision is taken here and no experiment was run for it. It
-defines the criteria a later experiment must answer, and records what is
-demonstrated against what remains hypothetical.
+Status: review, **partly superseded**. Two passages below were true when
+written and are false now; both are corrected in place and marked, because this
+document is authoritative rather than historical. The protocol that supersedes
+its experimental section is
+`genre-form-classifier-experimental-protocol-2026-09-04.md`, which also fixes
+the naming: the candidates are **LLM-PER-LABEL** and **ENCODER**, since A/B/C
+already name the EVAL-5 framings.
+
+No decision is taken here. It defines the criteria a later experiment must
+answer, and records what is demonstrated against what remains hypothetical.
 
 Nothing in this review executed an Ollama inference, an encoder training, an
 evaluation or any GPU workload. It rests on the committed EVAL-1..5 reports, on
@@ -138,6 +145,17 @@ highest-support classes. This is the signature of an under-trained imbalanced
 multi-label head read at a fixed 0.5 threshold, on 695 training examples — not
 evidence that the approach fails. It is also not evidence that it works.
 
+> **CORRECTION, same day.** Two artifacts produced after this review —
+> `score-diagnostics-v1.json` and `threshold-tuning-v1.json` — calibrate one
+> threshold per label on the validation split only
+> (`test_used_for_threshold_selection: false`). At those thresholds **no label
+> is silent**, test macro F1 rises 0.207 → 0.540 and exact-set 0.151 → 0.237.
+> Per-label ROC-AUC runs 0.781 to 0.973, so a ranking signal exists for every
+> label. The six silent labels were a threshold artifact, as suspected here;
+> that reading stands, the "uncalibrated" state does not. `Apologetic writings`
+> remains the weakest label — PR-AUC 0.272, P 0.40 / R 0.13. Full numbers in the
+> protocol document, §1.
+
 Demonstrated strengths:
 
 - Structural independence by construction: independent sigmoid heads, no
@@ -181,11 +199,18 @@ EVAL-5 case set cannot support per-label precision claims at all: with 21 cases
 and 14 labels, most labels have a handful of positives or none. The LoC test set
 has ten times the per-label support but the wrong feature distribution.
 
-**Whether candidate A can produce a score is unverified.** The current runtime
-returns none and requests none. Whether the installed Ollama build can return
-token logprobs at all is a one-call question that this review deliberately did
-not ask. If the answer is no, criterion 3 is structurally unavailable to A and
-the comparison is largely settled on that alone.
+**LLM-PER-LABEL has no score, and logprobs would not by themselves be one.**
+The current runtime returns none and requests none.
+
+> **CORRECTION.** This section previously implied that available Ollama
+> logprobs would give the LLM path a per-label threshold mechanism. That was an
+> overstatement. A token logprob is confidence in emitting a token, not a
+> calibrated probability that a genre/form term applies. Discrimination,
+> stability under `temperature = 0.2`, and calibratability would each have to be
+> demonstrated, and each can fail independently. See the protocol document, §5.
+> For ENCODER the sigmoid outputs *are* a per-label score by construction, and
+> their per-label ROC-AUC is already measured. The asymmetry is structural and
+> must not be flattened into "both could have scores".
 
 **The about-versus-is discrimination has never been measured for either
 candidate.** `adversarial-study-of-sermons` is the one case that isolates it. It
@@ -197,10 +222,13 @@ which is precisely the failure mode. **The criterion that most distinguishes a
 form classifier from a topic classifier is the one with no measurement on
 either side.**
 
-**The encoder's thresholds are uncalibrated.** Six zero-prediction labels at a
-fixed 0.5 threshold is very likely an artifact. Until per-label thresholds are
-fitted on the validation split, the baseline understates the approach by an
-unknown margin, and comparing against it would be unfair.
+**~~The encoder's thresholds are uncalibrated.~~ WITHDRAWN.** They were
+calibrated on the validation split hours after this review was written, and the
+suspicion recorded here was confirmed. What remains open is different: the
+current tuning maximises F1 per label, which bought `Sermons` a 0.190 threshold
+and 40 predicted positives for 16 true ones. F1 is the wrong selection objective
+for a reviewer-facing assistant, and the protocol replaces it with explicit
+precision floors.
 
 **Transfer is unmeasured.** A model trained on LoC title plus notes has never
 been shown to work on MRA evidence, which is a different distribution with body
@@ -270,7 +298,15 @@ MRA evidence with body excerpts. `text_title_notes` is a common denominator
 chosen because both candidates can consume it, not because it is the production
 input. Whichever candidate wins, transfer remains a separate measurement.
 
-## 6. Preliminary reading, offered as a position and not a decision
+## 6. Preliminary reading — WITHDRAWN as a proposal
+
+The hybrid cascade sketched below is **not** a candidate and must not be
+pre-selected. The rule now in force: evaluate ENCODER alone, evaluate
+LLM-PER-LABEL alone, adopt the simpler mechanism if it suffices, and study a
+cascade only if the evidence shows neither satisfies the criteria on its own.
+The paragraphs are kept for the reasoning they record, not as a recommendation.
+
+## 6bis. Preliminary reading, offered as a position and not a decision
 
 Candidate B is the only one that can satisfy criterion 3 at all, and it
 satisfies criteria 1 and 4 by construction rather than by measurement — which is
