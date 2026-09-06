@@ -1,0 +1,202 @@
+{
+  "source_document": "/home/mallory/RiderProjects/SpikeEncoder/docs/02-reference/taxonomy/LCGFT-GenreForm-Labeling-Policy-v2.md",
+  "source_sha256": "f865b0f531e1d3f1fb5b6f313564fa53508e6dfc7133a6a09066800866d72c1d",
+  "language": "fr",
+  "extraction": "Verbatim. Definition / positives / exclusions / hard negatives only. No rewriting, no translation, no harmonisation of the source's wording.",
+  "machine_label_count": 24,
+  "known_gaps": [],
+  "labels": {
+    "textbook": {
+      "label": "textbook",
+      "source_section": "## 9.1 `textbook`",
+      "definition": "Ressource conçue principalement pour l'enseignement ou l'apprentissage structuré d'une discipline ou d'un domaine, notamment dans un contexte scolaire, universitaire ou de formation.",
+      "positives": "- désignation explicite comme textbook, manuel, course text ;\n- organisation pédagogique progressive ;\n- exercices, questions, objectifs, résumés, activités ou dispositifs d'apprentissage ;\n- ouvrage explicitement destiné à des étudiants ou à un cours ;\n- adoption pédagogique corroborée par d'autres indices structurels ;\n- structure démontrant une fonction pédagogique principale.",
+      "exclusions": "- ouvrage d'introduction à une discipline sans évidence suffisante qu'il ait été conçu comme support structuré d'enseignement ou d'apprentissage ;\n- ouvrage simplement accessible aux débutants sans fonction pédagogique démontrée ;\n- monographie de recherche dont la fonction principale n'est pas pédagogique ;\n- vulgarisation générale ;\n- handbook pratique ;\n- guide d'étude accompagnant principalement une autre œuvre.",
+      "hard_negatives": null
+    },
+    "handbook_manual": {
+      "label": "handbook_manual",
+      "source_section": "## 9.2 `handbook_manual`",
+      "definition": "Ressource de consultation ou d'application pratique fournissant procédures, règles, méthodes, instructions ou références opérationnelles.",
+      "positives": "- `handbook`;\n- `manual`;\n- `guide pratique`;\n- ouvrage conçu pour être consulté pendant l'exécution d'une activité.",
+      "exclusions": "- textbook structuré pour un programme ;\n- dictionnaire ;\n- encyclopédie ;\n- simple monographie donnant des conseils.",
+      "hard_negatives": null
+    },
+    "dictionary": {
+      "label": "dictionary",
+      "source_section": "## 9.4 `dictionary`",
+      "definition": "Ressource structurée principalement comme ensemble d'entrées lexicales ou terminologiques donnant définitions, équivalents, explications ou informations associées.",
+      "positives": "- dictionnaire général ;\n- dictionnaire spécialisé ;\n- dictionnaire théologique ;\n- dictionnaire philosophique ;\n- dictionnaire biblique.",
+      "exclusions": "- encyclopédie à articles développés ;\n- glossaire très court incorporé dans un autre ouvrage ;\n- index ;\n- concordance.",
+      "hard_negatives": null
+    },
+    "encyclopedia": {
+      "label": "encyclopedia",
+      "source_section": "## 9.5 `encyclopedia`",
+      "definition": "Ressource de référence organisée en articles ou entrées visant une couverture synthétique d'un domaine ou de connaissances générales.",
+      "positives": "- encyclopédie générale ;\n- encyclopédie biblique ;\n- encyclopédie de philosophie ;\n- encyclopédie scientifique.",
+      "exclusions": "- dictionnaire principalement lexical ;\n- handbook pratique ;\n- recueil d'essais sans structure encyclopédique.",
+      "hard_negatives": null
+    },
+    "academic_degree_work": {
+      "label": "academic_degree_work",
+      "source_section": "## 9.6 `academic_degree_work`",
+      "definition": "Travail académique substantiel produit dans le cadre formel de l'obtention d'un diplôme, grade ou certification académique/professionnelle.",
+      "positives": "Peuvent relever du concept lorsque leur statut institutionnel est démontré :\n\n```text\nFR\n- thèse de doctorat\n- mémoire de master\n- mémoire professionnel\n- travail de fin d'études\n\nEN\n- thesis\n- dissertation\n- master's thesis/dissertation\n- doctoral dissertation\n```\n\nLa présence de l'un de ces mots dans un titre ou une notice n'est pas suffisante à elle seule ; il faut établir qu'il s'agit bien d'un travail produit dans le cadre formel d'une qualification.",
+      "exclusions": "- dissertation française au sens d'exercice argumentatif ;\n- student essay / devoir académique ;\n- examen écrit ;\n- article scientifique ;\n- rapport de recherche non diplômant ;\n- monographie publiée issue d'une thèse lorsque l'œuvre publiée n'est plus elle-même le travail diplômant ;\n- mémoire au sens autobiographique ;\n- memoir au sens récit personnel.",
+      "hard_negatives": null
+    },
+    "conference_proceedings": {
+      "label": "conference_proceedings",
+      "source_section": "## 9.7 `conference_proceedings`",
+      "definition": "Publication réunissant les communications, articles, résumés ou comptes rendus issus d'une conférence, colloque, congrès, symposium ou workshop.",
+      "positives": "- actes publiés ;\n- proceedings ;\n- collection des communications d'un colloque.",
+      "exclusions": "- une communication individuelle seule ;\n- programme de conférence ;\n- flyer ;\n- monographie issue ultérieurement d'un colloque mais restructurée comme ouvrage autonome.",
+      "hard_negatives": null
+    },
+    "anthology": {
+      "label": "anthology",
+      "source_section": "## 9.8 `anthology`",
+      "definition": "Sélection intentionnelle de textes, œuvres ou contributions distinctes, réunis pour représenter un thème, une période, un genre, une tradition ou un corpus.\n\nLe caractère structurant est :\n\n```text\nselection + curation",
+      "positives": "- anthologie de textes de plusieurs auteurs ;\n- sélection de textes historiques ;\n- anthologie littéraire ;\n- recueil thématique de textes préexistants ;\n- sélection de sermons lorsque le geste éditorial de sélection/curation est constitutif.",
+      "exclusions": "- réunion de plusieurs œuvres d'un même auteur lorsque le principe organisateur est l'œuvre de cet auteur (`collected_works`) ;\n- ouvrage collectif composé de contributions coordonnées spécifiquement pour le volume (`edited_volume`) ;\n- actes de congrès lorsque la provenance conférence est le caractère premier (`conference_proceedings`) ;\n- monographie collective écrite comme ouvrage unifié.",
+      "hard_negatives": null
+    },
+    "collected_works": {
+      "label": "collected_works",
+      "source_section": "## 9.9 `collected_works`",
+      "definition": "Réunion de plusieurs œuvres distinctes d'un même auteur, généralement avec une visée d'exhaustivité, de sélection représentative ou de conservation de son corpus.\n\nLe caractère structurant est :\n\n```text\nsame author",
+      "positives": "- œuvres complètes d'un auteur ;\n- œuvres choisies d'un auteur ;\n- collected writings ;\n- selected works.",
+      "exclusions": "- anthologie multi-auteurs structurée par sélection thématique ;\n- ouvrage collectif dirigé ;\n- simple édition d'une seule œuvre ;\n- recueil de textes anonymes ou de provenances multiples.",
+      "hard_negatives": null
+    },
+    "edited_volume": {
+      "label": "edited_volume",
+      "source_section": "## 9.10 `edited_volume`",
+      "definition": "Ouvrage composé de contributions autonomes de plusieurs auteurs, coordonnées par un ou plusieurs directeurs scientifiques ou éditeurs autour d'un thème commun.\n\nLe caractère structurant est :\n\n```text\ncoordinated contributions",
+      "positives": "- ouvrage académique multi-auteurs dirigé ;\n- handbook scientifique composé de chapitres confiés à différents spécialistes ;\n- volume thématique issu d'un projet collectif lorsque les contributions ont été coordonnées pour l'ouvrage.",
+      "exclusions": "- simple anthologie de textes préexistants ;\n- œuvres réunies d'un seul auteur ;\n- actes de congrès lorsque la provenance conférence est structurante ;\n- monographie co-écrite comme texte unifié.",
+      "hard_negatives": null
+    },
+    "biography": {
+      "label": "biography",
+      "source_section": "## 9.11 `biography`",
+      "definition": "Récit substantiel de la vie d'une personne écrit principalement par une autre personne.",
+      "positives": "- biographies complètes ;\n- vies de saints écrites par autrui ;\n- biographie intellectuelle.",
+      "exclusions": "- autobiographie ;\n- mémoires ;\n- simple étude d'une doctrine d'un auteur ;\n- recueil de lettres.",
+      "hard_negatives": null
+    },
+    "autobiography": {
+      "label": "autobiography",
+      "source_section": "## 9.12 `autobiography`",
+      "definition": "Œuvre dans laquelle une personne raconte rétrospectivement sa propre vie, ou une part substantielle de celle-ci, avec sa trajectoire personnelle comme objet principal.\n\nPrincipe discriminant :\n\n```text\n\"I tell the story of my life\"",
+      "positives": "- autobiographie complète ;\n- récit de vie centré sur l'auteur ;\n- parcours intellectuel ou spirituel raconté comme histoire de vie.",
+      "exclusions": "- biographie écrite par un tiers ;\n- témoignage centré principalement sur un événement ou une période spécifique ;\n- journal tenu au fil des événements ;\n- mémoire académique ou professionnel diplômant.",
+      "hard_negatives": null
+    },
+    "personal_narrative": {
+      "label": "personal_narrative",
+      "source_section": "## 9.14 `personal_narrative`",
+      "definition": "Récit non fictionnel dans lequel l'auteur témoigne principalement d'événements, d'une période, d'une expérience ou d'un contexte qu'il a personnellement vécus.\n\nPrincipe discriminant :\n\n```text\n\"I tell what I lived through\"",
+      "positives": "- mémoires au sens autobiographique ;\n- témoignage de guerre ou de persécution ;\n- récit de conversion ;\n- récit d'expérience professionnelle ou historique ;\n- survivorship narrative ;\n- memoir anglais centré sur une période, un événement ou une transformation.",
+      "exclusions": "- autobiographie lorsque la trajectoire globale de vie est l'objet principal ;\n- biographie d'autrui ;\n- journal tenu au fil des événements ;\n- travail académique diplômant ;\n- récit fictif à la première personne.",
+      "hard_negatives": null
+    },
+    "essays": {
+      "label": "essays",
+      "source_section": "## 9.13 `essays`",
+      "definition": "Œuvre non fictionnelle relativement brève, ou ensemble de telles œuvres, principalement réflexive, interprétative ou argumentative, dans laquelle un auteur développe un point de vue personnel ou intellectuel sans viser l'exposition systématique caractéristique d'un traité, d'un manuel ou d'une monographie de recherche.",
+      "positives": null,
+      "exclusions": null,
+      "hard_negatives": "French dissertation\nstudent essay\nacademic assignment\nexam essay\nshort answer written for assessment\n!=\nproduct genre \"essay\"\n```\n\nRègle critique :\n\n```text\nargumentative nonfiction\n!=\nessay\n```\n\nLe caractère argumentatif, scolaire ou universitaire d'un texte ne suffit pas à produire ce label."
+    },
+    "commentary": {
+      "label": "commentary",
+      "source_section": "## 9.15 `commentary`",
+      "definition": "Œuvre structurée principalement autour de l'explication, de l'interprétation ou de l'analyse suivie d'une autre œuvre ou d'un texte source identifiable.",
+      "positives": "- commentaire biblique ;\n- commentaire d'un texte classique ;\n- commentaire juridique lorsque sémantiquement comparable ;\n- ouvrage organisé section par section autour du texte commenté.",
+      "exclusions": "- ouvrage simplement **sur** la Bible ;\n- critique littéraire générale ;\n- étude historique d'un livre biblique ;\n- monographie thématique.",
+      "hard_negatives": null
+    },
+    "apologetic_writing": {
+      "label": "apologetic_writing",
+      "source_section": "## 9.16 `apologetic_writing`",
+      "definition": "Œuvre dont l'objectif principal est de défendre, justifier ou expliquer rationnellement une religion, confession ou système religieux face à des objections, critiques ou alternatives.",
+      "positives": "- défense explicite du christianisme ;\n- défense d'une confession religieuse face aux critiques ;\n- réponse argumentative aux objections contre une foi.",
+      "exclusions": "- théologie systématique sans objectif apologétique principal ;\n- histoire des religions ;\n- étude de l'apologétique comme sujet ;\n- critique d'une religion ;\n- polémique antireligieuse.",
+      "hard_negatives": null
+    },
+    "catechism": {
+      "label": "catechism",
+      "source_section": "## 9.17 `catechism`",
+      "definition": "Exposé systématique de doctrine religieuse destiné à l'instruction, historiquement souvent organisé en questions/réponses ou sous une forme pédagogique équivalente.",
+      "positives": "- Westminster Shorter Catechism ;\n- Heidelberg Catechism ;\n- catéchismes catholiques ;\n- catéchismes d'autres traditions religieuses lorsque la forme est équivalente.",
+      "exclusions": "- theology textbook ;\n- confession de foi ;\n- simple cours religieux.",
+      "hard_negatives": null
+    },
+    "creed": {
+      "label": "creed",
+      "source_section": "## 9.18 `creed`",
+      "definition": "Texte normatif ou déclaratif formulant de manière condensée les croyances ou engagements doctrinaux d'une communauté religieuse.",
+      "positives": "- Credo de Nicée ;\n- Confession d'Augsbourg ;\n- Confession de Westminster ;\n- déclarations confessionnelles équivalentes.",
+      "exclusions": "- catéchisme ;\n- traité de théologie ;\n- commentaire d'une confession ;\n- étude historique des credo.",
+      "hard_negatives": null
+    },
+    "devotional_literature": {
+      "label": "devotional_literature",
+      "source_section": "## 9.19 `devotional_literature`",
+      "definition": "Œuvre principalement destinée à nourrir la pratique dévotionnelle, la méditation, la piété ou la vie spirituelle personnelle/communautaire.",
+      "positives": "- méditations quotidiennes ;\n- recueils dévotionnels ;\n- ouvrages destinés explicitement à la prière/méditation.",
+      "exclusions": "- théologie pratique ;\n- sermon ;\n- prière isolée ;\n- Bible ;\n- ouvrage pastoral simplement accessible.",
+      "hard_negatives": null
+    },
+    "prayer": {
+      "label": "prayer",
+      "source_section": "## 9.20 `prayer`",
+      "definition": "Ressource constituée principalement de textes de prière ou d'une prière autonome cataloguée comme œuvre.",
+      "positives": "- livre de prières ;\n- recueil de prières ;\n- prière publiée comme texte principal.",
+      "exclusions": "- ouvrage sur la prière ;\n- manuel expliquant comment prier ;\n- dévotionnel contenant seulement quelques prières.",
+      "hard_negatives": null
+    },
+    "sacred_work": {
+      "label": "sacred_work",
+      "source_section": "## 9.21 `sacred_work`",
+      "definition": "Texte considéré comme écriture sacrée/canonique dans une tradition religieuse et publié comme ce texte ou une édition/traduction de celui-ci.",
+      "positives": "- Bible ;\n- Torah / Tanakh selon manifestation cataloguée ;\n- Coran ;\n- autres écritures sacrées reconnues comme telles dans leur tradition.",
+      "exclusions": "- commentaire biblique ;\n- étude de la Bible ;\n- paraphrase moderne non considérée comme édition du texte ;\n- ouvrage religieux classique non canonique.",
+      "hard_negatives": null
+    },
+    "sermon": {
+      "label": "sermon",
+      "source_section": "## 9.22 `sermon`",
+      "definition": "Texte ou recueil de discours religieux conçus à l'origine comme prédications ou homélies adressées à une assemblée.",
+      "positives": "- sermon individuel ;\n- recueil de sermons ;\n- homélies lorsque la définition produit les inclut.",
+      "exclusions": "- conférence théologique ;\n- traité pastoral ;\n- commentaire biblique ;\n- discours religieux non prédicatif.",
+      "hard_negatives": null
+    },
+    "scholarly_article": {
+      "label": "scholarly_article",
+      "source_section": "## 9.23 `scholarly_article`",
+      "definition": "Article autonome à visée académique ou scientifique, publié ou destiné à être publié dans un contexte savant identifié.",
+      "positives": "- article de revue scientifique ;\n- article académique évalué par les pairs ;\n- article savant publié dans une revue ou publication académique.",
+      "exclusions": "- chapitre d'ouvrage ;\n- communication de conférence non publiée comme article ;\n- billet de blog ;\n- article journalistique ;\n- dissertation ou devoir étudiant.",
+      "hard_negatives": null
+    },
+    "correspondence": {
+      "label": "correspondence",
+      "source_section": "## 9.24 `correspondence`",
+      "definition": "Lettre individuelle ou ensemble de lettres/échanges écrits dont la fonction documentaire principale est la correspondance entre personnes ou institutions.",
+      "positives": "- correspondance patristique ;\n- lettres de Réformateurs ;\n- correspondance théologique ;\n- édition d'un corpus de lettres historiques.",
+      "exclusions": "- biographie fondée sur des lettres mais restructurée comme récit ;\n- journal personnel ;\n- essai sous forme épistolaire fictive.",
+      "hard_negatives": null
+    },
+    "diary": {
+      "label": "diary",
+      "source_section": "## 9.25 `diary`",
+      "definition": "Ressource constituée d'entrées personnelles consignées au fil du temps, généralement proches temporellement des événements vécus.\n\nPrincipe discriminant :\n\n```text\nwritten as events unfold",
+      "positives": "- journal intime ;\n- journal spirituel ;\n- journal de voyage personnel tenu chronologiquement.",
+      "exclusions": "- autobiographie rétrospective ;\n- mémoires rédigés après les événements ;\n- correspondance ;\n- carnet de notes sans fonction narrative identifiable.",
+      "hard_negatives": null
+    }
+  }
+}
