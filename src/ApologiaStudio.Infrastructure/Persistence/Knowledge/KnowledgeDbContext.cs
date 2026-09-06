@@ -86,6 +86,9 @@ public sealed class KnowledgeDbContext(
     internal DbSet<ApologiaGenreFormTermEntity> ApologiaGenreFormTerms =>
         Set<ApologiaGenreFormTermEntity>();
 
+    internal DbSet<GenreFormAuthorityMappingEntity> GenreFormAuthorityMappings =>
+        Set<GenreFormAuthorityMappingEntity>();
+
     internal DbSet<DocumentManagerEditorialDraftEntity>
         DocumentManagerEditorialDrafts =>
             Set<DocumentManagerEditorialDraftEntity>();

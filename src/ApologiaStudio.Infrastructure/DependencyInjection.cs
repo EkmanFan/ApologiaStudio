@@ -105,6 +105,9 @@ public static class DependencyInjection
             IApologiaGenreFormTaxonomySeeder,
             PostgreSqlApologiaGenreFormTaxonomySeeder>();
         services.AddScoped<
+            IGenreFormAuthorityMappingSeeder,
+            PostgreSqlGenreFormAuthorityMappingSeeder>();
+        services.AddScoped<
             IDocumentManagerResultPayloadReader,
             PostgreSqlDocumentManagerResultPayloadReader>();
         services.AddScoped<

@@ -225,6 +225,10 @@ public sealed class ApologiaGenreFormTaxonomySeederTests
         await using var context = new KnowledgeDbContext(options);
         await context.Database.MigrateAsync();
 
+        // Alignments reference the taxonomy, so they go first.
+        await ExecuteAsync(
+            connectionString,
+            "DELETE FROM genre_form_authority_mappings;");
         await ExecuteAsync(
             connectionString,
             "DELETE FROM apologia_genre_form_terms;");

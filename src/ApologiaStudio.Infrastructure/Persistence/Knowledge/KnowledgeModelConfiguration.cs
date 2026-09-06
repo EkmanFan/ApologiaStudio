@@ -55,6 +55,8 @@ internal static class KnowledgeModelConfiguration
             modelBuilder.Entity<GenreFormAuthoritySnapshotEntity>());
         ConfigureApologiaGenreFormTerm(
             modelBuilder.Entity<ApologiaGenreFormTermEntity>());
+        ConfigureGenreFormAuthorityMapping(
+            modelBuilder.Entity<GenreFormAuthorityMappingEntity>());
         ConfigureGenreFormAuthorityTerm(
             modelBuilder.Entity<GenreFormAuthorityTermEntity>());
         ConfigureGenreFormAuthorityVariant(
@@ -2078,6 +2080,66 @@ internal static class KnowledgeModelConfiguration
         builder.HasIndex(x => new { x.TaxonomyVersion, x.DisplayOrder })
             .IsUnique()
             .HasDatabaseName("ux_apologia_genre_form_terms_order");
+    }
+
+    private static void ConfigureGenreFormAuthorityMapping(
+        EntityTypeBuilder<GenreFormAuthorityMappingEntity> builder)
+    {
+        builder.ToTable(
+            "genre_form_authority_mappings",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_genre_form_authority_mapping_authority",
+                    "authority IN ('lcgft', 'bnf')");
+                table.HasCheckConstraint(
+                    "ck_genre_form_authority_mapping_kind",
+                    "mapping_kind IN " +
+                    "('exact', 'broader', 'narrower', 'close', 'related')");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.ProductTermId)
+            .HasColumnName("product_term_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+        builder.Property(x => x.Authority)
+            .HasColumnName("authority")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.ExternalConceptId)
+            .HasColumnName("external_concept_id")
+            .HasMaxLength(128)
+            .IsRequired();
+        builder.Property(x => x.ExternalConceptUri)
+            .HasColumnName("external_concept_uri")
+            .HasMaxLength(512);
+        builder.Property(x => x.MappingKind)
+            .HasColumnName("mapping_kind")
+            .HasMaxLength(16)
+            .IsRequired();
+        builder.Property(x => x.UpdatedAtUtc)
+            .HasColumnName("updated_at")
+            .IsRequired();
+
+        // Restrict, never Cascade: a product term that something aligns to must
+        // not be removable without the alignment being dealt with explicitly.
+        builder.HasOne<ApologiaGenreFormTermEntity>()
+            .WithMany()
+            .HasForeignKey(x => x.ProductTermId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // No foreign key on the external concept: see the entity remarks.
+        builder.HasIndex(x => new
+            {
+                x.ProductTermId,
+                x.Authority,
+                x.ExternalConceptId
+            })
+            .IsUnique()
+            .HasDatabaseName("ux_genre_form_authority_mappings");
     }
 
     private static void ConfigureGenreFormAuthorityVariant(

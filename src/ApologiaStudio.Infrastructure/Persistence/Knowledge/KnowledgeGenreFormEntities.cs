@@ -146,3 +146,32 @@ internal sealed class ApologiaGenreFormTermEntity
 
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }
+
+/// <summary>
+/// One recorded alignment between an Apologia product term and an external
+/// authority concept.
+/// </summary>
+/// <remarks>
+/// <see cref="ExternalConceptId"/> is deliberately not a foreign key. Aligning
+/// to an authority must not require importing that whole authority locally,
+/// otherwise a first BnF alignment would be blocked by a bulk import nobody
+/// asked for. Existence of the external concept is enforced by whichever seeder
+/// owns that authority, where the check can be made against the catalogue that
+/// is actually present.
+/// </remarks>
+internal sealed class GenreFormAuthorityMappingEntity
+{
+    public Guid Id { get; set; }
+
+    public Guid ProductTermId { get; set; }
+
+    public string Authority { get; set; } = string.Empty;
+
+    public string ExternalConceptId { get; set; } = string.Empty;
+
+    public string? ExternalConceptUri { get; set; }
+
+    public string MappingKind { get; set; } = string.Empty;
+
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+}
