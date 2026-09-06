@@ -385,7 +385,7 @@ stated denominator.
 | Measurement | Method |
 |---|---|
 | Ready time | `ollama stop qwen3.8:27b`, then time the first call to first response |
-| Resident VRAM | `ollama ps` (`size_vram`), cross-checked with `rocm-smi --showmemuse` sampled every 30 s |
+| Resident VRAM | `ollama ps` (`size_vram`), cross-checked against `/sys/class/drm/card1/device/mem_info_vram_used` sampled every 30 s. `rocm-smi` is **not** installed on this host; sysfs is the working path. `card1` is the RX 7900 XTX (23.98 GiB), `card2` the integrated Radeon driving the monitors (2.00 GiB) |
 | Host RSS | `ps -o rss= -p $(pgrep -f 'ollama serve')` sampled every 30 s |
 | P50/P95/P99 per call | from `decisions.jsonl`, computed by the scorer |
 | Seconds per document, 24 labels | sum of the record's 24 decision latencies |
