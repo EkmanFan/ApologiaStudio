@@ -512,36 +512,67 @@ throughput        11.3 docs/s single, 20.6 docs/s at batch 8
 fallback rate     28.3%
 ```
 
-## 8. Cost and duration
+## 8. Cost and duration — measured
 
-Measured input basis: median system prompt 1 577 characters (min 1 426, max
-2 133 for `textbook`), median user prompt 148 characters. At roughly 3.6
-characters per token for a French/English mix, about 479 input tokens and about
-10 output tokens per call.
+Step B ran on 2026-09-06: 240 decisions, frozen contract, nothing changed before
+or after observation. The GPU was cleared first — an unrelated `qwen3:8b` was
+resident and would have left only 14.2 GiB for a 17.4 GB model, distorting every
+latency figure.
 
-Step B measures the real per-call latency; until then the range below brackets
-it. EVAL-5C measured 1 574 ms and 1 854 ms per binary call, but on MRA evidence
-carrying body excerpts, so EVAL-6's much shorter payloads and longer system
-prompt make the net genuinely uncertain.
+### Measured
 
-| Step | Calls | At 1.0 s | At 1.5 s | At 2.5 s |
-|---|---:|---:|---:|---:|
-| B — calibration | 240 | 4 min | 6 min | 10 min |
-| C1 | 480 | 8 min | 12 min | 20 min |
-| C2 cumulative | 960 | 16 min | 24 min | 40 min |
-| C3 cumulative | 1 434 | 24 min | 36 min | 60 min |
-| *full grid, not planned* | *21 264* | *5.9 h* | *8.9 h* | *14.8 h* |
+| | Value |
+|---|---:|
+| Decisions | 240 |
+| Wall clock | 4 min 38 s |
+| Latency p50 / p95 / p99 | 1 120 / 1 252 / 1 375 ms |
+| Latency mean / min / max | 1 161 / 1 042 / 6 490 ms |
+| First call, model load included | 6 490 ms |
+| Warm p50 | 1 119 ms |
+| Sustained throughput | 0.86 decisions/s |
+| Input tokens, median / total | 395 / 97 580 |
+| Output tokens, median / total | 8 / 2 165 |
+| First-attempt success | **240/240 = 100%** |
+| Resolved after retry | 0 |
+| Invalid JSON | 0 |
+| Failures / timeouts | 0 |
+| Resident VRAM, `ollama ps` | 17.40 GB for the model |
+| Peak card VRAM | 20.44 of 23.98 GiB |
+| Host RSS, `ollama serve` | 0.07 GiB |
 
-Tokens, worst case at C3: about 0.69 M input and 14 k output. Artifacts stay
-under 1 MB.
+Latency is remarkably tight: p99 is only 23% above p50, and the maximum outside
+the first call stays near the median. Output is 8 tokens, the minimum a
+`{"applicable": …}` object can cost. The 3.5 GiB above the weights is KV cache
+and runtime buffers.
 
-The reduction is the point: C3 in the worst case costs an hour, against nearly
-fifteen for the exhaustive grid, and the early-stop rules mean C1 alone may
-settle it in twelve minutes.
+The 100% first-attempt rate matters for planning: the retry policy costs nothing
+here, so campaign duration is call count times mean latency, with no allowance
+needed for re-runs.
 
-GPU occupancy: `qwen3.8:27b` holds the RX 7900 XTX for the duration — 17.7 GB of
-Q4_K_M weights before KV cache, on a 23.98 GiB card measured empty at rest. The
-encoder is CPU-only, so the two never contend.
+### Revised campaign durations
+
+At the measured 1.161 s mean, with observed overhead beyond the calls at
+essentially zero:
+
+| Step | Calls | Estimated | Incremental |
+|---|---:|---:|---:|
+| C1 | 480 | **9.5 min** | 9.5 min |
+| C2 cumulative | 960 | **19 min** | +9.5 min |
+| C3 cumulative | 1 434 | **28 min** | +9 min |
+| *full grid, not planned* | *21 264* | *6.9 h* | — |
+
+Tokens at C3: about 0.57 M input and 11.5 k output.
+
+GPU occupancy: 20.44 GiB of 23.98 for the whole campaign. The encoder is
+CPU-only and never contends.
+
+### Step B is not benchmark data
+
+Its 240 decisions are the first records of the grid in record order, not the
+stratified sample, and its manifest carries `SamplePath: null`. A C1 manifest
+carries a sample path and hash, so the two cannot be mixed: appending Step B's
+decisions to a C1 result set is refused by the manifest check. They also live in
+a separate directory.
 
 ## 9. Checkpointing and restart
 
