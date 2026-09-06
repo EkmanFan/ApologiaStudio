@@ -137,6 +137,59 @@ internal sealed class Eval6Content
 }
 
 /// <summary>
+/// One decision identity of the frozen stratified sample. The file is generated
+/// before any inference and hashed into the campaign manifest, so a resumed run
+/// can never benchmark a different set of decisions.
+/// </summary>
+internal sealed class Eval6SampleRow
+{
+    [JsonPropertyName("record_id")]
+    public string RecordId { get; init; } = string.Empty;
+
+    [JsonPropertyName("label")]
+    public string Label { get; init; } = string.Empty;
+
+    [JsonPropertyName("ground_truth")]
+    public bool GroundTruth { get; init; }
+
+    [JsonPropertyName("language")]
+    public string Language { get; init; } = string.Empty;
+
+    [JsonPropertyName("stratum")]
+    public string Stratum { get; init; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public int Tier { get; init; }
+
+    public static IReadOnlyList<Eval6SampleRow> Load(string path, out string sha256)
+    {
+        var bytes = File.ReadAllBytes(path);
+        sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+        var rows = new List<Eval6SampleRow>();
+
+        foreach (var line in File.ReadLines(path))
+        {
+            if (!string.IsNullOrWhiteSpace(line))
+            {
+                rows.Add(JsonSerializer.Deserialize<Eval6SampleRow>(line)!);
+            }
+        }
+
+        foreach (var row in rows)
+        {
+            if (!Eval6Scope.MachineLabels.Contains(row.Label))
+            {
+                throw new InvalidOperationException(
+                    $"the sample names '{row.Label}', which is outside the machine scope.");
+            }
+        }
+
+        return rows;
+    }
+}
+
+/// <summary>
 /// The frozen binary prompt. One label per call, its normative definition
 /// verbatim, no other label named, no candidate list, no reasoning requested.
 ///

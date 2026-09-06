@@ -87,4 +87,40 @@ public sealed class Eval6ContractTests
 
         Assert.Equal(21_264, records.Count * Eval6Scope.MachineLabels.Count);
     }
+
+    /// <summary>
+    /// The stratified sample is the benchmark's identity. A duplicated decision
+    /// would be scored twice, and a tier that replayed an earlier one would
+    /// waste calls and bias the increment.
+    /// </summary>
+    [Fact]
+    public void Stratified_sample_is_well_formed()
+    {
+        var path = Path.Combine(
+            AppContext.BaseDirectory, "GenreForm", "Eval6", "stratified-sample-v1.jsonl");
+
+        var sample = Eval6SampleRow.Load(path, out var sha);
+
+        Assert.NotEmpty(sha);
+        Assert.Equal(1_434, sample.Count);
+        Assert.Equal(24, sample.Select(x => x.Label).Distinct(StringComparer.Ordinal).Count());
+
+        // Every decision identity appears exactly once, across all tiers.
+        Assert.Equal(
+            sample.Count,
+            sample.Select(x => $"{x.RecordId}::{x.Label}").Distinct(StringComparer.Ordinal).Count());
+
+        Assert.Equal(480, sample.Count(x => x.Tier == 1));
+        Assert.Equal(960, sample.Count(x => x.Tier <= 2));
+        Assert.Equal(1_434, sample.Count(x => x.Tier <= 3));
+
+        foreach (var tier in new[] { 1, 2, 3 })
+        {
+            foreach (var group in sample.Where(x => x.Tier == tier).GroupBy(x => x.Label))
+            {
+                Assert.Equal(10, group.Count(x => !x.GroundTruth));
+                Assert.InRange(group.Count(x => x.GroundTruth), 8, 10);
+            }
+        }
+    }
 }

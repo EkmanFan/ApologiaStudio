@@ -22,10 +22,12 @@ public sealed class Eval6CampaignTests
             return;
         }
 
-        var summary = await new Eval6Campaign(Options(null))
+        // Step C: the frozen stratified sample, up to EVAL6_MAX_TIER.
+        var summary = await new Eval6Campaign(
+                Options(null, SamplePath()))
             .RunAsync(CancellationToken.None);
 
-        Report("EVAL-6 campaign", summary);
+        Report("EVAL-6 stratified benchmark", summary);
     }
 
     /// <summary>
@@ -42,13 +44,16 @@ public sealed class Eval6CampaignTests
 
         var decisions = Number("EVAL6_CALIBRATION_DECISIONS", 240);
 
-        var summary = await new Eval6Campaign(Options(decisions))
+        // Step B carries no sample on purpose: operational calibration only,
+        // never benchmark data.
+        var summary = await new Eval6Campaign(
+                Options(decisions, samplePath: null))
             .RunAsync(CancellationToken.None);
 
         Report("EVAL-6 calibration", summary);
     }
 
-    private static Eval6Options Options(int? maximumDecisions) =>
+    private static Eval6Options Options(int? maximumDecisions, string? samplePath) =>
         new(
             Environment.GetEnvironmentVariable("EVAL6_TEST_SPLIT")
             ?? throw new InvalidOperationException(
@@ -65,7 +70,23 @@ public sealed class Eval6CampaignTests
                 Environment.GetEnvironmentVariable("EVAL6_RETRY_UNRESOLVED"),
                 "true",
                 StringComparison.OrdinalIgnoreCase),
-            maximumDecisions);
+            maximumDecisions,
+            samplePath,
+            Number("EVAL6_MAX_TIER", 1));
+
+    /// <summary>
+    /// The frozen sample shipped beside the definitions, overridable only for
+    /// deliberate re-runs. Step B never uses it.
+    /// </summary>
+    private static string SamplePath()
+    {
+        var overridden = Environment.GetEnvironmentVariable("EVAL6_SAMPLE");
+
+        return string.IsNullOrWhiteSpace(overridden)
+            ? Path.Combine(
+                AppContext.BaseDirectory, "GenreForm", "Eval6", "stratified-sample-v1.jsonl")
+            : overridden;
+    }
 
     private static bool Enabled(string gate) =>
         LocalModelEvaluationSupport.IsEnabled() &&

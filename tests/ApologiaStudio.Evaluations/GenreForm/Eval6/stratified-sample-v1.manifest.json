@@ -1,0 +1,83 @@
+{
+  "artifact": "eval6-stratified-sample-v1",
+  "test_split": "/home/mallory/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl",
+  "test_split_sha256": "29be204ea681c9fc5d63b092075792f40dc2e838fa1d9ba645155d028429cf93",
+  "sample_sha256": "20473a806916f8399554e8dc1837f8eb8c84c1be1a3e44af0ed2aa8a09c9b286",
+  "selection_seed": "eval6-stratified-v1",
+  "labels": 24,
+  "tiers": 3,
+  "per_tier_per_label": {
+    "positive": 10,
+    "negative": 10,
+    "of_which_oot": 3
+  },
+  "decisions_total": 1434,
+  "decisions_per_tier": {
+    "1": 480,
+    "2": 480,
+    "3": 474
+  },
+  "cumulative_by_tier": {
+    "1": 480,
+    "2": 960,
+    "3": 1434
+  },
+  "positive_shortfalls": [
+    {
+      "label": "collected_works",
+      "positives_available": 28,
+      "positives_requested": 30,
+      "missing": 2
+    },
+    {
+      "label": "apologetic_writing",
+      "positives_available": 29,
+      "positives_requested": 30,
+      "missing": 1
+    },
+    {
+      "label": "catechism",
+      "positives_available": 29,
+      "positives_requested": 30,
+      "missing": 1
+    },
+    {
+      "label": "sacred_work",
+      "positives_available": 28,
+      "positives_requested": 30,
+      "missing": 2
+    }
+  ],
+  "language_balance": {
+    "1": {
+      "fr": 264,
+      "en": 216
+    },
+    "2": {
+      "fr": 216,
+      "en": 264
+    },
+    "3": {
+      "fr": 255,
+      "en": 219
+    }
+  },
+  "stratum_balance": {
+    "1": {
+      "positive": 240,
+      "negative_oot": 72,
+      "negative_in_taxonomy": 168
+    },
+    "2": {
+      "positive": 240,
+      "negative_oot": 72,
+      "negative_in_taxonomy": 168
+    },
+    "3": {
+      "positive": 234,
+      "negative_oot": 72,
+      "negative_in_taxonomy": 168
+    }
+  },
+  "independence": "Selection reads only ground truth and language. No encoder prediction and no LLM decision was consulted."
+}

@@ -60,6 +60,8 @@ internal sealed class Eval6Campaign
         var definitions = Eval6LabelDefinitions.Load(out var definitionsSha);
         var records = Eval6Record.Load(_options.TestSplitPath, out var datasetSha);
 
+        var plan = BuildPlan(records, out var sampleSha, out var plannedTotal);
+
         var manifest = new Eval6Manifest(
             "eval6-llm-per-label",
             Eval6Prompt.Version,
@@ -75,7 +77,10 @@ internal sealed class Eval6Campaign
             _options.MaximumOutputTokens,
             _options.TimeoutSeconds,
             _options.MaximumAttempts,
-            _options.KeepAlive);
+            _options.KeepAlive,
+            _options.SamplePath is null ? null : Path.GetFullPath(_options.SamplePath),
+            sampleSha,
+            _options.MaximumTier);
 
         EnsureManifest(manifest);
 
@@ -83,7 +88,7 @@ internal sealed class Eval6Campaign
 
         var summary = new Eval6CampaignSummary
         {
-            TotalDecisions = records.Count * Eval6Scope.MachineLabels.Count,
+            TotalDecisions = plannedTotal,
             AlreadyRecorded = recorded.Count,
             ResumedOk = alreadyOk,
             ResumedUnresolved = alreadyUnresolved
@@ -96,54 +101,95 @@ internal sealed class Eval6Campaign
                 FileAccess.Write,
                 FileShare.Read));
 
-        foreach (var record in records)
+        foreach (var (record, label) in plan)
         {
-            foreach (var label in Eval6Scope.MachineLabels)
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (recorded.Contains(Key(record.RecordId, label)))
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                continue;
+            }
 
-                if (recorded.Contains(Key(record.RecordId, label)))
-                {
-                    continue;
-                }
+            var decision = await DecideAsync(
+                record,
+                definitions.Labels[label],
+                cancellationToken);
 
-                var decision = await DecideAsync(
-                    record,
-                    definitions.Labels[label],
-                    cancellationToken);
+            await writer.WriteLineAsync(
+                JsonSerializer.Serialize(decision).AsMemory(),
+                cancellationToken);
 
-                await writer.WriteLineAsync(
-                    JsonSerializer.Serialize(decision).AsMemory(),
-                    cancellationToken);
+            // Flushed per decision: an interruption loses at most one.
+            await writer.FlushAsync(cancellationToken);
 
-                // Flushed per decision: an interruption loses at most one.
-                await writer.FlushAsync(cancellationToken);
+            summary.Executed++;
 
-                summary.Executed++;
+            switch (decision.Status)
+            {
+                case "ok":
+                    summary.Ok++;
+                    break;
+                case "invalid_json":
+                    summary.Invalid++;
+                    break;
+                default:
+                    summary.Failed++;
+                    break;
+            }
 
-                switch (decision.Status)
-                {
-                    case "ok":
-                        summary.Ok++;
-                        break;
-                    case "invalid_json":
-                        summary.Invalid++;
-                        break;
-                    default:
-                        summary.Failed++;
-                        break;
-                }
-
-                // Calibration runs stop early. A campaign leaves it unset and
-                // walks the whole grid.
-                if (summary.Executed >= _options.MaximumDecisions)
-                {
-                    return summary;
-                }
+            // Calibration stops early. A benchmark leaves it unset and walks
+            // its whole plan.
+            if (summary.Executed >= _options.MaximumDecisions)
+            {
+                return summary;
             }
         }
 
         return summary;
+    }
+
+    /// <summary>
+    /// The decisions this run may take, in order. With a sample it is the
+    /// frozen selection up to the requested tier; without one it is the whole
+    /// grid, which is no longer the default and needs its own approval.
+    /// </summary>
+    private IReadOnlyList<(Eval6Record Record, string Label)> BuildPlan(
+        IReadOnlyList<Eval6Record> records,
+        out string? sampleSha256,
+        out int plannedTotal)
+    {
+        if (_options.SamplePath is null)
+        {
+            sampleSha256 = null;
+            plannedTotal = records.Count * Eval6Scope.MachineLabels.Count;
+
+            return records
+                .SelectMany(record => Eval6Scope.MachineLabels
+                    .Select(label => (record, label)))
+                .ToList();
+        }
+
+        var byRecordId = records.ToDictionary(x => x.RecordId, StringComparer.Ordinal);
+        var sample = Eval6SampleRow.Load(_options.SamplePath, out var sha);
+        sampleSha256 = sha;
+
+        var plan = new List<(Eval6Record, string)>();
+
+        foreach (var row in sample
+                     .Where(x => x.Tier <= _options.MaximumTier)
+                     .OrderBy(x => x.Tier))
+        {
+            if (!byRecordId.TryGetValue(row.RecordId, out var record))
+            {
+                throw new InvalidOperationException(
+                    $"the sample names record '{row.RecordId}', absent from the split.");
+            }
+
+            plan.Add((record, row.Label));
+        }
+
+        plannedTotal = plan.Count;
+        return plan;
     }
 
     private async Task<Eval6Decision> DecideAsync(
@@ -323,7 +369,9 @@ internal sealed record Eval6Options(
     int MaximumAttempts = 3,
     string KeepAlive = "30m",
     bool RetryUnresolved = false,
-    int? MaximumDecisions = null)
+    int? MaximumDecisions = null,
+    string? SamplePath = null,
+    int MaximumTier = 1)
 {
     public string DecisionsPath => Path.Combine(OutputDirectory, "decisions.jsonl");
 
@@ -350,7 +398,10 @@ internal sealed record Eval6Manifest(
     int MaximumOutputTokens,
     int TimeoutSeconds,
     int MaximumAttempts,
-    string KeepAlive);
+    string KeepAlive,
+    string? SamplePath,
+    string? SampleSha256,
+    int MaximumTier);
 
 internal sealed record Eval6Decision(
     string RecordId,

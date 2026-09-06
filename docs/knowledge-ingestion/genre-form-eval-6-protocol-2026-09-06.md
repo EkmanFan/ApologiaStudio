@@ -5,10 +5,15 @@ LLM campaign has not. No Ollama inference, no training and no GPU workload was
 run. Nothing in production, in the Spike Encoder or in any threshold was
 modified.
 
-Revision of 2026-09-06: the `creed` and IS-versus-ABOUT blockers are withdrawn.
-`creed` now carries its authoritative broad definition, and the ground-truth
-questions are recorded as benchmark limitations rather than gates. Section 3
-states what the benchmark can and cannot conclude; none of it prevents the run.
+Revision 1 of 2026-09-06: the `creed` and IS-versus-ABOUT blockers are
+withdrawn. `creed` carries its authoritative broad definition, and the
+ground-truth questions are benchmark limitations rather than gates.
+
+Revision 2 of 2026-09-06: **the exhaustive 886 x 24 campaign is no longer
+planned.** It is replaced by a frozen stratified sample run in sequential tiers
+with early stopping — 480, then 960, then 1 434 decisions — because the decision
+to be made is architectural, not the publication of an exhaustive benchmark. The
+full 21 264-call grid remains possible but requires a new explicit approval.
 
 ## 1. Experimental question
 
@@ -347,9 +352,105 @@ mechanically: it is written once and re-checked on every resume, and a run whose
 prompt template, definitions, dataset or parameters hash differently refuses to
 append.
 
+## 5bis. Step C — stratified sequential benchmark
+
+The exhaustive grid is replaced by a sample of document x label decisions,
+frozen before any inference.
+
+### Sampling rules
+
+The primary stratum is the **label**: each of the 24 gets its own positives and
+negatives. Within a label, FR and EN alternate, so a tier is balanced by
+construction and degrades gracefully when a language pool runs out. Negatives
+mix out-of-taxonomy and in-taxonomy records at 3 to 7 per tier of ten, so OOT is
+represented without being the only source of negatives.
+
+Selection is **deterministic and blind**. Candidates are ordered by
+`sha256(seed | label | stratum | record_id)` — no RNG, no machine-dependent
+state — and nothing in the generator reads an encoder prediction or an LLM
+decision. All three tiers are emitted into one file before the first call, so a
+later tier can never replay an earlier one and the sample cannot drift on
+resume.
+
+### Tiers
+
+| Step | Per label added | Cumulative decisions |
+|---|---|---:|
+| C1 | 10 positive + 10 negative | **480** |
+| C2 | +10 positive + 10 negative | **960** |
+| C3 | +10 positive + 10 negative | **1 434** |
+
+C3 falls 6 short of 1 440 because four labels have fewer than 30 positives in
+the whole split: `collected_works` 28, `sacred_work` 28, `apologetic_writing`
+29, `catechism` 29. The generator takes the maximum available and records each
+shortfall in the sample manifest.
+
+Beyond C3, nothing runs without a new explicit decision.
+
+### Same-sample comparison — not optional
+
+For every sampled identity, the encoder prediction is read from the materialised
+dump and the LLM decision from the campaign log, and **both are scored against
+the same ground truth on the same identities**. The encoder is re-scored on the
+sample; its published 886-record metrics are never set beside LLM metrics drawn
+from a sample.
+
+That distinction is not pedantic. Re-scored on the tier-1 sample the encoder
+reaches macro-F1 **0.8705**, against **0.7743** on the full 886 records. The
+sample is balanced at 10 positives to 10 negatives per label, while the full
+split runs about 30 positives against 856 negatives; balanced negatives make
+precision far easier. Comparing a sampled LLM number with the published encoder
+number would have manufactured a large false gap.
+
 ## 6. Metrics
 
-Both candidates are scored by the same code, in `eval6_score.py`.
+Both candidates are scored by the same code. `eval6_score.py` covers the full
+grid; `eval6_score_stratified.py` covers the sampled campaign and adds the
+uncertainty and stop report below.
+
+### Family A — valid on decision sampling
+
+Per label: n positive, n negative, TP, FP, FN, TN, precision, recall, F1,
+predicted positives, and a **Wilson 95% interval on precision and on recall**.
+Aggregates: micro precision / recall / F1 and macro precision / recall / F1 over
+the 24 labels.
+
+### Family B — requires full 24-label document coverage
+
+Exact match, OOT accuracy and labels per document. These are emitted **only for
+documents whose 24 decisions are all present and resolved**, with that count
+stated. The stratified sample produces none, so on this campaign family B is
+reported as not computable rather than approximated. No pseudo exact-match is
+ever derived from partial coverage.
+
+### Sequential stop rules
+
+Evaluated after each tier, on macro-F1 over the common sample:
+
+| Verdict | Rule | Action |
+|---|---|---|
+| A — ENCODER clearly ahead | delta ≤ −0.05 | STOP |
+| B — LLM clearly ahead | delta ≥ +0.05, with no major precision or recall collapse on critical labels | STOP |
+| C — equivalent for architecture | \|delta\| < 0.02 | STOP |
+| D — mixed or uncertain | anything else | continue to the next tier |
+
+Under C the architectural recommendation leans to ENCODER on operational cost.
+The report must present that as a **cost decision, not a quality win**.
+
+These are engineering decision rules, not statistical significance. The Wilson
+intervals are reported as context on how far the numbers could move; they are
+never turned into a test.
+
+Each tier also reports per-label F1 deltas, the labels where either candidate
+leads by 0.10 or more, and those where the gap reaches 0.15.
+
+### Secondary reading — Apologia-critical labels
+
+Highlighted separately in the report, never used to change the sampling:
+`apologetic_writing`, `creed`, `catechism`, `sermon`, `prayer`, `sacred_work`,
+`devotional_literature`, `commentary`, `essays`, plus any label whose F1 delta
+reaches 0.15. These may signal a future hybrid architecture; they must not
+modify EVAL-6 while it runs.
 
 **Global:** micro precision / recall / F1, macro precision / recall / F1, exact
 match, positive-any-label recall, OOT accuracy.
@@ -368,10 +469,10 @@ positive record left with no label.
 and FN, per-label F1 delta between the two candidates, and recurring errors
 grouped by `work_key`.
 
-**LLM only:** invalid rate, failure rate, latency P50/P95/P99 and mean, seconds
-per document across all 24 labels, sustained decisions per second, median input
-and output tokens, and the count of records excluded from set-level metrics
-because a decision was unresolved.
+**LLM only:** invalid rate, failure rate, first-attempt success rate, decisions
+resolved only after retry, latency P50/P95/P99 and mean, projected seconds per
+document across 24 labels, sustained decisions per second, median input and
+output tokens, resident VRAM and host RSS.
 
 Unresolved decisions are a contract failure, never a wrong classification —
 the discipline held since EVAL-1. Their per-label neighbours still count in
@@ -413,40 +514,34 @@ fallback rate     28.3%
 
 ## 8. Cost and duration
 
-**Exact call count: 886 × 24 = 21 264.**
+Measured input basis: median system prompt 1 577 characters (min 1 426, max
+2 133 for `textbook`), median user prompt 148 characters. At roughly 3.6
+characters per token for a French/English mix, about 479 input tokens and about
+10 output tokens per call.
 
-Measured input basis: median system prompt 1 577 characters (min 1 426 for the
-shortest definition, max 2 133 for `textbook`), median user prompt 148
-characters. At roughly 3.6 characters per token for a French/English mix, about
-479 input tokens and about 10 output tokens per call.
+Step B measures the real per-call latency; until then the range below brackets
+it. EVAL-5C measured 1 574 ms and 1 854 ms per binary call, but on MRA evidence
+carrying body excerpts, so EVAL-6's much shorter payloads and longer system
+prompt make the net genuinely uncertain.
 
-```text
-input  ≈ 10.2 M tokens
-output ≈ 213 k tokens
-decisions.jsonl ≈ 7.2 MB
-```
+| Step | Calls | At 1.0 s | At 1.5 s | At 2.5 s |
+|---|---:|---:|---:|---:|
+| B — calibration | 240 | 4 min | 6 min | 10 min |
+| C1 | 480 | 8 min | 12 min | 20 min |
+| C2 cumulative | 960 | 16 min | 24 min | 40 min |
+| C3 cumulative | 1 434 | 24 min | 36 min | 60 min |
+| *full grid, not planned* | *21 264* | *5.9 h* | *8.9 h* | *14.8 h* |
 
-Duration, bracketed. EVAL-5C measured 1 574 ms and 1 854 ms per binary call, but
-on MRA evidence carrying body excerpts; EVAL-6 payloads are far shorter while
-the system prompt is longer, so the net is genuinely uncertain:
+Tokens, worst case at C3: about 0.69 M input and 14 k output. Artifacts stay
+under 1 MB.
 
-| Per call | Campaign | With 8% overhead and retries |
-|---:|---:|---:|
-| 0.8 s | 4.7 h | 5.1 h |
-| 1.0 s | 5.9 h | 6.4 h |
-| 1.5 s | 8.9 h | 9.6 h |
-| 2.0 s | 11.8 h | 12.8 h |
-| 2.5 s | 14.8 h | 16.0 h |
+The reduction is the point: C3 in the worst case costs an hour, against nearly
+fifteen for the exhaustive grid, and the early-stop rules mean C1 alone may
+settle it in twelve minutes.
 
-The spread is 5 to 16 hours, which is too wide to plan against. **A calibration
-mini-step is proposed as a separate decision**: 240 decisions stratified across
-the 24 labels, roughly 4 to 10 minutes, using the frozen contract unchanged and
-writing into a throwaway output directory. It converts the bracket into a
-measurement. It is not run without approval.
-
-GPU occupancy: `qwen3.8:27b` holds the RX 7900 XTX for the whole campaign — 17.7
-GB of Q4_K_M weights before KV cache, on a 24 GiB card. The encoder is CPU-only,
-so the two never contend. Nothing else should use the card during the run.
+GPU occupancy: `qwen3.8:27b` holds the RX 7900 XTX for the duration — 17.7 GB of
+Q4_K_M weights before KV cache, on a 23.98 GiB card measured empty at rest. The
+encoder is CPU-only, so the two never contend.
 
 ## 9. Checkpointing and restart
 
@@ -471,28 +566,22 @@ so the two never contend. Nothing else should use the card during the run.
 
 ## 10. Decision criteria, fixed before execution
 
+The sequential stop rules in §6 are the decision criteria, and they are fixed
+before the first call. Restating the reasoning behind the thresholds rather than
+the thresholds themselves:
+
 Product priority is quality over latency. But the LLM path costs 24 inferences
-per document against one CPU forward pass, on the order of 30 seconds against 79
-milliseconds, and holds the GPU. A marginal quality edge does not buy that.
+per document against one CPU forward pass — on the order of 30 seconds against
+79 milliseconds — and holds the GPU throughout. A marginal quality edge does not
+buy that, which is why "equivalent" is a stopping verdict rather than a reason
+to keep sampling.
 
-Comparison is on **macro F1** as the headline, because support is balanced by
-construction and micro would simply restate that balance, with per-label deltas
-always reported beside it.
+Comparison is on **macro F1**, because the sample is balanced by construction
+and micro would largely restate that balance. Per-label deltas are always
+reported beside it, since a mechanism that wins on average while collapsing on
+`apologetic_writing` is not a win for this product.
 
-| Outcome | Rule |
-|---|---|
-| **LLM clearly superior** | macro F1 at least +0.05 over the cascade, **and** positive-any-label recall not lower, **and** no label regressing by more than 0.10 F1 |
-| **Equivalent** | absolute macro F1 difference below 0.02 |
-| **Encoder superior** | cascade macro F1 at least +0.02 over the LLM |
-| **Mixed by label** | neither of the above, with at least three labels where one candidate leads by 0.10 F1 or more and at least three where the other does |
-
-Additional readings that do not by themselves decide but must be reported: OOT
-accuracy, which governs how often a reviewer is shown nothing; the LLM's invalid
-and failure rate, which is an availability property; and any label where the LLM
-exceeds the cascade by more than 0.15 F1, which would be the substantive case
-for a targeted hybrid — a question for after EVAL-6, not during.
-
-No weighted score is constructed. The outcome is a named category plus the
+No weighted score is constructed. The outcome is a named verdict plus the
 per-label table.
 
 ## 11. Architecture
@@ -505,15 +594,21 @@ remain open. EVAL-6 produces comparative evidence first.
 
 | Path | Role |
 |---|---|
-| `tests/.../GenreForm/Eval6/label-definitions-v1.json` | the 24 normative definitions, verbatim, hashed |
-| `tests/.../GenreForm/Eval6/Eval6Contract.cs` | frozen scope, definitions loader, prompt, schema, template hash |
-| `tests/.../GenreForm/Eval6/Eval6Campaign.cs` | resumable campaign, manifest enforcement, retry, provenance |
-| `tests/.../GenreForm/Eval6/Eval6CampaignTests.cs` | doubly gated entry points: campaign and calibration |
+| `tests/.../GenreForm/Eval6/label-definitions-v1.json` | the 24 normative definitions, verbatim, hashed, with the `creed` override |
+| `tests/.../GenreForm/Eval6/stratified-sample-v1.jsonl` | the frozen sample, 1 434 decision identities across 3 tiers |
+| `tests/.../GenreForm/Eval6/stratified-sample-v1.manifest.json` | sample hash, tier counts, language and stratum balance, shortfalls |
+| `tests/.../GenreForm/Eval6/Eval6Contract.cs` | frozen scope, definitions and sample loaders, prompt, schema, template hash |
+| `tests/.../GenreForm/Eval6/Eval6Campaign.cs` | sampled or full-grid plan, manifest enforcement, retry, provenance, resume |
+| `tests/.../GenreForm/Eval6/Eval6CampaignTests.cs` | doubly gated entry points: calibration and stratified benchmark |
+| `tests/.../GenreForm/Eval6/Eval6ContractTests.cs` | benchmark identity guards, no inference |
+| `spikes/lcgft-encoder/eval6_build_stratified_sample.py` | deterministic sample generator |
 | `spikes/lcgft-encoder/eval6_encoder_dump_predictions.py` | per-record cascade output at frozen thresholds |
-| `spikes/lcgft-encoder/eval6_score.py` | offline scorer, both candidates, identical code |
+| `spikes/lcgft-encoder/eval6_score.py` | offline scorer, full grid |
+| `spikes/lcgft-encoder/eval6_score_stratified.py` | same-sample scorer, intervals, sequential stop report |
 
-All compile. None has been executed. The loader refuses to start if any of the
-24 labels lacks a normative definition, so EVAL-6 cannot run on an invented one.
+The campaign manifest records the sample path, its hash and the tier ceiling
+alongside the prompt and dataset hashes, so a resume cannot silently benchmark a
+different set of decisions.
 
 ## 13. Commands
 
@@ -557,29 +652,44 @@ dotnet test tests/ApologiaStudio.Evaluations --nologo \
   --filter "FullyQualifiedName~Eval6CampaignTests.Llm_per_label_calibration_runs"
 ```
 
-**Step C — the campaign, separate approval (5-16 h):**
+**Sample generation — DONE, deterministic, no model.**
 
 ```bash
-export OLLAMA_EVALUATIONS_ENABLED=true EVAL6_RUN=true
+python3 spikes/lcgft-encoder/eval6_build_stratified_sample.py \
+  --test-split "$HOME/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl" \
+  --output tests/ApologiaStudio.Evaluations/GenreForm/Eval6/stratified-sample-v1.jsonl
+```
+
+**Step C1 — stratified benchmark, tier 1, separate approval (480 decisions):**
+
+```bash
+export OLLAMA_EVALUATIONS_ENABLED=true EVAL6_RUN=true EVAL6_MAX_TIER=1
 export EVAL6_TEST_SPLIT="$HOME/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl"
-export EVAL6_OUTPUT_DIR=$HOME/eval6-artifacts
+export EVAL6_OUTPUT_DIR="$HOME/eval6-artifacts/stratified"
 mkdir -p "$EVAL6_OUTPUT_DIR"
 dotnet test tests/ApologiaStudio.Evaluations --nologo \
   --filter "FullyQualifiedName~Eval6CampaignTests.Llm_per_label_campaign_runs"
 ```
 
-Re-running the same command after an interruption resumes; it never replays a
-decision already recorded.
+C2 and C3 are the same command with `EVAL6_MAX_TIER=2` then `3`, in the same
+output directory. Decisions already recorded are never replayed, so each tier
+costs only its own increment. Raising the tier changes the manifest, which is
+the one manifest field allowed to move between tiers; everything else must match
+or the run refuses to append.
 
-**Step D — scoring (offline, no model):**
+**Scoring after each tier — offline, no model:**
 
 ```bash
-python3 spikes/lcgft-encoder/eval6_score.py \
-  --test-split "$HOME/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl" \
-  --encoder-predictions $HOME/eval6-artifacts/encoder-predictions.jsonl \
-  --llm-decisions       $HOME/eval6-artifacts/decisions.jsonl \
-  --output              $HOME/eval6-artifacts/eval6-report.json
+python3 spikes/lcgft-encoder/eval6_score_stratified.py \
+  --sample tests/ApologiaStudio.Evaluations/GenreForm/Eval6/stratified-sample-v1.jsonl \
+  --encoder-predictions "$HOME/eval6-artifacts/encoder-predictions.jsonl" \
+  --llm-decisions       "$HOME/eval6-artifacts/stratified/decisions.jsonl" \
+  --tier 1 \
+  --output "$HOME/eval6-artifacts/stratified/eval6-tier1-report.json"
 ```
+
+It prints the macro-F1 of both candidates on the common sample, the delta, the
+verdict and whether to continue.
 
 ## 14. Risks and limitations
 
@@ -606,10 +716,14 @@ Restating them together, because each one bounds a conclusion:
 
 ## 15. STOP
 
-Step A is done and validated. Execution stops here pending, in order:
+Step A is done and validated. The sample is generated and frozen. Execution
+stops here pending, in order:
 
-1. approval of step B, the runtime calibration, which converts the 5-to-16-hour
-   bracket into a measurement in under ten minutes;
-2. approval of step C, the campaign itself.
+1. approval of **Step B**, the 240-decision operational calibration;
+2. approval of **Step C1**, the 480-decision stratified benchmark;
+3. after each tier, a decision on the stop report before any further tier.
+
+The full 21 264-call grid is no longer planned and would need a new explicit
+approval.
 
 No blocker remains.
