@@ -66,6 +66,7 @@ public sealed class DocumentManagerEditorialDraftTests
             new PrepareDocumentManagerEditorialDraftHandler(
                 new StubAssemblyReader(assembly),
                 store,
+                new StubPayloadReader(),
                 TimeProvider.System);
 
         var result =
@@ -93,6 +94,7 @@ public sealed class DocumentManagerEditorialDraftTests
             new PrepareDocumentManagerEditorialDraftHandler(
                 new StubAssemblyReader(assembly),
                 store,
+                new StubPayloadReader(),
                 new FixedTimeProvider(createdAt));
 
         var result =
@@ -159,6 +161,19 @@ public sealed class DocumentManagerEditorialDraftTests
             Guid submissionId,
             CancellationToken cancellationToken) =>
             Task.FromResult<DocumentManagerSubmissionAssembly?>(assembly);
+    }
+
+    /// <summary>
+    /// No stored payload: the preparer must fall back exactly as it did before
+    /// portable metadata existed.
+    /// </summary>
+    private sealed class StubPayloadReader(byte[]? payload = null)
+        : IDocumentManagerResultPayloadReader
+    {
+        public Task<byte[]?> GetFirstAsync(
+            Guid submissionId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(payload);
     }
 
     private sealed class StubDraftStore : IDocumentManagerEditorialDraftStore

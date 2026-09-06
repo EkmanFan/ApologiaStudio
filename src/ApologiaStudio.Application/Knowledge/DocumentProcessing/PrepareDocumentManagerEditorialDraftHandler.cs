@@ -3,6 +3,7 @@ namespace ApologiaStudio.Application.Knowledge.DocumentProcessing;
 public sealed class PrepareDocumentManagerEditorialDraftHandler(
     IDocumentManagerSubmissionAssemblyReader assemblyReader,
     IDocumentManagerEditorialDraftStore draftStore,
+    IDocumentManagerResultPayloadReader payloadReader,
     TimeProvider timeProvider)
     : IDocumentManagerEditorialDraftPreparer
 {
@@ -35,10 +36,19 @@ public sealed class PrepareDocumentManagerEditorialDraftHandler(
                 null);
         }
 
+        var payload =
+            await payloadReader.GetFirstAsync(
+                submissionId,
+                cancellationToken);
+
         var candidate =
             DocumentManagerEditorialDraftFactory.Create(
                 assembly,
-                timeProvider.GetUtcNow());
+                timeProvider.GetUtcNow(),
+                payload is null
+                    ? null
+                    : DocumentManagerPortableMetadataReader.Read(
+                        payload));
         var writeResult =
             await draftStore.StoreAsync(
                 candidate,

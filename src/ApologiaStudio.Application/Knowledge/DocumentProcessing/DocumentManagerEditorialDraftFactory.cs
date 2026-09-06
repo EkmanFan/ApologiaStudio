@@ -8,9 +8,23 @@ public static class DocumentManagerEditorialDraftFactory
     private const string StableIdPrefix =
         "apologia-document-manager-editorial-draft/v1/";
 
+    /// <summary>
+    /// Title provenance: the value came from the portable document metadata.
+    /// </summary>
+    public const string ImportedTitleOrigin = "imported";
+
+    /// <summary>
+    /// Title provenance: no document metadata title existed, so the source file
+    /// name was used.
+    /// </summary>
+    public const string FileNameTitleOrigin = "original_filename";
+
+    private const int MaximumTitleLength = 1000;
+
     public static DocumentManagerEditorialDraft Create(
         DocumentManagerSubmissionAssembly assembly,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        DocumentManagerDocumentMetadata? documentMetadata = null)
     {
         ArgumentNullException.ThrowIfNull(assembly);
 
@@ -22,7 +36,15 @@ public static class DocumentManagerEditorialDraftFactory
                 "An editorial draft can only be created from a complete, coherent submission assembly.");
         }
 
-        var title = ProposeTitle(assembly.OriginalFileName);
+        // The document's own title wins over the file that carried it, even
+        // when the two differ. A file name that reads like a title is still a
+        // file name, and only the reviewer can promote it.
+        var proposedTitle = Truncate(documentMetadata?.Title);
+        var titleOrigin = proposedTitle is null
+            ? FileNameTitleOrigin
+            : ImportedTitleOrigin;
+
+        var title = proposedTitle ?? ProposeTitle(assembly.OriginalFileName);
         var draftId = CreateStableId(
             assembly.SubmissionId,
             assembly.ManifestRevision);
@@ -34,14 +56,14 @@ public static class DocumentManagerEditorialDraftFactory
             assembly.SourceSha256.ToLowerInvariant(),
             assembly.OriginalFileName,
             title,
-            "original_filename",
+            titleOrigin,
             PrimaryContributorName: null,
             PrimaryContributorRole: null,
             LanguageCode: null,
             EditionStatement: null,
             PublicationYear: null,
             PublicationPlace: null,
-            Description: null,
+            Description: Truncate(documentMetadata?.Description),
             DocumentManagerEditorialDraftStatus.PendingReview,
             Version: 0,
             LastEditedByUserId: null,
@@ -64,6 +86,24 @@ public static class DocumentManagerEditorialDraftFactory
             GenreForms: []);
     }
 
+    /// <summary>
+    /// Normalizes a proposed value to the application's length constraint, and
+    /// treats a blank value as no value at all.
+    /// </summary>
+    private static string? Truncate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+
+        return trimmed.Length <= MaximumTitleLength
+            ? trimmed
+            : trimmed[..MaximumTitleLength];
+    }
+
     private static string ProposeTitle(string originalFileName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(originalFileName);
@@ -74,9 +114,9 @@ public static class DocumentManagerEditorialDraftFactory
             ? fileName
             : proposed;
 
-        return title.Length <= 1000
+        return title.Length <= MaximumTitleLength
             ? title
-            : title[..1000];
+            : title[..MaximumTitleLength];
     }
 
     private static Guid CreateStableId(

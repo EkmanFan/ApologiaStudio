@@ -123,6 +123,7 @@ static async Task<DocumentManagerConsumeResult> ConsumeOnceAsync(
         new PrepareDocumentManagerEditorialDraftHandler(
             assemblyReader,
             draftStore,
+            new PostgreSqlDocumentManagerResultPayloadReader(context),
             TimeProvider.System);
     var handler =
         new ConsumeDocumentManagerResultHandler(

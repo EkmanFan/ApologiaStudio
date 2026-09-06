@@ -102,6 +102,9 @@ public static class DependencyInjection
             IDocumentManagerEditorialDraftStore,
             PostgreSqlDocumentManagerEditorialDraftStore>();
         services.AddScoped<
+            IDocumentManagerResultPayloadReader,
+            PostgreSqlDocumentManagerResultPayloadReader>();
+        services.AddScoped<
             IDocumentManagerEditorialDraftPreparer,
             PrepareDocumentManagerEditorialDraftHandler>();
 
