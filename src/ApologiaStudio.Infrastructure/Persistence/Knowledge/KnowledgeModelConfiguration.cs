@@ -53,6 +53,8 @@ internal static class KnowledgeModelConfiguration
         ConfigureEvidenceRoleAssertion(modelBuilder.Entity<KnowledgeEvidenceRoleAssertionEntity>());
         ConfigureGenreFormAuthoritySnapshot(
             modelBuilder.Entity<GenreFormAuthoritySnapshotEntity>());
+        ConfigureApologiaGenreFormTerm(
+            modelBuilder.Entity<ApologiaGenreFormTermEntity>());
         ConfigureGenreFormAuthorityTerm(
             modelBuilder.Entity<GenreFormAuthorityTermEntity>());
         ConfigureGenreFormAuthorityVariant(
@@ -2015,6 +2017,67 @@ internal static class KnowledgeModelConfiguration
             .HasDatabaseName("ux_genre_form_authority_terms_uri");
         builder.HasIndex(x => new { x.Authority, x.AuthorityStatus })
             .HasDatabaseName("ix_genre_form_authority_terms_status");
+    }
+
+    /// <summary>
+    /// The canonical product taxonomy. Codes and identities are unique, and
+    /// display order is unique within a taxonomy version so the reviewer's list
+    /// has one deterministic order.
+    /// </summary>
+    private static void ConfigureApologiaGenreFormTerm(
+        EntityTypeBuilder<ApologiaGenreFormTermEntity> builder)
+    {
+        builder.ToTable(
+            "apologia_genre_form_terms",
+            table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_apologia_genre_form_term_prediction_mode",
+                    "prediction_mode IN ('encoder_predictable', 'manual_only')");
+                table.HasCheckConstraint(
+                    "ck_apologia_genre_form_term_status",
+                    "status IN ('active', 'retired')");
+            });
+
+        builder.HasKey(x => x.Id);
+        ConfigureUuidId(builder.Property(x => x.Id));
+
+        builder.Property(x => x.Code)
+            .HasColumnName("code")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.PreferredLabel)
+            .HasColumnName("preferred_label")
+            .HasMaxLength(200)
+            .IsRequired();
+        builder.Property(x => x.Definition)
+            .HasColumnName("definition")
+            .IsRequired();
+        builder.Property(x => x.PredictionMode)
+            .HasColumnName("prediction_mode")
+            .HasMaxLength(32)
+            .IsRequired();
+        builder.Property(x => x.Status)
+            .HasColumnName("status")
+            .HasMaxLength(16)
+            .IsRequired();
+        builder.Property(x => x.TaxonomyVersion)
+            .HasColumnName("taxonomy_version")
+            .HasMaxLength(64)
+            .IsRequired();
+        builder.Property(x => x.DisplayOrder)
+            .HasColumnName("display_order")
+            .IsRequired();
+        builder.Property(x => x.UpdatedAtUtc)
+            .HasColumnName("updated_at")
+            .IsRequired();
+
+        builder.HasIndex(x => x.Code)
+            .IsUnique()
+            .HasDatabaseName("ux_apologia_genre_form_terms_code");
+        builder.HasIndex(x => new { x.TaxonomyVersion, x.DisplayOrder })
+            .IsUnique()
+            .HasDatabaseName("ux_apologia_genre_form_terms_order");
     }
 
     private static void ConfigureGenreFormAuthorityVariant(

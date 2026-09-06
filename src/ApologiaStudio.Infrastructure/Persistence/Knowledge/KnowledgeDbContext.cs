@@ -83,6 +83,9 @@ public sealed class KnowledgeDbContext(
         DocumentManagerExpectedUnits =>
             Set<DocumentManagerExpectedUnitInboxEntity>();
 
+    internal DbSet<ApologiaGenreFormTermEntity> ApologiaGenreFormTerms =>
+        Set<ApologiaGenreFormTermEntity>();
+
     internal DbSet<DocumentManagerEditorialDraftEntity>
         DocumentManagerEditorialDrafts =>
             Set<DocumentManagerEditorialDraftEntity>();

@@ -117,3 +117,32 @@ internal sealed class DocumentManagerEditorialDraftGenreFormEntity
 
     public Guid TermId { get; set; }
 }
+
+/// <summary>
+/// One canonical Apologia Genre/Form product term.
+/// </summary>
+/// <remarks>
+/// Product-owned identity, independent of any external bibliographic authority.
+/// Alignment to LCGFT or BnF is recorded separately and never defines the
+/// concept.
+/// </remarks>
+internal sealed class ApologiaGenreFormTermEntity
+{
+    public Guid Id { get; set; }
+
+    public string Code { get; set; } = string.Empty;
+
+    public string PreferredLabel { get; set; } = string.Empty;
+
+    public string Definition { get; set; } = string.Empty;
+
+    public string PredictionMode { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public string TaxonomyVersion { get; set; } = string.Empty;
+
+    public int DisplayOrder { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+}
