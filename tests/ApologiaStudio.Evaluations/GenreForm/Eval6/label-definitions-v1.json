@@ -137,10 +137,13 @@
     "creed": {
       "label": "creed",
       "source_section": "## 9.18 `creed`",
-      "definition": "Texte normatif ou déclaratif formulant de manière condensée les croyances ou engagements doctrinaux d'une communauté religieuse.",
+      "definition": "`creed` is not restricted to religion. It means a formal or explicit profession of beliefs, principles, convictions, or commitments. A work about a creed is not itself a creed.",
       "positives": "- Credo de Nicée ;\n- Confession d'Augsbourg ;\n- Confession de Westminster ;\n- déclarations confessionnelles équivalentes.",
       "exclusions": "- catéchisme ;\n- traité de théologie ;\n- commentaire d'une confession ;\n- étude historique des credo.",
-      "hard_negatives": null
+      "hard_negatives": null,
+      "superseded_definition": "Texte normatif ou déclaratif formulant de manière condensée les croyances ou engagements doctrinaux d'une communauté religieuse.",
+      "definition_source": "SpikeEncoder/docs/99-archive/superseded/Spike-Encoder-V2.1-Handoff-for-Integration.md, verbatim. Authoritative for label semantics: the 2026-09-06 supersession note scopes its supersession to the encoder selection, not to label meaning.",
+      "documentation_debt": "LCGFT-GenreForm-Labeling-Policy-v2.md 9.18 still restricts creed to 'une communaute religieuse'. Stale; not a blocker for EVAL-6."
     },
     "devotional_literature": {
       "label": "devotional_literature",
@@ -198,5 +201,12 @@
       "exclusions": "- autobiographie rétrospective ;\n- mémoires rédigés après les événements ;\n- correspondance ;\n- carnet de notes sans fonction narrative identifiable.",
       "hard_negatives": null
     }
-  }
+  },
+  "overrides": [
+    {
+      "label": "creed",
+      "reason": "Broad V2.1 definition is authoritative; the policy section is stale."
+    }
+  ],
+  "version": "v2"
 }

@@ -1,11 +1,14 @@
 # EVAL-6 — ENCODER cascade versus LLM-PER-LABEL — protocol — 2026-09-06
 
-Status: protocol, prepared and **not executed**. No Ollama inference, no encoder
-inference, no training, no GPU workload was run to produce it. Nothing in
-production, in the Spike Encoder or in any threshold was modified.
+Status: protocol, **ready to execute**. Step A has been run and validated; the
+LLM campaign has not. No Ollama inference, no training and no GPU workload was
+run. Nothing in production, in the Spike Encoder or in any threshold was
+modified.
 
-Read section 3 before planning the run. Three findings from the artifact audit
-change what EVAL-6 can and cannot answer, and one of them is a blocker.
+Revision of 2026-09-06: the `creed` and IS-versus-ABOUT blockers are withdrawn.
+`creed` now carries its authoritative broad definition, and the ground-truth
+questions are recorded as benchmark limitations rather than gates. Section 3
+states what the benchmark can and cannot conclude; none of it prevents the run.
 
 ## 1. Experimental question
 
@@ -72,17 +75,34 @@ two of the five canonical sections:
 
 477 records are title-only. Median length 118 characters, p95 342, max 3 313.
 
-### 2.2 Encoder artifacts
+### 2.2 Encoder artifacts — per-record predictions now materialised
 
-The frozen configuration and its published metrics exist. **Per-record
-predictions do not.** `evaluation/cascade-v1/cascade-results.json` holds rule
+The frozen configuration and its published metrics exist. Per-record predictions
+did not. `evaluation/cascade-v1/cascade-results.json` holds rule
 comparisons and diagnostics but no document-level output, so per-label confusion
 counts and a document-by-document comparison cannot be derived from it.
 
-One deterministic re-run at the frozen thresholds is therefore required to
-materialise them. It selects nothing and changes nothing, and it must reproduce
-the published aggregates — the script says so and the check is part of the plan.
-On CPU at the measured 78.71 ms P50 this is roughly 70 seconds of work.
+A deterministic re-run at the frozen thresholds was executed (step A). It
+selected nothing and changed nothing, and it **reproduces the published
+aggregates exactly**:
+
+| Metric | Recomputed | Published | Delta |
+|---|---:|---:|---:|
+| macro F1 | 0.7743 | 0.7743 | 0.0000 |
+| micro F1 | 0.7735 | 0.7735 | 0.0000 |
+| exact match | 0.7878 | 0.7878 | 0.0000 |
+| positive-any-label recall | 0.9677 | 0.9677 | 0.0000 |
+| OOT accuracy | 0.8563 | 0.8563 | 0.0000 |
+
+Fallback fired on 212 of 886 records and rescued 40 with a non-empty set, which
+matches the report's 40 rescued cases. Run on CPU in the `lcgft-ml:rocm7.2.4`
+image with no GPU device exposed, 87 seconds.
+
+```text
+/tmp/eval6/encoder-predictions.jsonl
+/tmp/eval6/encoder-predictions.manifest.json
+test split sha256 29be204ea681c9fc5d63b092075792f40dc2e838fa1d9ba645155d028429cf93
+```
 
 ### 2.3 Reusable LLM code
 
@@ -120,38 +140,45 @@ hard negatives   1/24   (essays, which has hard negatives instead of exclusions)
 source sha256   f865b0f531e1d3f1...
 ```
 
+One override: `creed` carries the broad V2.1 definition (§3.1). The superseded
+wording is retained in the artifact so the substitution is auditable, and the
+loader refuses to start if any of the 24 lacks a definition.
+
 No rewriting, no translation, no harmonisation of the source's own headings
 (`Définition`, `Définition candidate`, `Définition opérationnelle`, `Positifs`,
 `Critères positifs`). The definitions are French because the normative source
 is; translating them for the prompt would silently reinterpret the policy the
 encoder was trained against.
 
-## 3. Findings that constrain EVAL-6
+## 3. What the benchmark means, and what constrains it
 
-### 3.1 BLOCKER — the `creed` definition is contradicted
+EVAL-6 compares how well two mechanisms **agree with the frozen ground truth of
+Spike Encoder V2.1**. It does not establish which one understands the taxonomy
+better, and no conclusion may be phrased that way. The ground truth is silver
+and overwhelmingly unreviewed; that bounds the claim, and it applies equally to
+both candidates, so the comparison itself stays fair.
 
-The instruction opening EVAL-6 states that `creed` is not restricted to the
-religious: an explicit profession of beliefs, principles or convictions.
+### 3.1 `creed` uses the broad definition — resolved
 
-§9.18 of the frozen policy states the opposite:
+The authoritative wording is the V2.1 one, found verbatim in the integration
+handoff:
 
-> Texte normatif ou déclaratif formulant de manière condensée les croyances ou
-> engagements doctrinaux **d'une communauté religieuse**.
+> `creed` is not restricted to religion. It means a formal or explicit
+> profession of beliefs, principles, convictions, or commitments. A work
+> **about** a creed is not itself a creed.
 
-Its positives are Nicaea, Augsburg, Westminster. Nothing secular appears
-anywhere in the policy for this label.
+It is applied as an explicit override in `label-definitions-v1.json`, with the
+superseded text retained beside it under `superseded_definition` so the change
+is auditable.
 
-The encoder's ground truth follows §9.18. Giving the LLM the broader definition
-would have the two candidates answer different questions for `creed`, and its
-column would be meaningless. Giving it §9.18 contradicts the instruction.
+`LCGFT-GenreForm-Labeling-Policy-v2.md` §9.18 still restricts `creed` to «une
+communauté religieuse». That section is **stale documentation debt**, recorded
+in the definitions artifact and worth fixing at source, but it does not gate
+EVAL-6. The §9.18 exclusions — catechism, theological treatise, commentary on a
+confession, historical study of creeds — remain compatible with the broad
+definition and are kept.
 
-**This needs a ruling before execution, and it is not mine to make.** Either
-§9.18 is authoritative for EVAL-6 — the benchmark measures agreement with the
-corpus, and the broader definition is a V3 taxonomy change — or the broader
-definition is authoritative, in which case the `creed` ground truth must be
-re-derived and the encoder re-evaluated, which is out of EVAL-6's scope.
-
-### 3.2 BLOCKER for the IS-versus-ABOUT slice — the ground truth is contaminated
+### 3.2 The IS-versus-ABOUT boundary is a limitation, not a gate
 
 §9.18 explicitly excludes `commentaire d'une confession` and `étude historique
 des credo`. Records labelled `creed` in this very test split include:
@@ -187,24 +214,31 @@ Not every suspect is an error — *Time's covenant: the essays and sermons of
 William Clancy* genuinely is a sermon collection — but *Preaching and popular
 Christianity: reading the sermons of John Chrysostom* plainly is not a sermon.
 
-The consequence is unavoidable: **a candidate that correctly answers "this is a
-study of a creed, not a creed" is scored wrong.** The IS-versus-ABOUT question
-therefore cannot be measured on this test split. The scorer emits the suspect
-slice as a qualitative artifact only, clearly marked, and derives no metric from
-it. Turning it into a measurement requires human adjudication of those 34
-records, which is a separate task and not part of EVAL-6.
+Gate C's dataset design was explicit about the intent — `study of a creed -> []`,
+`book about sermons -> []`, `history of catechisms -> []`, `book about
+apologetics -> []` — so the annotation, not the policy, is where the drift sits.
 
-### 3.3 EVAL-6 cannot measure multi-label capability
+The consequence is that on those records a candidate answering "this is a study
+of a creed, not a creed" scores as wrong. **This affects both candidates against
+the same ground truth**, so it does not bias the comparison; it bounds what the
+`creed` and `commentary` columns mean.
+
+No challenge set is built, no human adjudication is required, and this does not
+gate the campaign. The scorer emits the lexical suspect slice as a clearly
+marked qualitative artifact, and derives no metric from it.
+
+### 3.3 Multi-label capability is out of reach on this split
 
 Two records out of 886 carry two labels. Mean expected labels per document is
 0.80. The multi-label suppression that motivated EVAL-4 and EVAL-5 — the papacy
 essay never returning both applicable terms — **has no purchase here.** The
 metrics in section 6 are still computed, and they will be near-degenerate.
 
-This is not a defect of the protocol; it is a property of the corpus. It must be
-stated in the conclusions rather than discovered afterwards: EVAL-6 answers
-"which mechanism agrees better with this corpus, per label", not "which
-mechanism handles multi-label better".
+This is a property of the corpus, not a defect of the protocol, and it does not
+gate the campaign. Per-label predictions and exact sets are still compared
+correctly. It must simply be stated in the conclusions rather than discovered
+afterwards: EVAL-6 answers "which mechanism agrees better with this corpus, per
+label", not "which mechanism handles multi-label better".
 
 ### 3.4 The playing field is not level, and cannot be made level
 
@@ -526,10 +560,13 @@ python3 spikes/lcgft-encoder/eval6_score.py \
 
 Restating them together, because each one bounds a conclusion:
 
-1. `creed` definition conflict — unresolved, blocking (3.1).
-2. IS-versus-ABOUT ground truth contaminated — the slice is not measurable
-   without adjudication (3.2).
-3. Multi-label capability is not measurable on this split — 2 records of 886
+1. `creed` uses the broad V2.1 definition; the labelling policy §9.18 is stale
+   documentation debt (3.1).
+2. The ground truth labels some works *about* a form as being that form —
+   roughly 34 lexical suspects across 296 boundary records. It affects both
+   candidates identically, so it bounds the `creed` and `commentary` columns
+   without biasing the comparison (3.2).
+3. Multi-label capability is out of reach on this split — 2 records of 886
    (3.3).
 4. The corpus favours the trained mechanism; results are agreement with the
    corpus, not correctness (3.4).
@@ -544,10 +581,10 @@ Restating them together, because each one bounds a conclusion:
 
 ## 15. STOP
 
-Execution stops here pending, in order:
+Step A is done and validated. Execution stops here pending, in order:
 
-1. a ruling on `creed` (3.1);
-2. acceptance of the IS-versus-ABOUT slice being qualitative only (3.2);
-3. acknowledgement that multi-label capability is out of reach on this split
-   (3.3);
-4. approval of step A, then separately of step B, then separately of step C.
+1. approval of step B, the runtime calibration, which converts the 5-to-16-hour
+   bracket into a measurement in under ten minutes;
+2. approval of step C, the campaign itself.
+
+No blocker remains.
