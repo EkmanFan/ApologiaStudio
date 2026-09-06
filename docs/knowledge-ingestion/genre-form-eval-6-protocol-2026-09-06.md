@@ -99,9 +99,21 @@ matches the report's 40 rescued cases. Run on CPU in the `lcgft-ml:rocm7.2.4`
 image with no GPU device exposed, 87 seconds.
 
 ```text
-/tmp/eval6/encoder-predictions.jsonl
-/tmp/eval6/encoder-predictions.manifest.json
-test split sha256 29be204ea681c9fc5d63b092075792f40dc2e838fa1d9ba645155d028429cf93
+$HOME/eval6-artifacts/encoder-predictions.jsonl          886 lines
+$HOME/eval6-artifacts/encoder-predictions.manifest.json
+predictions sha256 3335315b4872147675a4297b626d4c479de016e496b7a580f30c45df4182f037
+test split  sha256 29be204ea681c9fc5d63b092075792f40dc2e838fa1d9ba645155d028429cf93
+```
+
+Artifacts live in `$HOME/eval6-artifacts`, never in `/tmp`: a campaign running
+five to sixteen hours must survive a reboot, and `/tmp` does not.
+
+The frozen weights are **not** in the Spike Encoder repository — `.gitignore`
+excludes `*.safetensors`. They are on the HDD:
+
+```text
+/mnt/SharedDrive/Spike Encoder/Spike Encoder V2/models/xlm-roberta-large/gate-e-v1/best-model
+/mnt/SharedDrive/Spike Encoder/Spike Encoder V2/models/mdeberta-v3-base/gate-e-v1/best-model
 ```
 
 ### 2.3 Reusable LLM code
@@ -503,30 +515,43 @@ remain open. EVAL-6 produces comparative evidence first.
 All compile. None has been executed. The loader refuses to start if any of the
 24 labels lacks a normative definition, so EVAL-6 cannot run on an invented one.
 
-## 13. Planned commands
+## 13. Commands
 
-Nothing below is run without an explicit go.
+Steps B and C are not run without an explicit go.
 
-**Step A — encoder per-record dump (CPU, ~70 s, no GPU):**
+**Step A — encoder per-record dump — DONE, 87 s, CPU only.**
+
+There is no torch in the system Python and no virtualenv in the Spike Encoder
+repository, so it runs in the ML image with **no GPU device exposed**: without
+`--device=/dev/kfd` the container reports `torch.cuda.is_available() == False`.
+`--security-opt label=disable` is required by SELinux on this Fedora host.
 
 ```bash
-python3 spikes/lcgft-encoder/eval6_encoder_dump_predictions.py \
-  --test-split "$HOME/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl" \
-  --primary-model-dir  "<frozen xlm-roberta-large>/best-model" \
-  --fallback-model-dir "<frozen mdeberta-v3-base>/best-model" \
-  --output /tmp/eval6/encoder-predictions.jsonl \
-  --device cpu
+mkdir -p "$HOME/eval6-artifacts"
+cp spikes/lcgft-encoder/eval6_encoder_dump_predictions.py "$HOME/eval6-artifacts/"
+
+docker run --rm --network none --security-opt label=disable \
+  -v "$HOME/eval6-artifacts:/work" \
+  -v "$HOME/RiderProjects/SpikeEncoder/datasets:/spike-datasets:ro" \
+  -v "/mnt/SharedDrive/Spike Encoder/Spike Encoder V2/models:/models:ro" \
+  -w /work lcgft-ml:rocm7.2.4 \
+  python3 eval6_encoder_dump_predictions.py \
+    --test-split /spike-datasets/gate-d-split-v1/test.jsonl \
+    --primary-model-dir  /models/xlm-roberta-large/gate-e-v1/best-model \
+    --fallback-model-dir /models/mdeberta-v3-base/gate-e-v1/best-model \
+    --output /work/encoder-predictions.jsonl \
+    --device cpu
 ```
 
-Then check the aggregates against `evaluation/cascade-v1/cascade-results.json`:
-a deterministic re-run must reproduce them, and a mismatch stops EVAL-6.
+The aggregates were checked against `evaluation/cascade-v1/cascade-results.json`
+and reproduce exactly (§2.2). A mismatch would have stopped EVAL-6.
 
 **Step B — calibration, separate approval (240 decisions, ~4-10 min):**
 
 ```bash
 export OLLAMA_EVALUATIONS_ENABLED=true EVAL6_CALIBRATION=true
 export EVAL6_TEST_SPLIT="$HOME/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl"
-export EVAL6_OUTPUT_DIR=/tmp/eval6-calibration
+export EVAL6_OUTPUT_DIR=$HOME/eval6-artifacts/calibration
 mkdir -p "$EVAL6_OUTPUT_DIR"
 dotnet test tests/ApologiaStudio.Evaluations --nologo \
   --filter "FullyQualifiedName~Eval6CampaignTests.Llm_per_label_calibration_runs"
@@ -537,7 +562,7 @@ dotnet test tests/ApologiaStudio.Evaluations --nologo \
 ```bash
 export OLLAMA_EVALUATIONS_ENABLED=true EVAL6_RUN=true
 export EVAL6_TEST_SPLIT="$HOME/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl"
-export EVAL6_OUTPUT_DIR=/tmp/eval6
+export EVAL6_OUTPUT_DIR=$HOME/eval6-artifacts
 mkdir -p "$EVAL6_OUTPUT_DIR"
 dotnet test tests/ApologiaStudio.Evaluations --nologo \
   --filter "FullyQualifiedName~Eval6CampaignTests.Llm_per_label_campaign_runs"
@@ -551,9 +576,9 @@ decision already recorded.
 ```bash
 python3 spikes/lcgft-encoder/eval6_score.py \
   --test-split "$HOME/RiderProjects/SpikeEncoder/datasets/gate-d-split-v1/test.jsonl" \
-  --encoder-predictions /tmp/eval6/encoder-predictions.jsonl \
-  --llm-decisions       /tmp/eval6/decisions.jsonl \
-  --output              /tmp/eval6/eval6-report.json
+  --encoder-predictions $HOME/eval6-artifacts/encoder-predictions.jsonl \
+  --llm-decisions       $HOME/eval6-artifacts/decisions.jsonl \
+  --output              $HOME/eval6-artifacts/eval6-report.json
 ```
 
 ## 14. Risks and limitations
