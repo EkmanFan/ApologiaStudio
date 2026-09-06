@@ -97,6 +97,19 @@ port est occupé par une instance précédente, la tuer puis relancer.
 
 ### Pièges vérifiés
 
+- **La suite normale ne fait aucune inférence.** Les tests qui pilotent un vrai
+  Ollama chargent un modèle et mobilisent ~10 Gio de VRAM plusieurs minutes,
+  ce qui fausse silencieusement un benchmark ou une campagne parallèle. Ils sont
+  donc opt-in :
+
+  ```bash
+  OLLAMA_INTEGRATION_TESTS_ENABLED=true dotnet test   # tests live du runtime
+  OLLAMA_EVALUATIONS_ENABLED=true dotnet test         # évaluations de modèle
+  ```
+
+  Les deux variables sont distinctes : activer les évaluations n'active pas les
+  tests d'intégration live, et l'inverse.
+
 - **`dotnet test` sans direnv** : les 21 tests d'intégration échouent tous sur
   `APOLOGIASTUDIO_TEST_DB_CONNECTION was not configured`. Ce n'est pas une panne,
   c'est `.envrc` non chargé. Rider charge direnv automatiquement, pas un shell nu.

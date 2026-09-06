@@ -7,9 +7,17 @@ namespace ApologiaStudio.IntegrationTests.AiRuntime;
 
 /// <summary>
 /// Exercises the non-streaming structured path against a real Ollama instance.
-/// Skipped when Ollama is unavailable: the assistant must never be a
-/// prerequisite for the rest of the suite.
 /// </summary>
+/// <remarks>
+/// The two tests that reach Ollama are opt-in through
+/// <see cref="LiveOllamaIntegrationGate"/>: they load a model, and a normal
+/// suite must not mobilise the GPU. The gate is checked before the availability
+/// probe, so a default run makes no network call at all.
+///
+/// The other two need no Ollama — one drives a local silent listener, the other
+/// fails before any call — and keep running by default, because gating them
+/// would cost coverage without saving anything.
+/// </remarks>
 public sealed class OllamaStructuredGenerationRuntimeTests
 {
     private const string BaseAddress = "http://127.0.0.1:11434";
@@ -19,7 +27,7 @@ public sealed class OllamaStructuredGenerationRuntimeTests
     [Fact]
     public async Task Schema_constrained_generation_returns_parseable_json()
     {
-        if (!await OllamaIsAvailableAsync())
+        if (!await LiveOllamaAvailableAsync())
         {
             return;
         }
@@ -54,7 +62,7 @@ public sealed class OllamaStructuredGenerationRuntimeTests
     [Fact]
     public async Task Cancellation_is_honoured_and_reported()
     {
-        if (!await OllamaIsAvailableAsync())
+        if (!await LiveOllamaAvailableAsync())
         {
             return;
         }
@@ -134,8 +142,21 @@ public sealed class OllamaStructuredGenerationRuntimeTests
             telemetry);
     }
 
-    private static async Task<bool> OllamaIsAvailableAsync()
+    /// <summary>
+    /// Whether a live Ollama run is both permitted and possible.
+    /// </summary>
+    /// <remarks>
+    /// The opt-in switch is read first. Probing before checking it would make
+    /// every ordinary suite send a request to Ollama, which is precisely what
+    /// this gate exists to stop.
+    /// </remarks>
+    private static async Task<bool> LiveOllamaAvailableAsync()
     {
+        if (!LiveOllamaIntegrationGate.IsEnabled())
+        {
+            return false;
+        }
+
         try
         {
             using var client = new HttpClient
@@ -213,9 +234,23 @@ public sealed class OllamaStructuredGenerationRuntimeTests
     /// Accepts a connection and never answers, so a client timeout is the only
     /// possible outcome.
     /// </summary>
+    /// <summary>
+    /// Accepts connections and never answers, so the configured timeout is what
+    /// ends a call.
+    /// </summary>
+    /// <remarks>
+    /// Accepted clients are held for the listener's lifetime. Dropping them
+    /// makes them collectable, and a finalizer closing the socket resets the
+    /// connection — which the caller sees as a transport error rather than the
+    /// timeout the test exists to observe. That failure appears only when
+    /// garbage collection happens to run during the wait, so it presents as
+    /// unrelated flakiness.
+    /// </remarks>
     private sealed class SilentListener : IDisposable
     {
         private readonly System.Net.Sockets.TcpListener _listener;
+
+        private readonly List<System.Net.Sockets.TcpClient> _accepted = [];
 
         public SilentListener()
         {
@@ -230,7 +265,12 @@ public sealed class OllamaStructuredGenerationRuntimeTests
                 {
                     while (true)
                     {
-                        await _listener.AcceptTcpClientAsync();
+                        var client = await _listener.AcceptTcpClientAsync();
+
+                        lock (_accepted)
+                        {
+                            _accepted.Add(client);
+                        }
                     }
                 }
                 catch
@@ -243,7 +283,20 @@ public sealed class OllamaStructuredGenerationRuntimeTests
         public string BaseAddress =>
             $"http://127.0.0.1:{((System.Net.IPEndPoint)_listener.LocalEndpoint).Port}";
 
-        public void Dispose() => _listener.Stop();
+        public void Dispose()
+        {
+            _listener.Stop();
+
+            lock (_accepted)
+            {
+                foreach (var client in _accepted)
+                {
+                    client.Dispose();
+                }
+
+                _accepted.Clear();
+            }
+        }
     }
 
     private sealed class RecordingTelemetry : IStructuredGenerationTelemetry
