@@ -100,9 +100,25 @@ public sealed class EncoderWorkerSupervisor(
     {
         if (await IsHealthyAsync(cancellationToken))
         {
+            // A worker may be answering because Apologia started it and was
+            // then killed without shutting down. Ownership is decided on the
+            // container's own label, never on the assumption that a dead
+            // parent took its container with it.
+            if (await host.TryAdoptAsync(cancellationToken))
+            {
+                _owned = true;
+
+                logger.LogInformation(
+                    "An encoder worker started by Apologia is still running; " +
+                    "taking it back rather than starting a second one.");
+
+                return true;
+            }
+
             logger.LogInformation(
-                "An encoder worker is already running; Apologia will use it " +
-                "and will not stop it.");
+                "An encoder worker is already running and was not started by " +
+                "Apologia; it will be used and never stopped.");
+
             return false;
         }
 
@@ -150,7 +166,7 @@ public sealed class EncoderWorkerSupervisor(
             // usefully take: checking faster than we would ever act is noise.
             await Task.Delay(options.MinimumRestartBackoff, cancellationToken);
 
-            if (host.IsRunning)
+            if (await host.IsRunningAsync(cancellationToken))
             {
                 backoff = options.MinimumRestartBackoff;
                 continue;

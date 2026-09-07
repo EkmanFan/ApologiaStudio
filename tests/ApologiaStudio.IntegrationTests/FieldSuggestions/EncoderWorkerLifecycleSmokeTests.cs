@@ -89,38 +89,89 @@ public sealed class EncoderWorkerLifecycleSmokeTests
         await RemoveContainerAsync();
 
         var options = WorkerOptions();
-        using var external = new DockerEncoderWorkerHost(options);
         using var httpClient = new HttpClient();
         var runtime = Runtime(httpClient);
 
-        // Someone else's worker, started before Apologia.
-        Assert.Equal(
-            EncoderWorkerStartOutcome.Started,
-            await external.StartAsync(CancellationToken.None));
+        // Started the way an operator would, with no Apologia label on it.
+        using var external = await StartUnlabelledWorkerAsync(options);
+
+        try
+        {
+            Assert.True(
+                await WaitAsync(
+                    () => runtime.IsAvailableAsync(CancellationToken.None),
+                    TimeSpan.FromMinutes(2)),
+                "the external worker never became ready");
+
+            Assert.False(await IsManagedAsync());
+
+            using var supervised = new DockerEncoderWorkerHost(options);
+            var supervisor = Supervisor(supervised, options, runtime);
+
+            await supervisor.StartAsync(CancellationToken.None);
+            await Task.Delay(TimeSpan.FromSeconds(3));
+
+            // Not adopted and not duplicated: it carries no Apologia label.
+            Assert.False(
+                await supervised.IsRunningAsync(CancellationToken.None));
+
+            await supervisor.StopAsync(CancellationToken.None);
+
+            // And the worker Apologia found is still there.
+            Assert.True(await ContainerExistsAsync());
+            Assert.True(await runtime.IsAvailableAsync(CancellationToken.None));
+        }
+        finally
+        {
+            await RemoveContainerAsync();
+        }
+    }
+
+    [Fact]
+    public async Task A_worker_that_outlives_a_killed_apologia_is_taken_back()
+    {
+        if (!LiveEncoderIntegrationGate.IsEnabled())
+        {
+            return;
+        }
+
+        await RemoveContainerAsync();
+
+        var options = WorkerOptions();
+        using var httpClient = new HttpClient();
+        var runtime = Runtime(httpClient);
+
+        // A first Apologia starts the worker.
+        var first = new DockerEncoderWorkerHost(options);
+        var firstSupervisor = Supervisor(first, options, runtime);
+
+        await firstSupervisor.StartAsync(CancellationToken.None);
 
         Assert.True(
             await WaitAsync(
                 () => runtime.IsAvailableAsync(CancellationToken.None),
                 TimeSpan.FromMinutes(2)),
-            "the external worker never became ready");
+            "the first supervisor never made the worker ready");
 
-        using var supervised = new DockerEncoderWorkerHost(options);
-        var supervisor = Supervisor(supervised, options, runtime);
+        Assert.True(await IsManagedAsync());
 
-        await supervisor.StartAsync(CancellationToken.None);
+        // It is killed without ever shutting down: no StopAsync, no cleanup.
+        first.Dispose();
+
+        // A second Apologia starts and finds a worker already answering.
+        using var second = new DockerEncoderWorkerHost(options);
+        var secondSupervisor = Supervisor(second, options, runtime);
+
+        await secondSupervisor.StartAsync(CancellationToken.None);
         await Task.Delay(TimeSpan.FromSeconds(3));
 
-        // No second instance was launched.
-        Assert.False(supervised.IsRunning);
+        // Taken back rather than treated as a stranger's, and not duplicated.
+        Assert.True(await second.IsRunningAsync(CancellationToken.None));
 
-        await supervisor.StopAsync(CancellationToken.None);
+        await secondSupervisor.StopAsync(CancellationToken.None);
 
-        // And the worker Apologia found is still there.
-        Assert.True(await ContainerExistsAsync());
-        Assert.True(await runtime.IsAvailableAsync(CancellationToken.None));
-
-        await external.StopAsync(CancellationToken.None);
-        await RemoveContainerAsync();
+        // The ownership was not lost: the container is gone.
+        Assert.False(await ContainerExistsAsync());
     }
 
     #endregion
@@ -238,6 +289,85 @@ public sealed class EncoderWorkerLifecycleSmokeTests
         }
 
         await Task.Delay(TimeSpan.FromSeconds(1));
+    }
+
+    /// <summary>
+    /// Whether the running container carries the Apologia ownership label.
+    /// </summary>
+    /// <summary>
+    /// Starts a worker the way something other than Apologia would: same
+    /// container, no ownership label.
+    /// </summary>
+    private static async Task<System.Diagnostics.Process> StartUnlabelledWorkerAsync(
+        EncoderWorkerOptions options)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo("docker")
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+
+        foreach (var argument in new[]
+                 {
+                     "run", "--rm", "--interactive",
+                     "--name", options.ContainerName,
+                     "--publish", $"127.0.0.1:{options.Port}:{options.Port}",
+                     "--env", "CUDA_VISIBLE_DEVICES=",
+                     "--env", "HIP_VISIBLE_DEVICES=",
+                     "--env", "ROCR_VISIBLE_DEVICES=",
+                     "--env", "TOKENIZERS_PARALLELISM=false",
+                     "--env", "PYTHONUNBUFFERED=1",
+                     "--env", $"ENCODER_PRIMARY_MODEL_PATH={options.PrimaryModelPath}",
+                     "--env", $"ENCODER_FALLBACK_MODEL_PATH={options.FallbackModelPath}",
+                     "--env", $"ENCODER_WORKER_PORT={options.Port}",
+                     "--env", $"ENCODER_CPU_THREADS={options.CpuThreads}",
+                     "--volume", $"{options.ArtifactRoot}:/artifacts:ro",
+                     options.Image, "python3", "-"
+                 })
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        var process = System.Diagnostics.Process.Start(start)!;
+
+        await process.StandardInput.WriteAsync(
+            await File.ReadAllTextAsync(options.WorkerScriptPath));
+        await process.StandardInput.FlushAsync();
+        process.StandardInput.Close();
+
+        _ = process.StandardOutput.ReadToEndAsync();
+        _ = process.StandardError.ReadToEndAsync();
+
+        return process;
+    }
+
+    private static async Task<bool> IsManagedAsync()
+    {
+        using var process = System.Diagnostics.Process.Start(
+            new System.Diagnostics.ProcessStartInfo("docker")
+            {
+                ArgumentList =
+                {
+                    "ps", "--format", "{{.Names}}",
+                    "--filter", $"name={ContainerName}",
+                    "--filter", $"label={DockerEncoderWorkerHost.ManagedLabel}"
+                },
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            });
+
+        if (process is null)
+        {
+            return false;
+        }
+
+        var output = await process.StandardOutput.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        return output.Contains(ContainerName, StringComparison.Ordinal);
     }
 
     private static async Task<bool> ContainerExistsAsync()

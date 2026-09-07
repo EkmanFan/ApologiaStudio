@@ -18,9 +18,9 @@ public sealed class EncoderWorkerSupervisorTests
     #region Methods Startup
 
     [Fact]
-    public async Task An_already_running_worker_is_reused_and_never_owned()
+    public async Task An_unlabelled_running_worker_is_reused_and_never_owned()
     {
-        var host = new ScriptedHost();
+        var host = new ScriptedHost { Managed = false };
         var runtime = new ScriptedRuntime { Healthy = true };
 
         using var supervisor = Supervisor(host, runtime);
@@ -28,11 +28,60 @@ public sealed class EncoderWorkerSupervisorTests
         await RunAsync(supervisor);
 
         Assert.Equal(0, host.StartCalls);
+        Assert.Equal(1, host.AdoptCalls);
 
         await supervisor.StopAsync(CancellationToken.None);
 
         // Someone else's worker is someone else's to stop.
         Assert.Equal(0, host.StopCalls);
+    }
+
+    [Fact]
+    public async Task A_surviving_worker_apologia_started_is_taken_back()
+    {
+        // Apologia was killed without shutting down; its worker outlived it and
+        // still answers. The label is what proves it was ours.
+        var host = new ScriptedHost { Managed = true, Alive = true };
+        var runtime = new ScriptedRuntime { Healthy = true };
+
+        using var supervisor = Supervisor(host, runtime);
+
+        await RunAsync(supervisor);
+
+        // Taken back, not duplicated.
+        Assert.Equal(0, host.StartCalls);
+        Assert.Equal(1, host.AdoptCalls);
+
+        await supervisor.StopAsync(CancellationToken.None);
+
+        // And this time the ownership is not lost again.
+        Assert.Equal(1, host.StopCalls);
+    }
+
+    [Fact]
+    public async Task A_taken_back_worker_is_supervised_like_any_other()
+    {
+        var host = new ScriptedHost { Managed = true, Alive = true };
+        var runtime = new ScriptedRuntime { Healthy = true };
+
+        using var supervisor = Supervisor(
+            host,
+            runtime,
+            options => options with
+            {
+                StartupTimeout = TimeSpan.FromMilliseconds(50),
+                MinimumRestartBackoff = TimeSpan.FromMilliseconds(10),
+                MaximumRestartBackoff = TimeSpan.FromMilliseconds(50)
+            });
+
+        await supervisor.StartAsync(CancellationToken.None);
+        await WaitAsync(() => host.AdoptCalls == 1);
+
+        host.Alive = false;
+
+        await WaitAsync(() => host.StartCalls >= 1);
+
+        await supervisor.StopAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -172,7 +221,7 @@ public sealed class EncoderWorkerSupervisorTests
 
         await supervisor.StartAsync(CancellationToken.None);
 
-        await WaitAsync(() => host.StartCalls == 1 && host.IsRunning);
+        await WaitAsync(() => host.StartCalls == 1 && host.Alive);
 
         // The container is killed from outside.
         host.Alive = false;
@@ -204,7 +253,7 @@ public sealed class EncoderWorkerSupervisorTests
             });
 
         await supervisor.StartAsync(CancellationToken.None);
-        await WaitAsync(() => host.StartCalls == 1 && host.IsRunning);
+        await WaitAsync(() => host.StartCalls == 1 && host.Alive);
 
         // Killed from outside, and every restart from now on fails.
         host.Alive = false;
@@ -229,7 +278,7 @@ public sealed class EncoderWorkerSupervisorTests
             });
 
         await supervisor.StartAsync(CancellationToken.None);
-        await WaitAsync(() => host.StartCalls == 1 && host.IsRunning);
+        await WaitAsync(() => host.StartCalls == 1 && host.Alive);
 
         host.Alive = false;
         await Task.Delay(200);
@@ -257,7 +306,7 @@ public sealed class EncoderWorkerSupervisorTests
             });
 
         await supervisor.StartAsync(CancellationToken.None);
-        await WaitAsync(() => host.StartCalls == 1 && host.IsRunning);
+        await WaitAsync(() => host.StartCalls == 1 && host.Alive);
 
         // Stops promptly rather than serving out the readiness window.
         var stopping = supervisor.StopAsync(CancellationToken.None);
@@ -338,7 +387,29 @@ public sealed class EncoderWorkerSupervisorTests
 
         public int StopCalls { get; private set; }
 
-        public bool IsRunning => Alive;
+        public bool Managed { get; set; }
+
+        public int AdoptCalls { get; private set; }
+
+        public Task<bool> IsRunningAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Alive);
+        }
+
+        public Task<bool> TryAdoptAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            AdoptCalls++;
+
+            if (!Managed)
+            {
+                return Task.FromResult(false);
+            }
+
+            Alive = true;
+            return Task.FromResult(true);
+        }
 
         public Task<EncoderWorkerStartOutcome> StartAsync(
             CancellationToken cancellationToken)

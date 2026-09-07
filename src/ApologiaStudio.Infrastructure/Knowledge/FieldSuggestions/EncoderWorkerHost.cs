@@ -82,10 +82,24 @@ public enum EncoderWorkerStartOutcome
 /// </remarks>
 public interface IEncoderWorkerHost
 {
-    /// <summary>Gets whether the worker this host started is still alive.</summary>
-    bool IsRunning { get; }
+    /// <summary>Gets whether the worker this host owns is still alive.</summary>
+    Task<bool> IsRunningAsync(
+        CancellationToken cancellationToken);
 
     Task<EncoderWorkerStartOutcome> StartAsync(
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Takes back a worker Apologia started and then lost, typically because
+    /// the application was killed without shutting down.
+    /// </summary>
+    /// <remarks>
+    /// Adoption is decided by a label the worker only carries when Apologia
+    /// created it. Without it the ownership of a surviving container would rest
+    /// on a Docker client behaviour nobody verified, and a worker Apologia had
+    /// created would quietly become "someone else's" forever.
+    /// </remarks>
+    Task<bool> TryAdoptAsync(
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -117,14 +131,15 @@ public sealed class DockerEncoderWorkerHost(
 
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    /// <summary>
+    /// Marks a container as created by Apologia. Stable, and the only thing
+    /// ownership is ever decided on.
+    /// </summary>
+    public const string ManagedLabel = "apologia.encoder-worker.managed=true";
+
     private Process? _worker;
 
-    #endregion
-
-    #region Properties
-
-    /// <inheritdoc />
-    public bool IsRunning => _worker is { HasExited: false };
+    private bool _adopted;
 
     #endregion
 
@@ -149,7 +164,7 @@ public sealed class DockerEncoderWorkerHost(
 
         try
         {
-            if (IsRunning)
+            if (_worker is { HasExited: false })
             {
                 return EncoderWorkerStartOutcome.Started;
             }
@@ -179,6 +194,65 @@ public sealed class DockerEncoderWorkerHost(
     }
 
     /// <inheritdoc />
+    public async Task<bool> IsRunningAsync(
+        CancellationToken cancellationToken)
+    {
+        if (_worker is { HasExited: false })
+        {
+            return true;
+        }
+
+        if (_worker is null && !_adopted)
+        {
+            return false;
+        }
+
+        // The child is gone but the container may not be, and an adopted one
+        // never had a child here at all. Docker is the authority.
+        return await IsContainerPresentAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> TryAdoptAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!options.CanAutoStart)
+        {
+            return false;
+        }
+
+        await _gate.WaitAsync(cancellationToken);
+
+        try
+        {
+            if (_worker is { HasExited: false } || _adopted)
+            {
+                return true;
+            }
+
+            try
+            {
+                if (!await IsContainerPresentAsync(cancellationToken))
+                {
+                    return false;
+                }
+            }
+            catch (Win32Exception)
+            {
+                return false;
+            }
+
+            _adopted = true;
+
+            return true;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <inheritdoc />
     public async Task StopAsync(
         CancellationToken cancellationToken)
     {
@@ -186,7 +260,7 @@ public sealed class DockerEncoderWorkerHost(
 
         try
         {
-            if (_worker is null)
+            if (_worker is null && !_adopted)
             {
                 return;
             }
@@ -197,7 +271,17 @@ public sealed class DockerEncoderWorkerHost(
                     ["stop", "--time", "5", options.ContainerName],
                     cancellationToken);
 
-                await _worker.WaitForExitAsync(cancellationToken);
+                if (_worker is not null)
+                {
+                    await _worker.WaitForExitAsync(cancellationToken);
+                }
+
+                // An adopted container was started with --rm by an earlier run,
+                // so stopping removes it. Asking again costs nothing and covers
+                // a container that outlived its own cleanup.
+                await RunAsync(
+                    ["rm", "--force", options.ContainerName],
+                    cancellationToken);
             }
             catch (Exception exception) when (
                 exception is Win32Exception or InvalidOperationException)
@@ -206,8 +290,9 @@ public sealed class DockerEncoderWorkerHost(
             }
             finally
             {
-                _worker.Dispose();
+                _worker?.Dispose();
                 _worker = null;
+                _adopted = false;
             }
         }
         finally
@@ -282,6 +367,10 @@ public sealed class DockerEncoderWorkerHost(
         yield return "--name";
         yield return options.ContainerName;
 
+        // The only evidence of ownership that survives Apologia.
+        yield return "--label";
+        yield return ManagedLabel;
+
         yield return "--publish";
         yield return $"127.0.0.1:{options.Port}:{options.Port}";
 
@@ -311,6 +400,58 @@ public sealed class DockerEncoderWorkerHost(
         yield return options.Image;
         yield return "python3";
         yield return "-";
+    }
+
+    /// <summary>
+    /// Whether the configured container is running and was created by Apologia.
+    /// </summary>
+    private async Task<bool> IsContainerPresentAsync(
+        CancellationToken cancellationToken)
+    {
+        var names = await ReadAsync(
+            [
+                "ps",
+                "--filter", $"name={options.ContainerName}",
+                "--filter", $"label={ManagedLabel}",
+                "--format", "{{.Names}}"
+            ],
+            cancellationToken);
+
+        return names
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Any(x => string.Equals(
+                x.Trim(),
+                options.ContainerName,
+                StringComparison.Ordinal));
+    }
+
+    private static async Task<string> ReadAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken)
+    {
+        var start = new ProcessStartInfo("docker")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+
+        foreach (var argument in arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(start);
+
+        if (process is null)
+        {
+            return string.Empty;
+        }
+
+        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+
+        return process.ExitCode == 0 ? output : string.Empty;
     }
 
     private static async Task<int?> RunAsync(
