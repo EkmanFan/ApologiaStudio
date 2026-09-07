@@ -24,17 +24,6 @@ public enum GenreFormNoteType
     Example = 2
 }
 
-/// <summary>
-/// How Apologia may use an authority term. Independent from
-/// <see cref="GenreFormAuthorityStatus"/>: an authority refresh never changes it.
-/// </summary>
-public enum GenreFormUsageStatus
-{
-    Excluded = 0,
-    StructuralOnly = 1,
-    Selectable = 2
-}
-
 public sealed record GenreFormAuthorityNote(
     GenreFormNoteType NoteType,
     string Text);
@@ -82,16 +71,20 @@ public sealed record GenreFormAuthorityDataset(
     IReadOnlyList<GenreFormAuthorityTerm> Terms);
 
 /// <summary>
-/// A profile entry or Work assignment that references a term which the newly
-/// imported snapshot no longer publishes as active. Reported for explicit
-/// human review; never remapped automatically.
+/// An externally withdrawn concept that an approved Apologia alignment still
+/// points at. Reported for explicit human review; never remapped automatically.
 /// </summary>
-public sealed record GenreFormProfileReviewItem(
+/// <remarks>
+/// The local dependency on an authority concept is the alignment recorded in
+/// <c>genre_form_authority_mappings</c>. Nothing else in Apologia refers to the
+/// external catalogue, so nothing else can be broken by a refresh.
+/// </remarks>
+public sealed record GenreFormAuthorityReviewItem(
     string AuthorityUri,
     string PreferredLabel,
     GenreFormAuthorityStatus Status,
     bool PresentInSnapshot,
-    GenreFormUsageStatus UsageStatus);
+    IReadOnlyList<string> AlignedProductTermCodes);
 
 public sealed record GenreFormAuthorityImportResult(
     Guid SnapshotId,
@@ -103,19 +96,22 @@ public sealed record GenreFormAuthorityImportResult(
     int NoteCount,
     int BroaderRelationCount,
     int RelatedRelationCount,
-    IReadOnlyList<GenreFormProfileReviewItem> ProfileReviewItems);
+    IReadOnlyList<GenreFormAuthorityReviewItem> AuthorityReviewItems);
 
 /// <summary>
-/// Read projection of an authority term together with its Apologia usage.
+/// Read projection of one external authority term.
 /// </summary>
+/// <remarks>
+/// It carries authority facts only. Apologia usage is not one of them: what the
+/// product may assign is the product taxonomy, and how a product concept
+/// relates to this one is an alignment.
+/// </remarks>
 public sealed record GenreFormTermView(
     Guid Id,
     string AuthorityUri,
     string AuthorityIdentifier,
     string PreferredLabel,
-    GenreFormAuthorityStatus Status,
-    GenreFormUsageStatus UsageStatus,
-    int? DisplayOrder);
+    GenreFormAuthorityStatus Status);
 
 /// <summary>
 /// Reads an acquired authority payload into the serialization-agnostic model.
@@ -133,9 +129,6 @@ public interface IGenreFormAuthorityStore
     Task<GenreFormAuthorityImportResult> ImportAsync(
         GenreFormAuthoritySnapshot snapshot,
         GenreFormAuthorityDataset dataset,
-        CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<GenreFormTermView>> GetSelectableTermsAsync(
         CancellationToken cancellationToken);
 
     Task<GenreFormTermView?> GetTermByAuthorityUriAsync(

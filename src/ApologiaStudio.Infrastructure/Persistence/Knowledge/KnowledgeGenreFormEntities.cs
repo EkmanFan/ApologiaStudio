@@ -80,19 +80,6 @@ internal sealed class GenreFormRelatedRelationEntity
     public Guid TermIdB { get; set; }
 }
 
-internal sealed class GenreFormProfileEntryEntity
-{
-    public Guid TermId { get; set; }
-
-    public string UsageStatus { get; set; } = "excluded";
-
-    public int? DisplayOrder { get; set; }
-
-    public string ProfileVersion { get; set; } = string.Empty;
-
-    public DateTimeOffset UpdatedAt { get; set; }
-}
-
 /// <summary>
 /// The authoritative Genre/Form assignment of a Work.
 /// </summary>

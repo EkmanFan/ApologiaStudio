@@ -48,9 +48,6 @@ public sealed class KnowledgeDbContext(
     internal DbSet<GenreFormRelatedRelationEntity> GenreFormRelatedRelations =>
         Set<GenreFormRelatedRelationEntity>();
 
-    internal DbSet<GenreFormProfileEntryEntity> GenreFormProfileEntries =>
-        Set<GenreFormProfileEntryEntity>();
-
     internal DbSet<KnowledgeWorkGenreFormEntity> WorkGenreForms =>
         Set<KnowledgeWorkGenreFormEntity>();
 

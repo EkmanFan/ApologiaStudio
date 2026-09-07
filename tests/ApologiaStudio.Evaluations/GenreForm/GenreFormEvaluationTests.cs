@@ -131,7 +131,7 @@ public sealed class GenreFormEvaluationTests
         var report = new GenreFormStabilityReport(
             model,
             StructuredGenreFormClassifier.PromptVersion,
-            GenreFormProfile.Version,
+            ApologiaGenreFormTaxonomy.Version,
             repetitions,
             DateTimeOffset.UtcNow,
             cases);
@@ -207,7 +207,7 @@ public sealed class GenreFormEvaluationTests
         var report = new GenreFormStabilityReport(
             model,
             StructuredGenreFormClassifier.PromptVersion,
-            GenreFormProfile.Version,
+            ApologiaGenreFormTaxonomy.Version,
             repetitions,
             DateTimeOffset.UtcNow,
             cases);

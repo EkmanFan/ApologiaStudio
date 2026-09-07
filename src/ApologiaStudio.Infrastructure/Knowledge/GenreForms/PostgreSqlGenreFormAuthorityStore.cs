@@ -6,10 +6,11 @@ using Microsoft.EntityFrameworkCore;
 namespace ApologiaStudio.Infrastructure.Knowledge.GenreForms;
 
 /// <summary>
-/// Persists an authority snapshot and answers the closed profile queries.
+/// Persists an authority snapshot and answers catalogue queries over it.
 ///
-/// An authority refresh replaces authority facts only. Apologia profile
-/// decisions and Work assignments are never rewritten by an import.
+/// An authority refresh replaces authority facts only. Apologia product terms
+/// and the alignments that point at this catalogue are never rewritten by an
+/// import.
 /// </summary>
 public sealed class PostgreSqlGenreFormAuthorityStore(
     KnowledgeDbContext context)
@@ -78,28 +79,6 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
             snapshotAlreadyImported: false,
             dataset,
             cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<GenreFormTermView>> GetSelectableTermsAsync(
-        CancellationToken cancellationToken)
-    {
-        return await (
-            from term in context.GenreFormTerms.AsNoTracking()
-            join entry in context.GenreFormProfileEntries.AsNoTracking()
-                on term.Id equals entry.TermId
-            where entry.UsageStatus == "selectable"
-            orderby entry.DisplayOrder, term.PreferredLabel
-            select new GenreFormTermView(
-                term.Id,
-                term.AuthorityUri,
-                term.AuthorityIdentifier,
-                term.PreferredLabel,
-                term.AuthorityStatus == "deprecated"
-                    ? GenreFormAuthorityStatus.Deprecated
-                    : GenreFormAuthorityStatus.Active,
-                GenreFormUsageStatus.Selectable,
-                entry.DisplayOrder))
-            .ToListAsync(cancellationToken);
     }
 
     public async Task<GenreFormTermView?> GetTermByAuthorityUriAsync(
@@ -184,9 +163,7 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
     }
 
     /// <summary>
-    /// These read boundaries return a single term or its immediate relatives,
-    /// so the profile is composed in memory rather than through a translated
-    /// outer join.
+    /// These read boundaries return a single term or its immediate relatives.
     /// </summary>
     private async Task<IReadOnlyList<GenreFormTermView>> ProjectAsync(
         IQueryable<GenreFormAuthorityTermEntity> terms,
@@ -203,35 +180,13 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
             })
             .ToListAsync(cancellationToken);
 
-        if (rows.Count == 0)
-        {
-            return [];
-        }
-
-        var ids = rows.Select(x => x.Id).ToList();
-
-        var entries = await context.GenreFormProfileEntries
-            .AsNoTracking()
-            .Where(x => ids.Contains(x.TermId))
-            .Select(x => new { x.TermId, x.UsageStatus, x.DisplayOrder })
-            .ToListAsync(cancellationToken);
-
-        var byTerm = entries.ToDictionary(x => x.TermId);
-
         return rows
-            .Select(row =>
-            {
-                byTerm.TryGetValue(row.Id, out var entry);
-
-                return new GenreFormTermView(
-                    row.Id,
-                    row.AuthorityUri,
-                    row.AuthorityIdentifier,
-                    row.PreferredLabel,
-                    ReadStatus(row.AuthorityStatus),
-                    ReadUsage(entry?.UsageStatus),
-                    entry?.DisplayOrder);
-            })
+            .Select(row => new GenreFormTermView(
+                row.Id,
+                row.AuthorityUri,
+                row.AuthorityIdentifier,
+                row.PreferredLabel,
+                ReadStatus(row.AuthorityStatus)))
             .OrderBy(x => x.PreferredLabel, StringComparer.Ordinal)
             .ToList();
     }
@@ -241,16 +196,6 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
         return string.Equals(value, "deprecated", StringComparison.Ordinal)
             ? GenreFormAuthorityStatus.Deprecated
             : GenreFormAuthorityStatus.Active;
-    }
-
-    private static GenreFormUsageStatus ReadUsage(string? value)
-    {
-        return value switch
-        {
-            "selectable" => GenreFormUsageStatus.Selectable,
-            "structural_only" => GenreFormUsageStatus.StructuralOnly,
-            _ => GenreFormUsageStatus.Excluded
-        };
     }
 
     private static void ValidateDataset(GenreFormAuthorityDataset dataset)
@@ -449,39 +394,39 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
             .Select(x => x.AuthorityUri)
             .ToHashSet(StringComparer.Ordinal);
 
+        // The only local dependency on this catalogue is an approved alignment:
+        // nothing else in Apologia refers to an authority concept any more.
         var referenced = await (
             from term in context.GenreFormTerms.AsNoTracking()
-            join entry in context.GenreFormProfileEntries.AsNoTracking()
-                on term.Id equals entry.TermId into entries
-            from entry in entries.DefaultIfEmpty()
-            // A Work no longer references an authority term: it carries an
-            // Apologia product term instead. A profile entry is therefore the
-            // only remaining local dependency on this catalogue.
-            where term.Authority == authority && entry != null
+            join mapping in context.GenreFormAuthorityMappings.AsNoTracking()
+                on new { Authority = term.Authority, Concept = term.AuthorityIdentifier }
+                equals new { Authority = mapping.Authority, Concept = mapping.ExternalConceptId }
+            join product in context.ApologiaGenreFormTerms.AsNoTracking()
+                on mapping.ProductTermId equals product.Id
+            where term.Authority == authority
             select new
             {
                 term.AuthorityUri,
                 term.PreferredLabel,
                 term.AuthorityStatus,
-                UsageStatus = entry.UsageStatus
+                ProductTermCode = product.Code
             })
             .ToListAsync(cancellationToken);
 
         var review = referenced
             .Where(x => !published.Contains(x.AuthorityUri))
-            .Select(x => new GenreFormProfileReviewItem(
-                x.AuthorityUri,
-                x.PreferredLabel,
-                x.AuthorityStatus == "deprecated"
+            .GroupBy(x => x.AuthorityUri, StringComparer.Ordinal)
+            .Select(group => new GenreFormAuthorityReviewItem(
+                group.Key,
+                group.First().PreferredLabel,
+                group.First().AuthorityStatus == "deprecated"
                     ? GenreFormAuthorityStatus.Deprecated
                     : GenreFormAuthorityStatus.Active,
                 PresentInSnapshot: false,
-                x.UsageStatus switch
-                {
-                    "selectable" => GenreFormUsageStatus.Selectable,
-                    "structural_only" => GenreFormUsageStatus.StructuralOnly,
-                    _ => GenreFormUsageStatus.Excluded
-                }))
+                group
+                    .Select(x => x.ProductTermCode)
+                    .OrderBy(x => x, StringComparer.Ordinal)
+                    .ToList()))
             .OrderBy(x => x.PreferredLabel, StringComparer.Ordinal)
             .ToList();
 

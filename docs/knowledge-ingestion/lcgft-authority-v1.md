@@ -1,21 +1,30 @@
-# LCGFT authority and Genre/Form profile v1
+# LCGFT authority catalogue
 
 Status: current infrastructure contract. Implements the Genre/Form half of
 [ADR 0004](../adr/0004-bibliographic-standards-alignment.md).
 
-This increment delivers infrastructure only. It deliberately does **not**
-decide which terms Apologia may assign; that is the separate
-`Apologia Genre/Form Profile V1` specification.
+This document describes the acquisition and storage of an **external**
+bibliographic authority. It does not decide which terms Apologia may assign:
+that is the canonical product taxonomy, `ApologiaGenreFormTaxonomy`, twenty-seven
+product concepts with their own identity.
+
+> **Superseded, 2026-09-07.** Until GF-TAX-6 the product selected its
+> Genre/Form vocabulary from this catalogue, through an
+> `Apologia Genre/Form Profile V1` of fourteen selectable and eight structural
+> LCGFT terms. That mechanism, its `genre_form_profile_entries` table and its
+> seeder no longer exist. Sections below describing them have been rewritten;
+> the dated MRA reports under this directory keep their original wording as
+> historical records of experiments that ran under that profile.
 
 ## Two separate concepts
 
 ```text
-authority status      "is this term current according to the authority?"
-profile usage status  "how may Apologia use this term?"
+authority status   "is this term current according to the authority?"
+alignment          "which product concept does this external concept relate to?"
 ```
 
 They never change together. An authority refresh rewrites authority facts and
-leaves every Apologia decision untouched.
+leaves the product taxonomy and its alignments untouched.
 
 ## Ingestion source
 
@@ -74,9 +83,10 @@ interpretation**, not a source field.
 Consequently a fresh import reports zero deprecated terms: the 193 withdrawn
 records in the 2026-09-03 snapshot carry no concept to import. Deprecation
 becomes visible on a *refresh*, when a previously imported term disappears
-from the new snapshot. Such terms are reported for explicit review whenever
-they are referenced by a profile entry or a Work assignment, and are never
-deleted or silently remapped.
+from the new snapshot. Such a concept is reported for explicit review whenever
+an approved alignment in `genre_form_authority_mappings` still points at it,
+and is never deleted or silently remapped. That alignment is the only local
+dependency on this catalogue.
 
 ### Snapshot identity
 
@@ -121,11 +131,11 @@ variants          6121
 notes             1680
 broader relations 3401
 related relations 111 canonical pairs (212 directed references)
-profile entries   0
 ```
 
-Zero profile entries is the intended state: no term is selectable before the
-approved profile list exists.
+Importing a concept creates no local usage of it. An alignment to a product
+term is a separate, explicit decision — see
+[the product taxonomy migration inventory](genre-form-product-taxonomy-migration-inventory-2026-09-07.md).
 
 ## Failure behaviour
 
@@ -137,71 +147,28 @@ transaction, leaving no partial snapshot.
 A dangling `skos:related` reference is skipped rather than fatal, because an
 association carries no hierarchy or assignment semantics.
 
-## Apologia Genre/Form Profile V1
+## Alignment to the product taxonomy
 
-`GenreFormProfile` declares the fourteen approved terms **by preferred label**.
-Authority identifiers are never hard-coded: the seeder resolves each label
-against the imported snapshot and fails closed when a label is absent or
-ambiguous, so the profile cannot drift from the authority it claims to follow.
+Twelve of the imported concepts carry an approved alignment to an Apologia
+product term, recorded in `genre_form_authority_mappings` by **external
+identifier**, never by preferred label. The direction is always
+product-first — `Apologia product term → external authority concept` — so
+`Broader` means the Apologia concept is the wider of the two.
 
-The structural ancestors are **derived** from the imported hierarchy rather
-than declared, by one deterministic rule:
+`Pastoral letters and charges` and `Hagiographies` are deliberately unaligned:
+no V1 product term corresponds to them. An absent alignment is a valid state.
 
-> every ancestor of a selectable term is structural, unless it is itself
-> selectable.
-
-The closure is transitive, so profile membership does not depend on how deep
-the thesaurus happens to be for a given term. Applying it over the 2026-09-03
-snapshot yields:
-
-```text
-selectable       14
-structural only   8   Business correspondence, Correspondence,
-                      Creative nonfiction, Discursive works,
-                      Informational works,
-                      Instructional and educational works,
-                      Records (Documents), Religious materials
-```
-
-Six are direct parents of an approved term. `Correspondence` and
-`Records (Documents)` are reached transitively through
-`Business correspondence`, the ancestor of `Pastoral letters and charges`.
-
-`Commentaries` (`gf2025026014`, established February 2025) was activated in
-revision 2 of the profile specification. It adds no structural ancestor: its
-only broader term is `Discursive works`, already reached through `Sermons`.
-
-`Biographies` is both approved and an ancestor of `Hagiographies`; it stays
-selectable, and the redundancy is prevented at assignment time rather than by
-demoting it.
-
-Apply the profile as an explicit maintenance operation:
-
-```bash
-dotnet run --project tools/ApologiaStudio.GenreFormImporter -- --apply-profile
-```
-
-Re-applying reports `profile already current` and changes nothing.
-
-### Assignment rules enforced in code
-
-```text
-only selectable terms may be assigned
-a duplicate Work/term pair is refused
-a term and one of its ancestors never coexist on the same Work
-broader terms are never persisted implicitly
-zero genre/form assignments is valid
-independent genres may coexist
-```
-
-Variants are never assignable: `Homilies` resolves to `Sermons` and
-`Confessions of faith` to `Creeds`, both verified against the real authority.
+The seeder resolves each declared concept by its authority identifier and
+cross-checks the stored URI and preferred label, failing closed on a missing,
+ambiguous or renamed concept. Variants are never an identity: `Homilies`
+resolves to `Sermons` and `Confessions of faith` to `Creeds`, both verified
+against the real authority.
 
 ### Multi-authority scoping
 
 An import rebuilds relations, variants and notes **only for the authority
-being imported**, and reviews only that authority's profile entries. Importing
-one authority never disturbs another's facts or editorial decisions.
+being imported**, and reviews only that authority's alignments. Importing one
+authority never disturbs another's facts or the product taxonomy.
 
 ## Known V1 limitation — evidence references
 
@@ -218,19 +185,19 @@ becomes available. Until then, no page or element reference is fabricated.
 Measured quality is recorded in
 [the Genre/Form MRA baseline](genre-form-mra-baseline-2026-09-04.md).
 
-## What this increment does not do
+## What this catalogue does not do
 
 ```text
-no production Genre/Form picker
-no term marked selectable by default
+no external term is ever assignable to a Work or an editorial draft
 no migration of knowledge_source_kinds or primary_source
 no automatic classification of existing Works
+no automatic alignment to a product term
 no change to Perspective, EvidenceRole or the framework vocabularies
 ```
 
-`knowledge_work_genre_forms` exists so the approved profile can be wired later
-without another structural migration. It is empty and receives nothing
-automatically.
+`knowledge_work_genre_forms` carries the authoritative assignment of a Work.
+Since GF-TAX-4 it references `apologia_genre_form_terms`, never this catalogue.
+It receives nothing automatically.
 
 ## Schema
 
@@ -241,9 +208,13 @@ genre_form_authority_variants    alternate labels, not independently assignable
 genre_form_authority_notes       general / history / example
 genre_form_broader_relations     canonical hierarchy, polyhierarchical
 genre_form_related_relations     canonical symmetric association
-genre_form_profile_entries       Apologia usage decisions, product-owned
-knowledge_work_genre_forms       Work ↔ term assignment, unique per pair
+genre_form_authority_mappings    product term ↔ external concept alignment
 ```
+
+`genre_form_profile_entries` was dropped by `DropGenreFormProfileEntries`.
+`knowledge_work_genre_forms`, `document_manager_editorial_draft_genre_forms`
+and `metadata_review_suggestions` now reference `apologia_genre_form_terms`
+and are documented with the product taxonomy, not here.
 
 Migration `AddGenreFormAuthority` is purely additive: eight tables and thirteen
 indexes, no alteration of any existing table.

@@ -67,8 +67,6 @@ internal static class KnowledgeModelConfiguration
             modelBuilder.Entity<GenreFormBroaderRelationEntity>());
         ConfigureGenreFormRelatedRelation(
             modelBuilder.Entity<GenreFormRelatedRelationEntity>());
-        ConfigureGenreFormProfileEntry(
-            modelBuilder.Entity<GenreFormProfileEntryEntity>());
         ConfigureKnowledgeWorkGenreForm(
             modelBuilder.Entity<KnowledgeWorkGenreFormEntity>());
         ConfigureEditorialDraftGenreForm(
@@ -2274,44 +2272,6 @@ internal static class KnowledgeModelConfiguration
         builder.HasIndex(x => new { x.TermIdA, x.TermIdB })
             .IsUnique()
             .HasDatabaseName("ux_genre_form_related_relations");
-    }
-
-    private static void ConfigureGenreFormProfileEntry(
-        EntityTypeBuilder<GenreFormProfileEntryEntity> builder)
-    {
-        builder.ToTable(
-            "genre_form_profile_entries",
-            table => table.HasCheckConstraint(
-                "ck_genre_form_profile_usage",
-                "usage_status IN ('excluded', 'structural_only', 'selectable')"));
-
-        builder.HasKey(x => x.TermId);
-
-        builder.Property(x => x.TermId)
-            .HasColumnName("term_id")
-            .HasColumnType("uuid")
-            .ValueGeneratedNever();
-        builder.Property(x => x.UsageStatus)
-            .HasColumnName("usage_status")
-            .HasMaxLength(32)
-            .IsRequired();
-        builder.Property(x => x.DisplayOrder)
-            .HasColumnName("display_order");
-        builder.Property(x => x.ProfileVersion)
-            .HasColumnName("profile_version")
-            .HasMaxLength(64)
-            .IsRequired();
-        builder.Property(x => x.UpdatedAt)
-            .HasColumnName("updated_at")
-            .IsRequired();
-
-        builder.HasOne<GenreFormAuthorityTermEntity>()
-            .WithMany()
-            .HasForeignKey(x => x.TermId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasIndex(x => x.UsageStatus)
-            .HasDatabaseName("ix_genre_form_profile_entries_usage");
     }
 
     private static void ConfigureKnowledgeWorkGenreForm(

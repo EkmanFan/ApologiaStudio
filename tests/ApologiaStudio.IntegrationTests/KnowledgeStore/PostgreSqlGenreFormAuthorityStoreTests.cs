@@ -14,7 +14,7 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
     private const string Base = "http://id.loc.gov/authorities/genreForms/";
 
     [Fact]
-    public async Task Authority_import_is_idempotent_and_preserves_the_Apologia_profile()
+    public async Task Authority_import_is_idempotent_and_preserves_apologia_alignments()
     {
         var connectionString = KnowledgeStoreTestConnection.Resolve();
         var options = await PrepareAsync(connectionString);
@@ -47,19 +47,25 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
 
                 Assert.False(first.SnapshotAlreadyImported);
                 Assert.Equal(4, first.TermCount);
-                Assert.Empty(first.ProfileReviewItems);
+                Assert.Empty(first.AuthorityReviewItems);
             }
 
-            // AC-14: nothing becomes selectable merely by being imported.
-            await using (var context = new KnowledgeDbContext(options))
-            {
-                var store = new PostgreSqlGenreFormAuthorityStore(context);
-                var selectable = await store.GetSelectableTermsAsync(CancellationToken.None);
-
-                Assert.DoesNotContain(
-                    selectable,
-                    x => x.AuthorityUri.StartsWith(Base + prefix, StringComparison.Ordinal));
-            }
+            // AC-14: importing a concept creates no local usage of it. The
+            // product taxonomy is untouched and no alignment appears.
+            Assert.Equal(
+                27,
+                await ScalarAsync(
+                    connectionString,
+                    "SELECT count(*) FROM apologia_genre_form_terms"));
+            Assert.Equal(
+                0,
+                await ScalarAsync(
+                    connectionString,
+                    """
+                    SELECT count(*) FROM genre_form_authority_mappings m
+                    WHERE m.external_concept_id LIKE @pattern
+                    """,
+                    ("pattern", prefix + "%")));
 
             // AC-04: identical content imported twice changes nothing.
             await using (var context = new KnowledgeDbContext(options))
@@ -100,17 +106,14 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
                     ("one", sermons),
                     ("two", creeds)));
 
-            await ApproveAsync(connectionString, sermons, "selectable", 1);
-            await ApproveAsync(connectionString, religious, "structural_only", null);
+            // An Apologia product term is aligned to one imported concept.
+            // That alignment is now the only local dependency on the catalogue.
+            await AlignAsync(connectionString, prefix + "sermons", "sermon");
 
-            // AC-06 and AC-07.
+            // AC-06 and AC-07: hierarchy reads stay available on the catalogue.
             await using (var context = new KnowledgeDbContext(options))
             {
                 var store = new PostgreSqlGenreFormAuthorityStore(context);
-
-                var selectable = await store.GetSelectableTermsAsync(CancellationToken.None);
-                Assert.Contains(selectable, x => x.AuthorityUri == sermons);
-                Assert.DoesNotContain(selectable, x => x.AuthorityUri == religious);
 
                 // Narrower is derived by inverting the persisted broader relation.
                 var narrower = await store.GetNarrowerTermsAsync(
@@ -125,7 +128,8 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
                 var view = await store.GetTermByAuthorityUriAsync(
                     religious,
                     CancellationToken.None);
-                Assert.Equal(GenreFormUsageStatus.StructuralOnly, view!.UsageStatus);
+                Assert.Equal("Religious works", view!.PreferredLabel);
+                Assert.Equal(GenreFormAuthorityStatus.Active, view.Status);
             }
 
             // AC-05 and AC-11: a refresh dropping a term keeps the editorial
@@ -149,21 +153,26 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
                 Assert.False(result.SnapshotAlreadyImported);
 
                 var review = Assert.Single(
-                    result.ProfileReviewItems,
+                    result.AuthorityReviewItems,
                     x => x.AuthorityUri == sermons);
 
-                Assert.Equal(GenreFormUsageStatus.Selectable, review.UsageStatus);
+                // The report names the product term whose alignment is at risk,
+                // which is what a human actually has to decide about.
+                Assert.Equal(["sermon"], review.AlignedProductTermCodes);
                 Assert.False(review.PresentInSnapshot);
             }
 
-            await using (var context = new KnowledgeDbContext(options))
-            {
-                var store = new PostgreSqlGenreFormAuthorityStore(context);
-
-                // The editorial decision survived the authority refresh.
-                var selectable = await store.GetSelectableTermsAsync(CancellationToken.None);
-                Assert.Contains(selectable, x => x.AuthorityUri == sermons);
-            }
+            // The alignment survived the authority refresh: it is reported,
+            // never silently remapped or dropped.
+            Assert.Equal(
+                1,
+                await ScalarAsync(
+                    connectionString,
+                    """
+                    SELECT count(*) FROM genre_form_authority_mappings
+                    WHERE external_concept_id = @concept
+                    """,
+                    ("concept", prefix + "sermons")));
         }
         finally
         {
@@ -236,6 +245,77 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
                 """));
     }
 
+    [Fact]
+    public async Task Recognized_variants_resolve_to_the_authorized_term()
+    {
+        var connectionString = KnowledgeStoreTestConnection.Resolve();
+        var options = await PrepareAsync(connectionString);
+
+        await EnsureLcgftImportedAsync(options);
+
+        // AC-GF-09 / GF-RULE-07: a variant is never a second Genre/Form value.
+        // This is a catalogue fact and stays true now that the product no
+        // longer selects from LCGFT.
+        Assert.Equal(
+            "Sermons",
+            await LabelForVariantAsync(connectionString, "Homilies"));
+        Assert.Equal(
+            "Creeds",
+            await LabelForVariantAsync(connectionString, "Confessions of faith"));
+    }
+
+    /// <summary>
+    /// Imports the pinned subset of the official LCGFT dataset.
+    /// </summary>
+    private static async Task EnsureLcgftImportedAsync(
+        DbContextOptions<KnowledgeDbContext> options)
+    {
+        await using var context = new KnowledgeDbContext(options);
+
+        var path = Path.Combine(
+            AppContext.BaseDirectory,
+            "Fixtures",
+            "lcgft-profile-v1-fixture.jsonl");
+
+        var payload = await File.ReadAllBytesAsync(path);
+        var sha256 = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(payload))
+            .ToLowerInvariant();
+
+        using var content = new MemoryStream(payload, writable: false);
+        var dataset = new SkosJsonLdGenreFormDatasetReader().Read(content);
+
+        await new PostgreSqlGenreFormAuthorityStore(context).ImportAsync(
+            new GenreFormAuthoritySnapshot(
+                "lcgft",
+                "https://id.loc.gov/download/authorities/genreForms.skosrdf.jsonld.gz",
+                sha256,
+                new DateTimeOffset(2026, 9, 4, 0, 0, 0, TimeSpan.Zero),
+                "integration-fixture"),
+            dataset,
+            CancellationToken.None);
+    }
+
+    private static async Task<string> LabelForVariantAsync(
+        string connectionString,
+        string variant)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT t.preferred_label
+            FROM genre_form_authority_variants v
+            JOIN genre_form_authority_terms t ON t.id = v.term_id
+            WHERE v.label = @variant AND t.authority = 'lcgft'
+            """,
+            connection);
+        command.Parameters.AddWithValue("variant", variant);
+
+        return (string)(await command.ExecuteScalarAsync())!;
+    }
+
     private static GenreFormAuthorityTerm Term(
         string uri,
         string label,
@@ -256,10 +336,12 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
 
     private static GenreFormAuthoritySnapshot Snapshot(string sha256)
     {
-        // Synthetic terms belong to their own authority so this test never
-        // rebuilds the real LCGFT facts.
+        // Synthetic terms are imported under the BnF authority: an import
+        // replaces one authority's facts wholesale, and driving that against
+        // 'lcgft' would wipe the real catalogue other tests depend on. BnF
+        // carries no real data, and the alignment model was built to accept it.
         return new GenreFormAuthoritySnapshot(
-            "test-lcgft",
+            "bnf",
             "https://id.loc.gov/download/authorities/genreForms.skosrdf.jsonld.gz",
             sha256,
             new DateTimeOffset(2026, 9, 3, 20, 0, 0, TimeSpan.Zero),
@@ -273,30 +355,44 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
             .UseNpgsql(connectionString, builder => builder.UseVector())
             .Options;
 
-        await using var context = new KnowledgeDbContext(options);
-        await context.Database.MigrateAsync();
+        await using (var context = new KnowledgeDbContext(options))
+        {
+            await context.Database.MigrateAsync();
+        }
+
+        // The alignment used below points at a real product term.
+        await using (var context = new KnowledgeDbContext(options))
+        {
+            await new PostgreSqlApologiaGenreFormTaxonomySeeder(
+                    context,
+                    TimeProvider.System)
+                .ApplyAsync(CancellationToken.None);
+        }
 
         return options;
     }
 
-    private static async Task ApproveAsync(
+    /// <summary>
+    /// Records a synthetic alignment from a real product term to one imported
+    /// concept, so the refresh report has a genuine local dependency to find.
+    /// </summary>
+    private static async Task AlignAsync(
         string connectionString,
-        string authorityUri,
-        string usageStatus,
-        int? displayOrder)
+        string externalConceptId,
+        string productTermCode)
     {
         await ExecuteAsync(
             connectionString,
             """
-            INSERT INTO genre_form_profile_entries
-                (term_id, usage_status, display_order, profile_version, updated_at)
-            SELECT id, @status, @order, 'integration-test-v1', now()
-            FROM genre_form_authority_terms
-            WHERE authority_uri = @uri
+            INSERT INTO genre_form_authority_mappings
+                (id, product_term_id, authority, external_concept_id,
+                 external_concept_uri, mapping_kind, updated_at)
+            SELECT gen_random_uuid(), id, 'bnf', @concept, NULL, 'exact', now()
+            FROM apologia_genre_form_terms
+            WHERE code = @code
             """,
-            ("status", usageStatus),
-            ("order", (object?)displayOrder ?? DBNull.Value),
-            ("uri", authorityUri));
+            ("concept", externalConceptId),
+            ("code", productTermCode));
     }
 
     private static async Task CleanupAsync(string connectionString, string prefix)
@@ -306,9 +402,8 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
         await ExecuteAsync(
             connectionString,
             """
-            DELETE FROM genre_form_profile_entries
-            WHERE term_id IN (
-                SELECT id FROM genre_form_authority_terms WHERE authority_uri LIKE @pattern);
+            DELETE FROM genre_form_authority_mappings
+            WHERE external_concept_id LIKE @concepts;
             DELETE FROM genre_form_related_relations
             WHERE term_id_a IN (
                 SELECT id FROM genre_form_authority_terms WHERE authority_uri LIKE @pattern)
@@ -321,7 +416,8 @@ public sealed class PostgreSqlGenreFormAuthorityStoreTests
                 SELECT id FROM genre_form_authority_terms WHERE authority_uri LIKE @pattern);
             DELETE FROM genre_form_authority_terms WHERE authority_uri LIKE @pattern;
             """,
-            ("pattern", pattern));
+            ("pattern", pattern),
+            ("concepts", prefix + "%"));
     }
 
     private static async Task<int> ScalarAsync(
