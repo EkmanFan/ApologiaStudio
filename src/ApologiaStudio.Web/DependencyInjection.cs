@@ -311,6 +311,11 @@ public static class DependencyInjection
         // whichever field-suggestion capability is composed.
         services.AddScoped<GenreFormFieldSuggestionService>();
 
+        // A newly created draft is analysed out of band, so suggestions are
+        // usually waiting when a reviewer opens it.
+        services.AddSingleton<GenreFormAnalysisQueue>();
+        services.AddHostedService<GenreFormAnalysisHostedService>();
+
         // Exactly one field-suggestion capability, resolved normally. The
         // encoder-backed one replaces the unavailable one only when an encoder
         // endpoint is configured; nothing else in the application changes, and

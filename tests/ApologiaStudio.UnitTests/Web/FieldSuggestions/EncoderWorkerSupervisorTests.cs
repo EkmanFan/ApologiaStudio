@@ -228,10 +228,10 @@ public sealed class EncoderWorkerSupervisorTests
         runtime.Healthy = false;
         host.OnStart = () => runtime.Healthy = true;
 
-        await WaitAsync(() => host.StartCalls >= 2);
-
-        // The capability came back without restarting Apologia.
-        Assert.True(runtime.Healthy);
+        // The capability came back without restarting Apologia. Waiting on the
+        // outcome rather than on the call counter: the counter moves before the
+        // restart has taken effect.
+        await WaitAsync(() => host.StartCalls >= 2 && runtime.Healthy);
 
         await supervisor.StopAsync(CancellationToken.None);
     }

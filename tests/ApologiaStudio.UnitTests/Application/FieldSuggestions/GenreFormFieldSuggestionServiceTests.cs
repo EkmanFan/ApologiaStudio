@@ -272,14 +272,141 @@ public sealed class GenreFormFieldSuggestionServiceTests
             MetadataReviewOutcomeCalculator.Determine([], []));
     }
 
+    [Fact]
+    public async Task A_successful_analysis_is_recorded_as_advisory_history()
+    {
+        var store = new RecordingStore();
+
+        var analysis = await new GenreFormFieldSuggestionService(
+                Provider.Succeeding(("sermon", 0.9)),
+                store)
+            .AnalyzeAndRecordAsync(Draft(), Actor, CancellationToken.None);
+
+        Assert.Equal(FieldSuggestionStatus.Succeeded, analysis.Status);
+        Assert.NotNull(analysis.AnalysisId);
+
+        var recorded = Assert.Single(store.Recorded);
+        Assert.Equal(Actor, recorded.ActorUserId);
+        Assert.Equal(
+            "sermon",
+            Assert.Single(recorded.Result.Suggested).Code);
+        Assert.Empty(store.Failures);
+    }
+
+    [Fact]
+    public async Task A_completed_analysis_with_no_term_is_still_recorded()
+    {
+        var store = new RecordingStore();
+
+        var analysis = await new GenreFormFieldSuggestionService(
+                Provider.NoSuggestion(),
+                store)
+            .AnalyzeAndRecordAsync(Draft(), Actor, CancellationToken.None);
+
+        Assert.Equal(FieldSuggestionStatus.NoSuggestion, analysis.Status);
+        Assert.NotNull(analysis.AnalysisId);
+        Assert.Empty(Assert.Single(store.Recorded).Result.Suggested);
+    }
+
+    [Fact]
+    public async Task Nothing_is_recorded_when_nothing_ran()
+    {
+        // Unavailable is not a result. Persisting one would put a judgement in
+        // history that no model ever made.
+        var store = new RecordingStore();
+
+        var analysis = await new GenreFormFieldSuggestionService(
+                Provider.Unavailable(),
+                store)
+            .AnalyzeAndRecordAsync(Draft(), Actor, CancellationToken.None);
+
+        Assert.Equal(FieldSuggestionStatus.Unavailable, analysis.Status);
+        Assert.Null(analysis.AnalysisId);
+        Assert.Empty(store.Recorded);
+        Assert.Empty(store.Failures);
+    }
+
+    [Fact]
+    public async Task A_failure_is_recorded_as_a_failed_run()
+    {
+        var store = new RecordingStore();
+
+        var analysis = await new GenreFormFieldSuggestionService(
+                Provider.Failed(),
+                store)
+            .AnalyzeAndRecordAsync(Draft(), Actor, CancellationToken.None);
+
+        Assert.Equal(FieldSuggestionStatus.Failed, analysis.Status);
+        Assert.Empty(store.Recorded);
+        Assert.Single(store.Failures);
+    }
+
+    [Fact]
+    public async Task A_history_write_that_fails_does_not_lose_the_analysis()
+    {
+        // Losing an advisory record costs evaluation data; failing the caller
+        // for it would cost the analysis, and in the automatic case would put a
+        // background service in the business of retrying a database write.
+        var analysis = await new GenreFormFieldSuggestionService(
+                Provider.Succeeding(("sermon", 0.9)),
+                new ThrowingStore())
+            .AnalyzeAndRecordAsync(Draft(), Actor, CancellationToken.None);
+
+        Assert.Equal(FieldSuggestionStatus.Succeeded, analysis.Status);
+        Assert.Null(analysis.AnalysisId);
+        Assert.Single(analysis.Result!.Suggested);
+    }
+
     #endregion
 
     #region Methods Helpers
 
+    private static readonly Guid Actor =
+        Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+    private static DocumentManagerEditorialDraft Draft() =>
+        Draft(
+            "Réponse aux objections",
+            DocumentManagerEditorialDraftFactory.ImportedTitleOrigin,
+            "Défense raisonnée.");
+
+    private sealed class ThrowingStore : IMetadataReviewAnalysisStore
+    {
+        public Task<MetadataReviewAnalysis> RecordAsync(
+            RecordMetadataReviewAnalysisCommand command,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("history is down");
+
+        public Task<MetadataReviewAnalysis> RecordFailureAsync(
+            RecordFailedMetadataReviewAnalysisCommand command,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("history is down");
+
+        public Task<MetadataReviewAnalysis?> GetCurrentAsync(
+            Guid draftId,
+            string field,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<MetadataReviewAnalysis?>(null);
+
+        public Task<IReadOnlyList<MetadataReviewAnalysis>> ListAsync(
+            Guid draftId,
+            string field,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<MetadataReviewAnalysis>>([]);
+
+        public Task RecordReviewerOutcomeAsync(
+            Guid analysisId,
+            MetadataReviewOutcome outcome,
+            Guid reviewerUserId,
+            DateTimeOffset reviewedAtUtc,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+    }
+
     private static Task<GenreFormFieldAnalysis> Analyze(
         Provider provider,
         DocumentManagerEditorialDraft? draft = null) =>
-        new GenreFormFieldSuggestionService(provider).AnalyzeAsync(
+        new GenreFormFieldSuggestionService(provider, new RecordingStore()).AnalyzeAsync(
             draft ?? Draft(
                 "Réponse aux objections",
                 DocumentManagerEditorialDraftFactory.ImportedTitleOrigin,
@@ -315,6 +442,80 @@ public sealed class GenreFormFieldSuggestionServiceTests
             DateTimeOffset.UtcNow,
             Parts: [],
             GenreForms: []);
+
+    /// <summary>
+    /// Accepts advisory records and remembers them, so what history would keep
+    /// can be asserted without a database.
+    /// </summary>
+    private sealed class RecordingStore : IMetadataReviewAnalysisStore
+    {
+        public List<RecordMetadataReviewAnalysisCommand> Recorded { get; } = [];
+
+        public List<RecordFailedMetadataReviewAnalysisCommand> Failures { get; } = [];
+
+        public MetadataReviewAnalysis? Current { get; set; }
+
+        public Task<MetadataReviewAnalysis> RecordAsync(
+            RecordMetadataReviewAnalysisCommand command,
+            CancellationToken cancellationToken)
+        {
+            Recorded.Add(command);
+            return Task.FromResult(Analysis(MetadataReviewAnalysisStatus.Valid));
+        }
+
+        public Task<MetadataReviewAnalysis> RecordFailureAsync(
+            RecordFailedMetadataReviewAnalysisCommand command,
+            CancellationToken cancellationToken)
+        {
+            Failures.Add(command);
+            return Task.FromResult(Analysis(MetadataReviewAnalysisStatus.Failed));
+        }
+
+        public Task<MetadataReviewAnalysis?> GetCurrentAsync(
+            Guid draftId,
+            string field,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Current);
+
+        public Task<IReadOnlyList<MetadataReviewAnalysis>> ListAsync(
+            Guid draftId,
+            string field,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<MetadataReviewAnalysis>>([]);
+
+        public Task RecordReviewerOutcomeAsync(
+            Guid analysisId,
+            MetadataReviewOutcome outcome,
+            Guid reviewerUserId,
+            DateTimeOffset reviewedAtUtc,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        private static MetadataReviewAnalysis Analysis(
+            MetadataReviewAnalysisStatus status) =>
+            new(
+                Guid.CreateVersion7(),
+                Guid.NewGuid(),
+                MetadataReviewAnalysis.GenreFormField,
+                status,
+                PolicyVersion: null,
+                PromptVersion: null,
+                PlanId: null,
+                ModelProvider: null,
+                ModelName: null,
+                ModelVersion: null,
+                InsufficientEvidence: false,
+                FailureReason: null,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow,
+                DurationMilliseconds: null,
+                Guid.NewGuid(),
+                SupersededByAnalysisId: null,
+                ReviewerOutcome: null,
+                ReviewerUserId: null,
+                ReviewedAtUtc: null,
+                Suggestions: []);
+    }
 
     private sealed record Provider(
         FieldSuggestionStatus Status,

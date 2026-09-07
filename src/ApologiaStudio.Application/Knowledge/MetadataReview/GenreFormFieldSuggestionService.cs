@@ -11,10 +11,15 @@ namespace ApologiaStudio.Application.Knowledge.MetadataReview;
 /// Present for a run that produced an answer, including a run that answered
 /// "no term applies". Absent when nothing ran.
 /// </param>
+/// <param name="AnalysisId">
+/// Set when an advisory record was written. Absent when nothing ran, which is
+/// not a result to keep.
+/// </param>
 public sealed record GenreFormFieldAnalysis(
     FieldSuggestionStatus Status,
     GenreFormClassificationResult? Result,
-    string? FailureReason);
+    string? FailureReason,
+    Guid? AnalysisId = null);
 
 /// <summary>
 /// Obtains Genre/Form suggestions for an editorial draft.
@@ -31,9 +36,79 @@ public sealed record GenreFormFieldAnalysis(
 /// reason to trust the others.
 /// </remarks>
 public sealed class GenreFormFieldSuggestionService(
-    IFieldSuggestionProvider suggestions)
+    IFieldSuggestionProvider suggestions,
+    IMetadataReviewAnalysisStore analyses)
 {
     #region Methods
+
+    /// <summary>
+    /// Analyses a draft and appends the advisory record.
+    /// </summary>
+    /// <remarks>
+    /// The single entry point for both the reviewer's explicit request and the
+    /// automatic run that follows a draft's creation. Two callers, one set of
+    /// rules: the evidence policy, the product validation and what history
+    /// keeps must never differ depending on who asked.
+    ///
+    /// Recording is best effort. Losing an advisory record costs evaluation
+    /// data; failing the caller for it would cost the analysis itself, and in
+    /// the automatic case would put a background service in the business of
+    /// retrying a database write.
+    /// </remarks>
+    public async Task<GenreFormFieldAnalysis> AnalyzeAndRecordAsync(
+        DocumentManagerEditorialDraft draft,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        var requestedAt = DateTimeOffset.UtcNow;
+        var analysis = await AnalyzeAsync(draft, cancellationToken);
+        var completedAt = DateTimeOffset.UtcNow;
+        var duration = (completedAt - requestedAt).TotalMilliseconds;
+
+        try
+        {
+            // Unavailable is deliberately absent: nothing ran, so there is no
+            // advice and no failure to record.
+            if (analysis.Result is not null)
+            {
+                var recorded = await analyses.RecordAsync(
+                    new RecordMetadataReviewAnalysisCommand(
+                        draft.Id,
+                        actorUserId,
+                        analysis.Result,
+                        requestedAt,
+                        completedAt,
+                        duration),
+                    cancellationToken);
+
+                return analysis with { AnalysisId = recorded.Id };
+            }
+
+            if (analysis.Status == FieldSuggestionStatus.Failed)
+            {
+                await analyses.RecordFailureAsync(
+                    new RecordFailedMetadataReviewAnalysisCommand(
+                        draft.Id,
+                        actorUserId,
+                        analysis.FailureReason ?? "field suggestion failed",
+                        ApologiaGenreFormTaxonomy.Version,
+                        requestedAt,
+                        completedAt,
+                        duration),
+                    cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // History is advisory; the analysis itself still stands.
+        }
+
+        return analysis;
+    }
 
     public async Task<GenreFormFieldAnalysis> AnalyzeAsync(
         DocumentManagerEditorialDraft draft,

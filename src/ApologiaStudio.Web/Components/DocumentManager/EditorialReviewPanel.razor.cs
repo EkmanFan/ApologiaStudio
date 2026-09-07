@@ -36,6 +36,8 @@ public partial class EditorialReviewPanel
 
     private FieldSuggestionStatus? _analysisStatus;
 
+    private bool _hasExistingAnalysis;
+
     private Guid? _currentAnalysisId;
 
     private IReadOnlyList<string> _suggestedAtAnalysis = [];
@@ -153,9 +155,11 @@ public partial class EditorialReviewPanel
         _suggestions = null;
         _analysisError = null;
         _analysisStatus = null;
+        _hasExistingAnalysis = false;
         _currentAnalysisId = null;
         _suggestedAtAnalysis = [];
         await LoadGenreFormVocabularyAsync();
+        await LoadExistingGenreFormAnalysisAsync(draftId);
     }
 
     private Task SaveAsync() => ExecuteAsync(DocumentManagerEditorialReviewAction.Save);
@@ -628,19 +632,22 @@ public partial class EditorialReviewPanel
         _analysisStatus = null;
         _suggestions = null;
 
-        var requestedAt = DateTimeOffset.UtcNow;
-
         try
         {
             await using var scope = ServiceScopeFactory.CreateAsyncScope();
-            var service = scope.ServiceProvider
-                .GetRequiredService<GenreFormFieldSuggestionService>();
+            var actor = scope.ServiceProvider
+                .GetRequiredService<ICurrentUser>().UserId.Value;
 
-            var analysis = await service.AnalyzeAsync(
-                _selectedDraft,
-                CancellationToken.None);
+            var analysis = await scope.ServiceProvider
+                .GetRequiredService<GenreFormFieldSuggestionService>()
+                .AnalyzeAndRecordAsync(
+                    _selectedDraft,
+                    actor,
+                    CancellationToken.None);
 
             _analysisStatus = analysis.Status;
+            _currentAnalysisId = analysis.AnalysisId;
+            _hasExistingAnalysis = analysis.AnalysisId is not null;
 
             switch (analysis.Status)
             {
@@ -650,18 +657,13 @@ public partial class EditorialReviewPanel
                     _suggestedAtAnalysis = _suggestions
                         .Select(x => x.Code)
                         .ToList();
-
-                    await RecordAnalysisAsync(analysis.Result, requestedAt);
                     break;
 
                 case FieldSuggestionStatus.Failed:
                     _analysisError = Text(
                         "L\u2019assistance automatique a échoué.",
                         "Automatic assistance failed.");
-
-                    await RecordFailureAsync(
-                        analysis.FailureReason ?? "field suggestion failed",
-                        requestedAt);
+                    _suggestedAtAnalysis = [];
                     break;
 
                 default:
@@ -669,20 +671,16 @@ public partial class EditorialReviewPanel
                     _analysisError = Text(
                         "L\u2019assistance automatique n\u2019est pas disponible.",
                         "Automatic assistance is not available.");
-
-                    _currentAnalysisId = null;
                     _suggestedAtAnalysis = [];
                     break;
             }
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             _analysisStatus = FieldSuggestionStatus.Failed;
             _analysisError = Text(
                 "L\u2019assistance automatique a échoué.",
                 "Automatic assistance failed.");
-
-            await RecordFailureAsync(exception.GetType().Name, requestedAt);
         }
         finally
         {
@@ -691,85 +689,64 @@ public partial class EditorialReviewPanel
     }
 
     /// <summary>
-    /// Advisory history is written in its own scope and transaction: failing
-    /// to record it must never affect the reviewer's editorial work.
+    /// Shows the analysis a draft already has, if it has one.
     /// </summary>
-    private async Task RecordAnalysisAsync(
-        GenreFormClassificationResult result,
-        DateTimeOffset requestedAt)
+    /// <remarks>
+    /// A draft is analysed automatically shortly after it is created, so by the
+    /// time a reviewer opens it the suggestions are usually simply there.
+    ///
+    /// An automatic run that failed stays quiet: nobody asked for it, and a red
+    /// banner over an untouched record would be noise. An explicit click still
+    /// reports its own failure loudly.
+    /// </remarks>
+    private async Task LoadExistingGenreFormAnalysisAsync(Guid draftId)
     {
-        if (_selectedDraft is null)
-        {
-            return;
-        }
-
         try
         {
-            var completedAt = DateTimeOffset.UtcNow;
-
             await using var scope = ServiceScopeFactory.CreateAsyncScope();
-            var store = scope.ServiceProvider
-                .GetRequiredService<IMetadataReviewAnalysisStore>();
-            var actor = scope.ServiceProvider
-                .GetRequiredService<ICurrentUser>().UserId.Value;
 
-            var analysis = await store.RecordAsync(
-                new RecordMetadataReviewAnalysisCommand(
-                    _selectedDraft.Id,
-                    actor,
-                    result,
-                    requestedAt,
-                    completedAt,
-                    (completedAt - requestedAt).TotalMilliseconds),
-                CancellationToken.None);
+            var analysis = await scope.ServiceProvider
+                .GetRequiredService<IMetadataReviewAnalysisStore>()
+                .GetCurrentAsync(
+                    draftId,
+                    MetadataReviewAnalysis.GenreFormField,
+                    CancellationToken.None);
+
+            if (analysis is null)
+            {
+                return;
+            }
 
             _currentAnalysisId = analysis.Id;
+            _hasExistingAnalysis = true;
+
+            if (analysis.Status == MetadataReviewAnalysisStatus.Failed)
+            {
+                _analysisStatus = FieldSuggestionStatus.Failed;
+                return;
+            }
+
+            _suggestions = analysis.SuggestedTerms
+                .Select(x => new GenreFormSuggestion(
+                    x.Code,
+                    x.PreferredLabel,
+                    x.Justification,
+                    x.Evidence,
+                    x.Score))
+                .ToList();
+
+            _analysisStatus = _suggestions.Count > 0
+                ? FieldSuggestionStatus.Succeeded
+                : FieldSuggestionStatus.NoSuggestion;
+
+            _suggestedAtAnalysis = _suggestions.Select(x => x.Code).ToList();
         }
         catch (Exception)
         {
-            // Evaluation history is best effort; review continues regardless.
-            _currentAnalysisId = null;
+            // History is advisory; failing to read it must not block review.
         }
     }
 
-    private async Task RecordFailureAsync(
-        string reason,
-        DateTimeOffset requestedAt)
-    {
-        if (_selectedDraft is null)
-        {
-            return;
-        }
-
-        try
-        {
-            var completedAt = DateTimeOffset.UtcNow;
-
-            await using var scope = ServiceScopeFactory.CreateAsyncScope();
-            var store = scope.ServiceProvider
-                .GetRequiredService<IMetadataReviewAnalysisStore>();
-            var actor = scope.ServiceProvider
-                .GetRequiredService<ICurrentUser>().UserId.Value;
-
-            await store.RecordFailureAsync(
-                new RecordFailedMetadataReviewAnalysisCommand(
-                    _selectedDraft.Id,
-                    actor,
-                    reason,
-                    ApologiaGenreFormTaxonomy.Version,
-                    requestedAt,
-                    completedAt,
-                    (completedAt - requestedAt).TotalMilliseconds),
-                CancellationToken.None);
-        }
-        catch (Exception)
-        {
-            // Diagnostics must never block the reviewer.
-        }
-
-        _currentAnalysisId = null;
-        _suggestedAtAnalysis = [];
-    }
 
     /// <summary>
     /// Records what the reviewer decided, after their editorial save has

@@ -173,7 +173,8 @@ public sealed class EncoderInferenceSmokeTests
         // policy -> capability -> cascade -> advisory analysis.
         var service = new GenreFormFieldSuggestionService(
             new EncoderBackedFieldSuggestionProvider(
-                new GenreFormInferencePlan(Runtime(httpClient))));
+                new GenreFormInferencePlan(Runtime(httpClient))),
+            new DiscardingAnalysisStore());
 
         var analysis = await service.AnalyzeAsync(
             Draft(
@@ -209,6 +210,42 @@ public sealed class EncoderInferenceSmokeTests
             CancellationToken.None);
 
         Assert.Equal(FieldSuggestionStatus.Unavailable, unavailable.Status);
+    }
+
+    /// <summary>
+    /// History is not what this smoke proves; it is discarded here.
+    /// </summary>
+    private sealed class DiscardingAnalysisStore : IMetadataReviewAnalysisStore
+    {
+        public Task<MetadataReviewAnalysis> RecordAsync(
+            RecordMetadataReviewAnalysisCommand command,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<MetadataReviewAnalysis> RecordFailureAsync(
+            RecordFailedMetadataReviewAnalysisCommand command,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<MetadataReviewAnalysis?> GetCurrentAsync(
+            Guid draftId,
+            string field,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<MetadataReviewAnalysis?>(null);
+
+        public Task<IReadOnlyList<MetadataReviewAnalysis>> ListAsync(
+            Guid draftId,
+            string field,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<MetadataReviewAnalysis>>([]);
+
+        public Task RecordReviewerOutcomeAsync(
+            Guid analysisId,
+            MetadataReviewOutcome outcome,
+            Guid reviewerUserId,
+            DateTimeOffset reviewedAtUtc,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private static DocumentManagerEditorialDraft Draft(

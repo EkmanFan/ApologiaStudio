@@ -201,7 +201,9 @@
                                         @onclick="RunGenreFormAnalysisAsync">
                                     @(_isAnalyzing
                                         ? Text("Analyse en cours…", "Analyzing…")
-                                        : Text("Proposer un genre/forme", "Suggest genre/form"))
+                                        : _hasExistingAnalysis
+                                            ? Text("Relancer l\u2019analyse", "Re-run analysis")
+                                            : Text("Proposer un genre/forme", "Suggest genre/form"))
                                 </button>
                             </div>
 

@@ -1,11 +1,13 @@
 using System.Data.Common;
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
+using ApologiaStudio.Web.FieldSuggestions;
 
 namespace ApologiaStudio.Web.DocumentManager;
 
 public sealed class DocumentManagerTriggeredConsumerHostedService(
     DocumentManagerConsumptionSignal signal,
     DocumentManagerConsumerOptions options,
+    GenreFormAnalysisQueue genreFormAnalyses,
     IServiceScopeFactory scopeFactory,
     ILogger<DocumentManagerTriggeredConsumerHostedService> logger)
     : BackgroundService
@@ -96,6 +98,18 @@ public sealed class DocumentManagerTriggeredConsumerHostedService(
                 result.ResultReference,
                 result.SubmissionId,
                 result.Status);
+
+            // The draft is committed at this point. Asking for its genre/form
+            // analysis is a queue write and nothing more, so ingestion never
+            // waits for a model, and a failure here cannot roll anything back.
+            if (result.DraftPreparation is
+                {
+                    Status: DocumentManagerEditorialDraftPreparationStatus.Created,
+                    Draft: not null
+                } preparation)
+            {
+                genreFormAnalyses.TryEnqueue(preparation.Draft.Id);
+            }
         }
     }
 }
