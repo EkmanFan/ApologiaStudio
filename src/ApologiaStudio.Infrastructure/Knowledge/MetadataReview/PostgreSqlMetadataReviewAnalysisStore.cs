@@ -33,8 +33,10 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
             Status = "valid",
             PolicyVersion = identity.PolicyVersion,
             PromptVersion = identity.PromptVersion,
+            PlanId = identity.PlanId,
             ModelProvider = identity.ModelProvider,
             ModelName = identity.ModelName,
+            ModelVersion = identity.ModelVersion,
             InsufficientEvidence = command.Result.InsufficientEvidence,
             RequestedAtUtc = command.RequestedAtUtc,
             CompletedAtUtc = command.CompletedAtUtc,
@@ -180,7 +182,8 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
                 AnalysisId = analysisId,
                 ProductTermId = termIds[suggestion.Code],
                 Disposition = "suggested",
-                Justification = suggestion.Justification
+                Justification = suggestion.Justification,
+                Score = suggestion.Score
             };
 
             context.MetadataReviewSuggestions.Add(entity);
@@ -260,7 +263,8 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
                 term.Code,
                 term.PreferredLabel,
                 suggestion.Disposition,
-                suggestion.Justification
+                suggestion.Justification,
+                suggestion.Score
             })
             .ToListAsync(cancellationToken);
 
@@ -287,7 +291,8 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
                 row.Justification,
                 bySuggestion.TryGetValue(row.Id, out var references)
                     ? references
-                    : []))
+                    : [],
+                row.Score))
             .ToList();
 
         return new MetadataReviewAnalysis(
@@ -299,8 +304,10 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
                 : MetadataReviewAnalysisStatus.Valid,
             entity.PolicyVersion,
             entity.PromptVersion,
+            entity.PlanId,
             entity.ModelProvider,
             entity.ModelName,
+            entity.ModelVersion,
             entity.InsufficientEvidence,
             entity.FailureReason,
             entity.RequestedAtUtc,

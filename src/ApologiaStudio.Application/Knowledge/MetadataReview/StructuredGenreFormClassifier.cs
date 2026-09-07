@@ -60,10 +60,10 @@ public sealed class StructuredGenreFormClassifier(
 
         var identity = new MetadataReviewAnalysisIdentity(
             policy.TaxonomyVersion,
-            PromptVersion,
             Provider,
             result.Model,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(),
+            PromptVersion);
 
         var raw = Parse(result.Json);
 

@@ -1,3 +1,4 @@
+@using ApologiaStudio.Application.Abstractions.FieldSuggestions
 @using ApologiaStudio.Application.Knowledge.DocumentProcessing
 @using ApologiaStudio.Domain.Users
 
@@ -204,9 +205,19 @@
                                 </button>
                             </div>
 
-                            @if (_analysisError is not null)
+                            @if (_analysisStatus == FieldSuggestionStatus.Failed &&
+                                 _analysisError is not null)
                             {
                                 <p class="assistant-error" role="alert">@_analysisError</p>
+                                <p class="assistant-hint">@Text(
+                                    "La revue manuelle reste disponible.",
+                                    "Manual review remains available.")</p>
+                            }
+                            else if (_analysisStatus == FieldSuggestionStatus.Unavailable &&
+                                     _analysisError is not null)
+                            {
+                                @* Not a judgement: nothing ran. *@
+                                <p class="assistant-hint" role="status">@_analysisError</p>
                                 <p class="assistant-hint">@Text(
                                     "La revue manuelle reste disponible.",
                                     "Manual review remains available.")</p>
@@ -215,9 +226,10 @@
                             {
                                 @if (_suggestions.Count == 0)
                                 {
+                                    @* The analysis ran and concluded. *@
                                     <p class="assistant-hint">@Text(
-                                        "Aucun terme proposé pour cet ouvrage.",
-                                        "No term proposed for this work.")</p>
+                                        "Analyse effectuée : aucun genre/forme proposé pour cet ouvrage.",
+                                        "Analysis completed: no genre/form proposed for this work.")</p>
                                 }
                                 else
                                 {
@@ -226,7 +238,10 @@
                                         {
                                             <li>
                                                 <strong>@suggestion.PreferredLabel</strong>
-                                                <p>@suggestion.Justification</p>
+                                                @if (!string.IsNullOrWhiteSpace(suggestion.Justification))
+                                                {
+                                                    <p>@suggestion.Justification</p>
+                                                }
                                                 @if (suggestion.Evidence.Count > 0)
                                                 {
                                                     <p class="assistant-evidence">

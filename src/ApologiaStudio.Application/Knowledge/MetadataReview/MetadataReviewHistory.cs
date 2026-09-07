@@ -30,8 +30,9 @@ public sealed record MetadataReviewSuggestionRecord(
     string Code,
     string PreferredLabel,
     MetadataReviewSuggestionDisposition Disposition,
-    string Justification,
-    IReadOnlyList<string> Evidence);
+    string? Justification,
+    IReadOnlyList<string> Evidence,
+    double? Score = null);
 
 /// <summary>
 /// One analysis run, kept as advisory history. Never authoritative metadata:
@@ -45,8 +46,10 @@ public sealed record MetadataReviewAnalysis(
     MetadataReviewAnalysisStatus Status,
     string? PolicyVersion,
     string? PromptVersion,
+    string? PlanId,
     string? ModelProvider,
     string? ModelName,
+    string? ModelVersion,
     bool InsufficientEvidence,
     string? FailureReason,
     DateTimeOffset RequestedAtUtc,

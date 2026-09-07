@@ -19,9 +19,13 @@ internal sealed class MetadataReviewAnalysisEntity
 
     public string? PromptVersion { get; set; }
 
+    public string? PlanId { get; set; }
+
     public string? ModelProvider { get; set; }
 
     public string? ModelName { get; set; }
+
+    public string? ModelVersion { get; set; }
 
     public bool InsufficientEvidence { get; set; }
 
@@ -54,7 +58,15 @@ internal sealed class MetadataReviewSuggestionEntity
 
     public string Disposition { get; set; } = string.Empty;
 
-    public string Justification { get; set; } = string.Empty;
+    /// <summary>
+    /// Absent for a producer that does not explain itself, such as an encoder.
+    /// </summary>
+    public string? Justification { get; set; }
+
+    /// <summary>
+    /// Post-sigmoid confidence in [0, 1] when a scoring model answered.
+    /// </summary>
+    public double? Score { get; set; }
 }
 
 /// <summary>

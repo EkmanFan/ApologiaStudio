@@ -82,10 +82,10 @@ internal sealed class GenreFormDecisionMatrixClassifier(
 
         var identity = new MetadataReviewAnalysisIdentity(
             policy.TaxonomyVersion,
-            PromptVersion,
             "ollama",
             result.Model,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(),
+            PromptVersion);
 
         return validator.Validate(raw, policy, identity);
     }

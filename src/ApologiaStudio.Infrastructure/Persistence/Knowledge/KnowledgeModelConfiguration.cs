@@ -2378,6 +2378,12 @@ internal static class KnowledgeModelConfiguration
         builder.Property(x => x.PromptVersion)
             .HasColumnName("prompt_version")
             .HasMaxLength(128);
+        builder.Property(x => x.PlanId)
+            .HasColumnName("plan_id")
+            .HasMaxLength(128);
+        builder.Property(x => x.ModelVersion)
+            .HasColumnName("model_version")
+            .HasMaxLength(128);
         builder.Property(x => x.ModelProvider)
             .HasColumnName("model_provider")
             .HasMaxLength(64);
@@ -2453,8 +2459,9 @@ internal static class KnowledgeModelConfiguration
             .HasMaxLength(32)
             .IsRequired();
         builder.Property(x => x.Justification)
-            .HasColumnName("justification")
-            .IsRequired();
+            .HasColumnName("justification");
+        builder.Property(x => x.Score)
+            .HasColumnName("score");
 
         builder.HasOne<MetadataReviewAnalysisEntity>()
             .WithMany()

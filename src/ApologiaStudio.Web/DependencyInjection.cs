@@ -306,6 +306,10 @@ public static class DependencyInjection
             IGenreFormClassifier,
             StructuredGenreFormClassifier>();
 
+        // The Genre/Form review path obtains its suggestions here, from
+        // whichever field-suggestion capability is composed.
+        services.AddScoped<GenreFormFieldSuggestionService>();
+
         // Exactly one field-suggestion capability, resolved normally. The
         // encoder-backed one replaces the unavailable one only when an encoder
         // endpoint is configured; nothing else in the application changes, and

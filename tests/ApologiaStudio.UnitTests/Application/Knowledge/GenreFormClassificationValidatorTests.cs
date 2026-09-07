@@ -289,10 +289,10 @@ public sealed class GenreFormClassificationValidatorTests
     {
         return new MetadataReviewAnalysisIdentity(
             ApologiaGenreFormTaxonomy.Version,
-            "genre-form-classification/1",
             "ollama",
             "qwen3.6:27b",
-            new DateTimeOffset(2026, 9, 4, 12, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2026, 9, 4, 12, 0, 0, TimeSpan.Zero),
+            "genre-form-classification/1");
     }
 
     /// <summary>

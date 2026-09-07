@@ -326,10 +326,10 @@ public sealed class MetadataReviewHistoryTests
     {
         return new MetadataReviewAnalysisIdentity(
             "apologia-genre-form-v1",
-            "genre-form-classification/1",
             "ollama",
             "qwen3:8b",
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            "genre-form-classification/1");
     }
 
     private static async Task<(

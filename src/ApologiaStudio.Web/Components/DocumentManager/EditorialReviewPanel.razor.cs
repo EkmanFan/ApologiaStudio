@@ -2,6 +2,7 @@ using ApologiaStudio.Application.Abstractions.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Components.Web;
 using ApologiaStudio.Application.Knowledge.MetadataReview;
+using ApologiaStudio.Application.Abstractions.FieldSuggestions;
 using ApologiaStudio.Application.Knowledge.GenreForms;
 using ApologiaStudio.Application.Knowledge.DocumentProcessing;
 using ApologiaStudio.Domain.Users;
@@ -32,6 +33,8 @@ public partial class EditorialReviewPanel
     private bool _isAnalyzing;
 
     private string? _analysisError;
+
+    private FieldSuggestionStatus? _analysisStatus;
 
     private Guid? _currentAnalysisId;
 
@@ -149,6 +152,7 @@ public partial class EditorialReviewPanel
         _form = EditorialForm.FromDraft(_selectedDraft);
         _suggestions = null;
         _analysisError = null;
+        _analysisStatus = null;
         _currentAnalysisId = null;
         _suggestedAtAnalysis = [];
         await LoadGenreFormVocabularyAsync();
@@ -602,6 +606,16 @@ public partial class EditorialReviewPanel
     /// Runs the assistant. A suggestion is never written: it only populates a
     /// panel the reviewer may accept, adjust or ignore.
     /// </summary>
+    /// <remarks>
+    /// Since P3-04 the suggestions come from the frozen encoder cascade through
+    /// the generic field-suggestion capability. EVAL-6 closed the LLM as the
+    /// primary Genre/Form classifier, so this path no longer calls it.
+    ///
+    /// The four outcomes are kept apart deliberately. "No term applies" is a
+    /// judgement, "assistance unavailable" means the reviewer is on their own,
+    /// and "assistance failed" means something is broken. Manual review works
+    /// in all three.
+    /// </remarks>
     private async Task RunGenreFormAnalysisAsync()
     {
         if (_selectedDraft is null || _isAnalyzing)
@@ -611,6 +625,7 @@ public partial class EditorialReviewPanel
 
         _isAnalyzing = true;
         _analysisError = null;
+        _analysisStatus = null;
         _suggestions = null;
 
         var requestedAt = DateTimeOffset.UtcNow;
@@ -618,42 +633,54 @@ public partial class EditorialReviewPanel
         try
         {
             await using var scope = ServiceScopeFactory.CreateAsyncScope();
-            var classifier = scope.ServiceProvider
-                .GetRequiredService<IGenreFormClassifier>();
+            var service = scope.ServiceProvider
+                .GetRequiredService<GenreFormFieldSuggestionService>();
 
-            var validation = await classifier.ClassifyAsync(
-                BuildEvidence(),
+            var analysis = await service.AnalyzeAsync(
+                _selectedDraft,
                 CancellationToken.None);
 
-            if (validation.IsValid)
-            {
-                _suggestions = validation.Result!.Suggested;
-                _suggestedAtAnalysis = _suggestions
-                    .Select(x => x.Code)
-                    .ToList();
+            _analysisStatus = analysis.Status;
 
-                await RecordAnalysisAsync(validation.Result, requestedAt);
-            }
-            else
+            switch (analysis.Status)
             {
-                // Invalid model output is discarded whole; it is recorded as a
-                // failed run and never becomes a persisted suggestion.
-                _analysisError = Text(
-                    "La proposition de l\u2019assistant a été refusée par la validation.",
-                    "The assistant's proposal was refused by validation.");
+                case FieldSuggestionStatus.Succeeded:
+                case FieldSuggestionStatus.NoSuggestion:
+                    _suggestions = analysis.Result!.Suggested;
+                    _suggestedAtAnalysis = _suggestions
+                        .Select(x => x.Code)
+                        .ToList();
 
-                await RecordFailureAsync(
-                    string.Join(
-                        " ",
-                        validation.Errors.Select(x => x.Detail)),
-                    requestedAt);
+                    await RecordAnalysisAsync(analysis.Result, requestedAt);
+                    break;
+
+                case FieldSuggestionStatus.Failed:
+                    _analysisError = Text(
+                        "L\u2019assistance automatique a échoué.",
+                        "Automatic assistance failed.");
+
+                    await RecordFailureAsync(
+                        analysis.FailureReason ?? "field suggestion failed",
+                        requestedAt);
+                    break;
+
+                default:
+                    // Nothing ran, so there is no advisory record to keep.
+                    _analysisError = Text(
+                        "L\u2019assistance automatique n\u2019est pas disponible.",
+                        "Automatic assistance is not available.");
+
+                    _currentAnalysisId = null;
+                    _suggestedAtAnalysis = [];
+                    break;
             }
         }
         catch (Exception exception)
         {
+            _analysisStatus = FieldSuggestionStatus.Failed;
             _analysisError = Text(
-                "L\u2019assistant est indisponible.",
-                "The assistant is unavailable.");
+                "L\u2019assistance automatique a échoué.",
+                "Automatic assistance failed.");
 
             await RecordFailureAsync(exception.GetType().Name, requestedAt);
         }
@@ -804,22 +831,6 @@ public partial class EditorialReviewPanel
     /// Bounded evidence taken from the reviewed record itself. Source excerpts
     /// are not duplicated here.
     /// </summary>
-    private MetadataReviewEvidence BuildEvidence()
-    {
-        return new MetadataReviewEvidence(
-            _form.Title,
-            null,
-            string.IsNullOrWhiteSpace(_form.PrimaryContributorName)
-                ? []
-                : [_form.PrimaryContributorName],
-            _form.LanguageCode,
-            _form.EditionStatement,
-            _form.PublicationYear,
-            _form.PublicationPlace,
-            _form.Description,
-            []);
-    }
-
     private sealed class EditorialForm
     {
         public string Title { get; set; } = string.Empty;

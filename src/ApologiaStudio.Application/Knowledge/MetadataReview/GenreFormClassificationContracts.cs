@@ -38,12 +38,20 @@ public sealed record MetadataReviewEvidenceSection(
 /// Identity of one classification run, retained so a suggestion can always be
 /// attributed to the policy, prompt and model that produced it.
 /// </summary>
+/// <remarks>
+/// One slot per producer. An LLM run carries a prompt version; an encoder run
+/// carries a plan identity and the content identity of the artifact that
+/// answered. Neither borrows the other's field, so a stored value never means
+/// something it is not.
+/// </remarks>
 public sealed record MetadataReviewAnalysisIdentity(
     string PolicyVersion,
-    string PromptVersion,
     string ModelProvider,
     string ModelName,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? PromptVersion = null,
+    string? PlanId = null,
+    string? ModelVersion = null);
 
 /// <summary>
 /// Untrusted model output, before validation. Identifiers are carried as plain
@@ -68,11 +76,18 @@ public sealed record RawGenreFormRejection(
 /// URI or authority identifier travels with a suggestion: alignment is a
 /// separate fact and never the identity of what is proposed.
 /// </summary>
+/// <remarks>
+/// <c>Justification</c> is a reviewer-facing sentence an LLM can produce and an
+/// encoder cannot; it stays absent rather than being invented. <c>Score</c> is
+/// the reverse: bounded to [0, 1] when a scoring model answered, and never
+/// presented as a calibrated probability.
+/// </remarks>
 public sealed record GenreFormSuggestion(
     string Code,
     string PreferredLabel,
-    string Justification,
-    IReadOnlyList<string> Evidence);
+    string? Justification,
+    IReadOnlyList<string> Evidence,
+    double? Score = null);
 
 public sealed record GenreFormRejection(
     string Code,

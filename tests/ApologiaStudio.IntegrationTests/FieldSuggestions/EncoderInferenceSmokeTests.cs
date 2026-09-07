@@ -1,5 +1,8 @@
 using System.Diagnostics;
 using ApologiaStudio.Application.Abstractions.FieldSuggestions;
+using ApologiaStudio.Application.Knowledge.DocumentProcessing;
+using ApologiaStudio.Application.Knowledge.GenreForms;
+using ApologiaStudio.Application.Knowledge.MetadataReview;
 using ApologiaStudio.Infrastructure.Knowledge.FieldSuggestions;
 
 namespace ApologiaStudio.IntegrationTests.FieldSuggestions;
@@ -155,6 +158,88 @@ public sealed class EncoderInferenceSmokeTests
             GenreFormInferencePlan.FallbackModelId,
             silent.Provenance.ModelId);
     }
+
+    [Fact]
+    public async Task An_editorial_draft_reaches_the_review_workflow_end_to_end()
+    {
+        if (!LiveEncoderIntegrationGate.IsEnabled())
+        {
+            return;
+        }
+
+        using var httpClient = new HttpClient();
+
+        // The wiring the review panel uses, minus Blazor: draft -> evidence
+        // policy -> capability -> cascade -> advisory analysis.
+        var service = new GenreFormFieldSuggestionService(
+            new EncoderBackedFieldSuggestionProvider(
+                new GenreFormInferencePlan(Runtime(httpClient))));
+
+        var analysis = await service.AnalyzeAsync(
+            Draft(
+                "Réponse aux objections contre la foi chrétienne",
+                DocumentManagerEditorialDraftFactory.ImportedTitleOrigin,
+                "Défense raisonnée de la doctrine face aux critiques."),
+            CancellationToken.None);
+
+        Assert.Equal(FieldSuggestionStatus.Succeeded, analysis.Status);
+
+        var identity = analysis.Result!.Identity;
+        Assert.Equal(ApologiaGenreFormTaxonomy.Version, identity.PolicyVersion);
+        Assert.Equal(
+            EncoderBackedFieldSuggestionProvider.ProviderId,
+            identity.ModelProvider);
+        Assert.Equal(GenreFormInferencePlan.PlanId, identity.PlanId);
+        Assert.StartsWith("sha256:", identity.ModelVersion, StringComparison.Ordinal);
+        Assert.Null(identity.PromptVersion);
+
+        var suggestion = Assert.Single(analysis.Result.Suggested);
+        Assert.Equal("apologetic_writing", suggestion.Code);
+        Assert.Equal("Apologetic writing", suggestion.PreferredLabel);
+        Assert.NotNull(suggestion.Score);
+        Assert.InRange(suggestion.Score!.Value, 0d, 1d);
+
+        // A file-name title is not document metadata, so the same draft with
+        // no other evidence has nothing to classify.
+        var unavailable = await service.AnalyzeAsync(
+            Draft(
+                "scan_0012.pdf",
+                DocumentManagerEditorialDraftFactory.FileNameTitleOrigin,
+                null),
+            CancellationToken.None);
+
+        Assert.Equal(FieldSuggestionStatus.Unavailable, unavailable.Status);
+    }
+
+    private static DocumentManagerEditorialDraft Draft(
+        string title,
+        string titleOrigin,
+        string? description) =>
+        new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            1,
+            new string('a', 64),
+            "source.pdf",
+            title,
+            titleOrigin,
+            PrimaryContributorName: null,
+            PrimaryContributorRole: null,
+            LanguageCode: null,
+            EditionStatement: null,
+            PublicationYear: null,
+            PublicationPlace: null,
+            description,
+            DocumentManagerEditorialDraftStatus.PendingReview,
+            Version: 0,
+            LastEditedByUserId: null,
+            ReviewedByUserId: null,
+            ReviewedAtUtc: null,
+            RejectionReason: null,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            Parts: [],
+            GenreForms: []);
 
     [Fact]
     public async Task An_unreachable_worker_is_unavailable_not_failed()
