@@ -7,6 +7,7 @@ using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.AiRuntime;
 using ApologiaStudio.Application.Abstractions.FieldSuggestions;
 using ApologiaStudio.Infrastructure.Knowledge.FieldSuggestions;
+using ApologiaStudio.Web.FieldSuggestions;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Agents.Settings;
@@ -338,6 +339,23 @@ public static class DependencyInjection
             services.AddScoped<
                 IFieldSuggestionProvider,
                 EncoderBackedFieldSuggestionProvider>();
+
+            // Lifecycle lives in the composition root. Nothing in Application,
+            // and nothing on the inference path, learns how the worker runs.
+            var workerOptions =
+                EncoderInferenceConfiguration.WorkerFromConfiguration(
+                    configuration,
+                    encoderOptions,
+                    Path.Combine(
+                        AppContext.BaseDirectory,
+                        "encoder-worker",
+                        "encoder_worker.py"));
+
+            services.AddSingleton(workerOptions);
+            services.AddSingleton<
+                IEncoderWorkerHost,
+                DockerEncoderWorkerHost>();
+            services.AddHostedService<EncoderWorkerSupervisor>();
         }
         else
         {

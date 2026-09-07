@@ -21,4 +21,13 @@
       <UserSecretsId>221e6f41-ea72-4db3-b841-e12568625099</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- The worker's own source travels with the application, so the
+         supervisor has one to run without depending on the repository. -->
+    <Content Include="..\..\tools\encoder-worker\encoder_worker.py"
+             Link="encoder-worker\encoder_worker.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -126,6 +126,53 @@ public sealed class FieldSuggestionBoundaryTests
         Assert.True(method.GetParameters()[^1].HasDefaultValue);
     }
 
+    [Fact]
+    public void Worker_lifecycle_never_reaches_the_application()
+    {
+        // Starting a container is a hosting decision. If it ever appears in
+        // Application, an externally managed worker stops being a supported
+        // deployment and the capability stops being optional.
+        var application = typeof(IFieldSuggestionProvider).Assembly;
+
+        Assert.DoesNotContain(
+            application.GetTypes(),
+            type =>
+                type.Name.Contains("Docker", StringComparison.OrdinalIgnoreCase) ||
+                type.Name.Contains("Container", StringComparison.OrdinalIgnoreCase) ||
+                type.Name.Contains("WorkerHost", StringComparison.OrdinalIgnoreCase) ||
+                type.Name.Contains("Supervisor", StringComparison.OrdinalIgnoreCase));
+
+        Assert.DoesNotContain(
+            application.GetReferencedAssemblies(),
+            reference => reference.Name is "System.Diagnostics.Process");
+    }
+
+    [Fact]
+    public void The_inference_path_does_not_depend_on_the_worker_lifecycle()
+    {
+        // The runtime talks to an endpoint. Whether anything started it, and
+        // how, is none of its business.
+        var lifecycle = typeof(ApologiaStudio.Infrastructure.Knowledge
+            .FieldSuggestions.IEncoderWorkerHost);
+
+        foreach (var type in new[]
+                 {
+                     typeof(ApologiaStudio.Infrastructure.Knowledge
+                         .FieldSuggestions.HttpEncoderInferenceRuntime),
+                     typeof(ApologiaStudio.Infrastructure.Knowledge
+                         .FieldSuggestions.GenreFormInferencePlan),
+                     typeof(ApologiaStudio.Infrastructure.Knowledge
+                         .FieldSuggestions.EncoderBackedFieldSuggestionProvider)
+                 })
+        {
+            Assert.DoesNotContain(
+                type.GetConstructors()
+                    .SelectMany(x => x.GetParameters())
+                    .Select(x => x.ParameterType),
+                parameter => parameter == lifecycle);
+        }
+    }
+
     #endregion
 
     #region Methods Helpers

@@ -5,6 +5,7 @@ using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.FieldSuggestions;
 using ApologiaStudio.Infrastructure.Knowledge.FieldSuggestions;
+using ApologiaStudio.Web.FieldSuggestions;
 using ApologiaStudio.Application.AiRuntime.Settings;
 using ApologiaStudio.Web;
 using ApologiaStudio.Web.DocumentManager;
@@ -131,6 +132,44 @@ public sealed class CompositionRootTests
 
         Assert.True(options.IsConfigured);
         Assert.Equal(TimeSpan.FromSeconds(45), options.Timeout);
+
+        // The worker lifecycle is supervised from the composition root, and
+        // its port comes from the endpoint rather than being configured twice.
+        Assert.IsType<DockerEncoderWorkerHost>(
+            scope.ServiceProvider.GetRequiredService<IEncoderWorkerHost>());
+        Assert.Equal(
+            5099,
+            scope.ServiceProvider
+                .GetRequiredService<EncoderWorkerOptions>()
+                .Port);
+        Assert.Contains(
+            services,
+            x => x.ImplementationType == typeof(EncoderWorkerSupervisor));
+    }
+
+    [Fact]
+    public void No_Worker_Is_Supervised_When_No_Encoder_Endpoint_Is_Configured()
+    {
+        // Apologia composes and starts with no encoder at all: nothing is
+        // launched, and nothing needs Docker to exist.
+        var services = CreateServices();
+
+        Assert.DoesNotContain(
+            services,
+            x => x.ServiceType == typeof(IEncoderWorkerHost) ||
+                 x.ImplementationType == typeof(EncoderWorkerSupervisor));
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            });
+
+        using var scope = provider.CreateScope();
+
+        Assert.IsType<UnavailableFieldSuggestionProvider>(
+            scope.ServiceProvider.GetRequiredService<IFieldSuggestionProvider>());
     }
 
     [Fact]
