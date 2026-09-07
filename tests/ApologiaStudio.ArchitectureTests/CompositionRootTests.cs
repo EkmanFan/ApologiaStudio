@@ -4,6 +4,7 @@ using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.FieldSuggestions;
+using ApologiaStudio.Infrastructure.Knowledge.FieldSuggestions;
 using ApologiaStudio.Application.AiRuntime.Settings;
 using ApologiaStudio.Web;
 using ApologiaStudio.Web.DocumentManager;
@@ -96,6 +97,43 @@ public sealed class CompositionRootTests
     }
 
     [Fact]
+    public void A_Configured_Encoder_Endpoint_Composes_The_Encoder_Capability()
+    {
+        // The only thing that turns machine assistance on is an endpoint. No
+        // model path, no runtime detection, no container lifecycle.
+        var services = CreateServices(
+            new Dictionary<string, string?>
+            {
+                ["Encoder:BaseAddress"] = "http://127.0.0.1:5099/",
+                ["Encoder:TimeoutSeconds"] = "45"
+            });
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            });
+
+        using var scope = provider.CreateScope();
+
+        Assert.IsType<EncoderBackedFieldSuggestionProvider>(
+            scope.ServiceProvider.GetRequiredService<IFieldSuggestionProvider>());
+        Assert.IsType<HttpEncoderInferenceRuntime>(
+            scope.ServiceProvider.GetRequiredService<IEncoderInferenceRuntime>());
+
+        // Still exactly one capability, and still resolved normally.
+        Assert.Single(
+            services.Where(x => x.ServiceType == typeof(IFieldSuggestionProvider)));
+
+        var options = scope.ServiceProvider
+            .GetRequiredService<EncoderInferenceOptions>();
+
+        Assert.True(options.IsConfigured);
+        Assert.Equal(TimeSpan.FromSeconds(45), options.Timeout);
+    }
+
+    [Fact]
     public void Composition_Root_Should_Build_With_Scope_Validation()
     {
         var services = CreateServices();
@@ -128,11 +166,10 @@ public sealed class CompositionRootTests
             scopedProvider.GetRequiredService<SimulatedAgentRuntime>());
     }
 
-    private static ServiceCollection CreateServices()
+    private static ServiceCollection CreateServices(
+        IReadOnlyDictionary<string, string?>? extraConfiguration = null)
     {
-        var configuration =
-            new ConfigurationBuilder()
-                .AddInMemoryCollection(
+        var settings =
                     new Dictionary<string, string?>
                     {
                         ["ConnectionStrings:ApologiaStudio"] =
@@ -147,7 +184,16 @@ public sealed class CompositionRootTests
                             "http://localhost:5092/",
                         ["DocumentManager:SessionBridge:SharedSecret"] =
                             "architecture-tests-session-bridge-secret"
-                    })
+                    };
+
+        foreach (var (key, value) in extraConfiguration ?? new Dictionary<string, string?>())
+        {
+            settings[key] = value;
+        }
+
+        var configuration =
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(settings)
                 .Build();
 
         var services = new ServiceCollection();

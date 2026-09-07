@@ -286,7 +286,7 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
                 command.ExpectedVersion,
                 command.Action,
                 title,
-                "editorial",
+                DocumentManagerEditorialDraftFactory.EditorialTitleOrigin,
                 contributorName,
                 contributorRole,
                 languageCode,

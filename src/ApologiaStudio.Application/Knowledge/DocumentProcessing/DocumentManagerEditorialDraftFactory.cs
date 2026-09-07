@@ -19,6 +19,17 @@ public static class DocumentManagerEditorialDraftFactory
     /// </summary>
     public const string FileNameTitleOrigin = "original_filename";
 
+    /// <summary>
+    /// Title provenance: a reviewer entered or confirmed the value.
+    /// </summary>
+    public const string EditorialTitleOrigin = "editorial";
+
+    /// <summary>
+    /// Title provenance: a machine proposed the value and no reviewer has
+    /// confirmed it.
+    /// </summary>
+    public const string MachineProposedTitleOrigin = "ai_proposed";
+
     private const int MaximumTitleLength = 1000;
 
     public static DocumentManagerEditorialDraft Create(

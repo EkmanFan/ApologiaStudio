@@ -6,6 +6,7 @@ using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.AiRuntime;
 using ApologiaStudio.Application.Abstractions.FieldSuggestions;
+using ApologiaStudio.Infrastructure.Knowledge.FieldSuggestions;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Agents.Settings;
@@ -305,12 +306,41 @@ public static class DependencyInjection
             IGenreFormClassifier,
             StructuredGenreFormClassifier>();
 
-        // Exactly one field-suggestion capability, resolved normally. P3-03
-        // replaces this registration with an encoder-backed provider when one
-        // is configured; nothing else in the application changes.
-        services.AddScoped<
-            IFieldSuggestionProvider,
-            UnavailableFieldSuggestionProvider>();
+        // Exactly one field-suggestion capability, resolved normally. The
+        // encoder-backed one replaces the unavailable one only when an encoder
+        // endpoint is configured; nothing else in the application changes, and
+        // no consumer ever learns which one it got.
+        var encoderOptions =
+            EncoderInferenceConfiguration.FromConfiguration(configuration);
+        services.AddSingleton(encoderOptions);
+
+        if (encoderOptions.IsConfigured)
+        {
+            services.AddHttpClient(
+                EncoderInferenceConfiguration.SectionName,
+                client => client.Timeout = encoderOptions.Timeout);
+
+            services.AddScoped<IEncoderInferenceRuntime>(
+                serviceProvider =>
+                    new HttpEncoderInferenceRuntime(
+                        serviceProvider
+                            .GetRequiredService<IHttpClientFactory>()
+                            .CreateClient(
+                                EncoderInferenceConfiguration.SectionName),
+                        serviceProvider
+                            .GetRequiredService<EncoderInferenceOptions>()));
+
+            services.AddScoped<GenreFormInferencePlan>();
+            services.AddScoped<
+                IFieldSuggestionProvider,
+                EncoderBackedFieldSuggestionProvider>();
+        }
+        else
+        {
+            services.AddScoped<
+                IFieldSuggestionProvider,
+                UnavailableFieldSuggestionProvider>();
+        }
 
         services.AddScoped<
             OllamaAgentRuntime>();
