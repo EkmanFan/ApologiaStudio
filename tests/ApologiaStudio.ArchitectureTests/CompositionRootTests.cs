@@ -3,6 +3,7 @@ using ApologiaStudio.AgentRuntime.Execution;
 using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
+using ApologiaStudio.Application.Abstractions.FieldSuggestions;
 using ApologiaStudio.Application.AiRuntime.Settings;
 using ApologiaStudio.Web;
 using ApologiaStudio.Web.DocumentManager;
@@ -57,6 +58,41 @@ public sealed class CompositionRootTests
         AssertLifetime<DocumentManagerSessionTicketIssuer>(
             services,
             ServiceLifetime.Singleton);
+        AssertLifetime<IFieldSuggestionProvider>(
+            services,
+            ServiceLifetime.Scoped);
+    }
+
+    [Fact]
+    public void Field_Suggestion_Capability_Should_Resolve_Without_Any_Model_Runtime()
+    {
+        // Machine assistance is optional. The container is built from the same
+        // configuration as production, with no model, runtime or environment
+        // variable of any kind, and the capability still resolves.
+        var services = CreateServices();
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            });
+
+        using var scope = provider.CreateScope();
+
+        var suggestions = scope.ServiceProvider
+            .GetRequiredService<IFieldSuggestionProvider>();
+
+        Assert.IsType<UnavailableFieldSuggestionProvider>(suggestions);
+
+        // Exactly one capability is registered: no collection, no keyed
+        // service, no dynamic dispatch.
+        Assert.Single(
+            services.Where(x => x.ServiceType == typeof(IFieldSuggestionProvider)));
+        Assert.Empty(
+            scope.ServiceProvider
+                .GetServices<IFieldSuggestionProvider>()
+                .Skip(1));
     }
 
     [Fact]

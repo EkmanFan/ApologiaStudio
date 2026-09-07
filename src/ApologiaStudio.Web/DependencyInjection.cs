@@ -5,6 +5,7 @@ using ApologiaStudio.AgentRuntime.Routing;
 using ApologiaStudio.AgentRuntime.Routing.Semantic;
 using ApologiaStudio.Application.Abstractions.Agents;
 using ApologiaStudio.Application.Abstractions.AiRuntime;
+using ApologiaStudio.Application.Abstractions.FieldSuggestions;
 using ApologiaStudio.Application.Abstractions.BibleCorpora;
 using ApologiaStudio.Application.Abstractions.Identity;
 using ApologiaStudio.Application.Agents.Settings;
@@ -303,6 +304,13 @@ public static class DependencyInjection
         services.AddScoped<
             IGenreFormClassifier,
             StructuredGenreFormClassifier>();
+
+        // Exactly one field-suggestion capability, resolved normally. P3-03
+        // replaces this registration with an encoder-backed provider when one
+        // is configured; nothing else in the application changes.
+        services.AddScoped<
+            IFieldSuggestionProvider,
+            UnavailableFieldSuggestionProvider>();
 
         services.AddScoped<
             OllamaAgentRuntime>();
