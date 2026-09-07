@@ -33,7 +33,7 @@ public sealed record DocumentManagerEditorialDraftReviewCommand(
     int? PublicationYear,
     string? PublicationPlace,
     string? Description,
-    IReadOnlyList<string> GenreFormAuthorityUris,
+    IReadOnlyList<string> GenreFormTermCodes,
     string? RejectionReason);
 
 public sealed record DocumentManagerEditorialDraftMutation(
@@ -49,9 +49,9 @@ public sealed record DocumentManagerEditorialDraftMutation(
     int? PublicationYear,
     string? PublicationPlace,
     string? Description,
-    // Authority URIs of the reviewer's selection; part of the same mutation
-    // and therefore of the same optimistic-concurrency check.
-    IReadOnlyList<string> GenreFormAuthorityUris,
+    // Product term codes of the reviewer's selection; part of the same
+    // mutation and therefore of the same optimistic-concurrency check.
+    IReadOnlyList<string> GenreFormTermCodes,
     DocumentManagerEditorialDraftStatus TargetStatus,
     Guid ActorUserId,
     DateTimeOffset OccurredAtUtc,
@@ -148,7 +148,7 @@ public sealed class ReopenDocumentManagerEditorialDraftHandler(
                 draft.PublicationYear,
                 draft.PublicationPlace,
                 draft.Description,
-                draft.GenreForms.Select(x => x.AuthorityUri).ToList(),
+                draft.GenreForms.Select(x => x.Code).ToList(),
                 DocumentManagerEditorialDraftStatus.PendingReview,
                 currentUser.UserId.Value,
                 timeProvider.GetUtcNow(),
@@ -276,8 +276,8 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
                 null)
         };
 
-        var genreFormAuthorityUris = await ResolveGenreFormsAsync(
-            command.GenreFormAuthorityUris,
+        var genreFormTermCodes = await ResolveGenreFormsAsync(
+            command.GenreFormTermCodes,
             cancellationToken);
 
         return await store.ApplyAsync(
@@ -294,7 +294,7 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
                 command.PublicationYear,
                 publicationPlace,
                 description,
-                genreFormAuthorityUris,
+                genreFormTermCodes,
                 targetStatus,
                 currentUser.UserId.Value,
                 timeProvider.GetUtcNow(),
@@ -330,7 +330,7 @@ public sealed class ReviewDocumentManagerEditorialDraftHandler(
         }
 
         return requested
-            .Select(x => GenreFormSelectionRules.Resolve(x, policy)!.AuthorityUri)
+            .Select(x => GenreFormSelectionRules.Resolve(x, policy)!.Code)
             .ToList();
     }
 

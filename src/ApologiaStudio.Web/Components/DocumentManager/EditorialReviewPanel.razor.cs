@@ -25,7 +25,7 @@ public partial class EditorialReviewPanel
     [Inject]
     private DocumentManagerConsumerOptions ConsumerOptions { get; set; } = null!;
 
-    private IReadOnlyList<GenreFormTermView> _genreFormTerms = [];
+    private IReadOnlyList<GenreFormPolicyTerm> _genreFormTerms = [];
 
     private IReadOnlyList<GenreFormSuggestion>? _suggestions;
 
@@ -352,7 +352,7 @@ public partial class EditorialReviewPanel
             // The editorial save has committed; recording what the reviewer
             // did with the proposal is evaluation data and cannot undo it.
             await RecordReviewerOutcomeAsync(
-                updated.GenreForms.Select(x => x.AuthorityUri).ToList());
+                updated.GenreForms.Select(x => x.Code).ToList());
 
             await RefreshSummariesAsync(scope.ServiceProvider);
             ShowSuccess(action switch
@@ -551,41 +551,45 @@ public partial class EditorialReviewPanel
         _messageIsError = true;
     }
 
-    private bool IsGenreFormSelected(string authorityUri) =>
-        _form.GenreFormAuthorityUris.Contains(authorityUri, StringComparer.Ordinal);
+    private bool IsGenreFormSelected(string termCode) =>
+        _form.GenreFormTermCodes.Contains(termCode, StringComparer.Ordinal);
 
-    private void ToggleGenreForm(string authorityUri, ChangeEventArgs args)
+    private void ToggleGenreForm(string termCode, ChangeEventArgs args)
     {
         var selected = args.Value is true;
 
         if (selected)
         {
-            if (!IsGenreFormSelected(authorityUri))
+            if (!IsGenreFormSelected(termCode))
             {
-                _form.GenreFormAuthorityUris.Add(authorityUri);
+                _form.GenreFormTermCodes.Add(termCode);
             }
 
             return;
         }
 
-        _form.GenreFormAuthorityUris.RemoveAll(
-            x => string.Equals(x, authorityUri, StringComparison.Ordinal));
+        _form.GenreFormTermCodes.RemoveAll(
+            x => string.Equals(x, termCode, StringComparison.Ordinal));
     }
 
     /// <summary>
-    /// The closed vocabulary comes from the active profile; the panel never
-    /// restates the terms or the hierarchy rules.
+    /// The closed vocabulary is the active Apologia product taxonomy.
     /// </summary>
+    /// <remarks>
+    /// Every active term is offered, manual-only ones included: the prediction
+    /// mode bounds what the encoder will be allowed to propose, never what a
+    /// reviewer may choose.
+    /// </remarks>
     private async Task LoadGenreFormVocabularyAsync()
     {
         try
         {
             await using var scope = ServiceScopeFactory.CreateAsyncScope();
-            var store = scope.ServiceProvider
-                .GetRequiredService<IGenreFormAuthorityStore>();
+            var provider = scope.ServiceProvider
+                .GetRequiredService<IGenreFormPolicyProvider>();
 
-            _genreFormTerms = await store.GetSelectableTermsAsync(
-                CancellationToken.None);
+            _genreFormTerms = (await provider.GetActivePolicyAsync(
+                CancellationToken.None)).Terms;
         }
         catch (Exception)
         {
@@ -625,7 +629,7 @@ public partial class EditorialReviewPanel
             {
                 _suggestions = validation.Result!.Suggested;
                 _suggestedAtAnalysis = _suggestions
-                    .Select(x => x.AuthorityUri)
+                    .Select(x => x.Code)
                     .ToList();
 
                 await RecordAnalysisAsync(validation.Result, requestedAt);
@@ -725,7 +729,7 @@ public partial class EditorialReviewPanel
                     _selectedDraft.Id,
                     actor,
                     reason,
-                    GenreFormProfile.Version,
+                    ApologiaGenreFormTaxonomy.Version,
                     requestedAt,
                     completedAt,
                     (completedAt - requestedAt).TotalMilliseconds),
@@ -785,8 +789,8 @@ public partial class EditorialReviewPanel
             return;
         }
 
-        _form.GenreFormAuthorityUris = _suggestions
-            .Select(x => x.AuthorityUri)
+        _form.GenreFormTermCodes = _suggestions
+            .Select(x => x.Code)
             .ToList();
     }
 
@@ -832,7 +836,7 @@ public partial class EditorialReviewPanel
         /// Authority URIs chosen by the reviewer. The vocabulary itself is
         /// never restated here: the panel only carries identifiers.
         /// </summary>
-        public List<string> GenreFormAuthorityUris { get; set; } = [];
+        public List<string> GenreFormTermCodes { get; set; } = [];
 
         public static EditorialForm FromDraft(DocumentManagerEditorialDraft draft) =>
             new()
@@ -846,8 +850,8 @@ public partial class EditorialReviewPanel
                 PublicationPlace = draft.PublicationPlace,
                 Description = draft.Description,
                 RejectionReason = draft.RejectionReason,
-                GenreFormAuthorityUris = draft.GenreForms
-                    .Select(x => x.AuthorityUri)
+                GenreFormTermCodes = draft.GenreForms
+                    .Select(x => x.Code)
                     .ToList()
             };
 
@@ -866,7 +870,7 @@ public partial class EditorialReviewPanel
                 PublicationYear,
                 PublicationPlace,
                 Description,
-                GenreFormAuthorityUris,
+                GenreFormTermCodes,
                 RejectionReason);
     }
 

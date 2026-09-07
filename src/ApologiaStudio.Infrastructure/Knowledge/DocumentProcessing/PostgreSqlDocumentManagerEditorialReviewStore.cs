@@ -141,7 +141,7 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
 
         var genreForms = await ReplaceGenreFormsAsync(
             entity.Id,
-            mutation.GenreFormAuthorityUris,
+            mutation.GenreFormTermCodes,
             cancellationToken);
 
         dbContext.DocumentManagerEditorialReviewEvents.Add(
@@ -169,7 +169,7 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
                         entity.Status,
                         entity.RejectionReason,
                         GenreForms = genreForms
-                            .Select(x => x.AuthorityUri)
+                            .Select(x => x.Code)
                             .ToList()
                     },
                     SnapshotOptions)
@@ -198,7 +198,7 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
     private async Task<IReadOnlyList<DocumentManagerEditorialDraftGenreForm>>
         ReplaceGenreFormsAsync(
             Guid draftId,
-            IReadOnlyList<string> authorityUris,
+            IReadOnlyList<string> termCodes,
             CancellationToken cancellationToken)
     {
         var existing = await dbContext.EditorialDraftGenreForms
@@ -207,27 +207,27 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
 
         dbContext.EditorialDraftGenreForms.RemoveRange(existing);
 
-        if (authorityUris.Count == 0)
+        if (termCodes.Count == 0)
         {
             return [];
         }
 
-        var terms = await dbContext.GenreFormTerms
+        var terms = await dbContext.ApologiaGenreFormTerms
             .AsNoTracking()
-            .Where(x => authorityUris.Contains(x.AuthorityUri))
+            .Where(x => termCodes.Contains(x.Code) && x.Status == "active")
             .Select(x => new
             {
                 x.Id,
-                x.AuthorityUri,
-                x.AuthorityIdentifier,
-                x.PreferredLabel
+                x.Code,
+                x.PreferredLabel,
+                x.DisplayOrder
             })
             .ToListAsync(cancellationToken);
 
-        if (terms.Count != authorityUris.Distinct().Count())
+        if (terms.Count != termCodes.Distinct().Count())
         {
             throw new DocumentManagerEditorialReviewValidationException(
-                "A selected genre/form term is unknown to the authority.");
+                "A selected genre/form term is not an active Apologia term.");
         }
 
         foreach (var term in terms)
@@ -236,16 +236,15 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
                 new DocumentManagerEditorialDraftGenreFormEntity
                 {
                     DraftId = draftId,
-                    TermId = term.Id
+                    ProductTermId = term.Id
                 });
         }
 
         return terms
+            .OrderBy(x => x.DisplayOrder)
             .Select(x => new DocumentManagerEditorialDraftGenreForm(
-                x.AuthorityUri,
-                x.AuthorityIdentifier,
+                x.Code,
                 x.PreferredLabel))
-            .OrderBy(x => x.PreferredLabel, StringComparer.Ordinal)
             .ToList();
     }
 
@@ -259,13 +258,12 @@ public sealed class PostgreSqlDocumentManagerEditorialReviewStore(
     {
         return await (
             from selection in dbContext.EditorialDraftGenreForms.AsNoTracking()
-            join term in dbContext.GenreFormTerms.AsNoTracking()
-                on selection.TermId equals term.Id
+            join term in dbContext.ApologiaGenreFormTerms.AsNoTracking()
+                on selection.ProductTermId equals term.Id
             where selection.DraftId == draftId
-            orderby term.PreferredLabel
+            orderby term.DisplayOrder
             select new DocumentManagerEditorialDraftGenreForm(
-                term.AuthorityUri,
-                term.AuthorityIdentifier,
+                term.Code,
                 term.PreferredLabel))
             .ToListAsync(cancellationToken);
     }

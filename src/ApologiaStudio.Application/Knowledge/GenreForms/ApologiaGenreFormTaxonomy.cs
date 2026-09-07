@@ -4,14 +4,18 @@ using System.Text;
 namespace ApologiaStudio.Application.Knowledge.GenreForms;
 
 /// <summary>
-/// Whether the machine classifier may propose a term.
+/// Whether a term is inside the encoder's prediction scope.
 /// </summary>
+/// <remarks>
+/// This bounds machine capability, never human choice: a reviewer may assign
+/// any active term, whatever its mode.
+/// </remarks>
 public enum GenreFormPredictionMode
 {
-    /// <summary>The classifier may propose this term.</summary>
+    /// <summary>Inside the encoder's prediction scope.</summary>
     EncoderPredictable = 0,
 
-    /// <summary>Only a reviewer may assign this term.</summary>
+    /// <summary>Outside it; the term is assigned by a reviewer.</summary>
     ManualOnly = 1
 }
 

@@ -66,7 +66,7 @@ internal sealed class GenreFormEvaluationHarness
     {
         var baseline = Create(model, maximumOutputTokens: maximumOutputTokens);
         var reordered = new GenreFormPolicySnapshot(
-            baseline.Policy.PolicyVersion,
+            baseline.Policy.TaxonomyVersion,
             order(baseline.Policy.Terms));
 
         var classifier = (condition ?? GenreFormConditions.JointSubsetSelection)(
@@ -129,70 +129,25 @@ internal sealed class GenreFormEvaluationHarness
     }
 
     /// <summary>
-    /// The active profile is rebuilt from the official LCGFT subset so the
-    /// baseline runs without a database. It must match the product profile.
+    /// The policy is the canonical Apologia product taxonomy, so the harness
+    /// runs without a database.
     /// </summary>
+    /// <remarks>
+    /// Before GF-TAX-5 this rebuilt the LCGFT 14-term profile from a pinned
+    /// fixture. The product taxonomy is now what the classifier is given, so a
+    /// run measures the vocabulary actually in force; earlier campaigns keep
+    /// their recorded results and are not reproduced by this harness.
+    /// </remarks>
     private static GenreFormPolicySnapshot LoadPolicy()
     {
-        var path = Path.Combine(
-            AppContext.BaseDirectory,
-            "GenreForm",
-            "lcgft-profile-v1-fixture.jsonl");
-
-        using var content = File.OpenRead(path);
-        var dataset = new SkosJsonLdGenreFormDatasetReader().Read(content);
-
-        var byUri = dataset.Terms.ToDictionary(x => x.AuthorityUri, StringComparer.Ordinal);
-
-        var selectable = GenreFormProfile.SelectableLabels
-            .Select(label => dataset.Terms.Single(x => x.PreferredLabel == label))
-            .ToList();
-
-        var terms = new List<GenreFormPolicyTerm>();
-
-        foreach (var term in dataset.Terms)
-        {
-            var isSelectable = selectable.Any(
-                x => string.Equals(x.AuthorityUri, term.AuthorityUri, StringComparison.Ordinal));
-
-            terms.Add(new GenreFormPolicyTerm(
-                term.AuthorityUri,
-                term.AuthorityIdentifier,
-                term.PreferredLabel,
-                isSelectable
-                    ? GenreFormPolicyUsage.Selectable
-                    : GenreFormPolicyUsage.StructuralOnly,
-                Ancestors(term.AuthorityUri, byUri)));
-        }
-
-        return new GenreFormPolicySnapshot(GenreFormProfile.Version, terms);
-    }
-
-    private static IReadOnlyList<string> Ancestors(
-        string authorityUri,
-        IReadOnlyDictionary<string, GenreFormAuthorityTerm> byUri)
-    {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var frontier = new List<string> { authorityUri };
-
-        while (frontier.Count > 0)
-        {
-            var next = new List<string>();
-
-            foreach (var current in frontier)
-            {
-                if (!byUri.TryGetValue(current, out var term))
-                {
-                    continue;
-                }
-
-                next.AddRange(term.BroaderAuthorityUris.Where(seen.Add));
-            }
-
-            frontier = next;
-        }
-
-        return seen.ToList();
+        return new GenreFormPolicySnapshot(
+            ApologiaGenreFormTaxonomy.Version,
+            ApologiaGenreFormTaxonomy.Terms
+                .Select(x => new GenreFormPolicyTerm(
+                    x.Code,
+                    x.PreferredLabel,
+                    x.PredictionMode))
+                .ToList());
     }
 
     public async Task<GenreFormEvaluationReport> RunAsync(
@@ -209,8 +164,8 @@ internal sealed class GenreFormEvaluationHarness
         return new GenreFormEvaluationReport(
             Model,
             StructuredGenreFormClassifier.PromptVersion,
-            _policy.PolicyVersion,
-            _policy.SelectableTerms.Count(),
+            _policy.TaxonomyVersion,
+            _policy.Terms.Count,
             DateTimeOffset.UtcNow,
             results);
     }
@@ -272,7 +227,7 @@ internal sealed class GenreFormEvaluationHarness
             }
 
             var suggested = validation.Result!.Suggested
-                .Select(x => x.AuthorityUri)
+                .Select(x => x.Code)
                 .ToHashSet(StringComparer.Ordinal);
 
             return GenreFormCaseResult.Classified(
@@ -293,11 +248,11 @@ internal sealed class GenreFormEvaluationHarness
         }
     }
 
-    private string? Resolve(string authorityId) =>
-        GenreFormSelectionRules.Resolve(authorityId, _policy)?.AuthorityUri;
+    private string? Resolve(string termCode) =>
+        GenreFormSelectionRules.Resolve(termCode, _policy)?.Code;
 
-    public string LabelFor(string authorityUri) =>
-        _policy.Find(authorityUri)?.PreferredLabel ?? authorityUri;
+    public string LabelFor(string termCode) =>
+        _policy.Find(termCode)?.PreferredLabel ?? termCode;
 
     private sealed class RecordingStructuredGenerationTelemetry
         : IStructuredGenerationTelemetry

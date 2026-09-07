@@ -183,8 +183,8 @@
                                 {
                                     <label class="genre-form-choice">
                                         <input type="checkbox"
-                                               checked="@IsGenreFormSelected(term.AuthorityUri)"
-                                               @onchange="args => ToggleGenreForm(term.AuthorityUri, args)" />
+                                               checked="@IsGenreFormSelected(term.Code)"
+                                               @onchange="args => ToggleGenreForm(term.Code, args)" />
                                         <span>@term.PreferredLabel</span>
                                     </label>
                                 }

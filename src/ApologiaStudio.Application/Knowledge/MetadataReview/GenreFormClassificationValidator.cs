@@ -4,11 +4,16 @@ namespace ApologiaStudio.Application.Knowledge.MetadataReview;
 
 /// <summary>
 /// Deterministic validation of untrusted model output against the active
-/// Genre/Form policy.
+/// Genre/Form product taxonomy.
 ///
 /// Fails closed: a single violation discards the whole classification rather
 /// than salvaging the acceptable part, because a model that invented one term
 /// gives no reason to trust the rest of the same response.
+///
+/// V1 checks what the flat product taxonomy can actually be violated on: the
+/// term is known and active, it appears once, it carries a justification, and
+/// the answer does not contradict itself. There is no structural tier and no
+/// hierarchy, so there is nothing there left to check.
 /// </summary>
 public sealed class GenreFormClassificationValidator(
     MetadataReviewOptions? options = null)
@@ -33,7 +38,6 @@ public sealed class GenreFormClassificationValidator(
 
         ValidateCardinality(suggested, _options, errors);
         ValidateDisjoint(suggested, rejected, errors);
-        ValidateHierarchy(suggested, policy, errors);
         ValidateInsufficientEvidence(raw, suggested, errors);
 
         if (errors.Count > 0)
@@ -61,21 +65,13 @@ public sealed class GenreFormClassificationValidator(
 
         foreach (var candidate in raw.Suggested)
         {
-            var term = Resolve(candidate.AuthorityId, policy, errors);
+            var term = Resolve(candidate.TermCode, policy, errors);
             if (term is null)
             {
                 continue;
             }
 
-            if (term.Usage != GenreFormPolicyUsage.Selectable)
-            {
-                errors.Add(new GenreFormValidationError(
-                    GenreFormValidationFailure.TermNotSelectable,
-                    $"'{term.PreferredLabel}' is structural in the active profile."));
-                continue;
-            }
-
-            if (!seen.Add(term.AuthorityUri))
+            if (!seen.Add(term.Code))
             {
                 errors.Add(new GenreFormValidationError(
                     GenreFormValidationFailure.DuplicateSuggestion,
@@ -92,8 +88,7 @@ public sealed class GenreFormClassificationValidator(
             }
 
             resolved.Add(new GenreFormSuggestion(
-                term.AuthorityUri,
-                term.AuthorityIdentifier,
+                term.Code,
                 term.PreferredLabel,
                 candidate.Justification.Trim(),
                 candidate.Evidence
@@ -115,13 +110,13 @@ public sealed class GenreFormClassificationValidator(
 
         foreach (var candidate in raw.ConsideredButRejected)
         {
-            var term = Resolve(candidate.AuthorityId, policy, errors);
+            var term = Resolve(candidate.TermCode, policy, errors);
             if (term is null)
             {
                 continue;
             }
 
-            if (!seen.Add(term.AuthorityUri))
+            if (!seen.Add(term.Code))
             {
                 errors.Add(new GenreFormValidationError(
                     GenreFormValidationFailure.DuplicateSuggestion,
@@ -138,7 +133,7 @@ public sealed class GenreFormClassificationValidator(
             }
 
             resolved.Add(new GenreFormRejection(
-                term.AuthorityUri,
+                term.Code,
                 term.PreferredLabel,
                 candidate.Reason.Trim()));
         }
@@ -151,25 +146,25 @@ public sealed class GenreFormClassificationValidator(
     /// exactly the vocabulary rules a reviewer is.
     /// </summary>
     private static GenreFormPolicyTerm? Resolve(
-        string? authorityId,
+        string? termCode,
         GenreFormPolicySnapshot policy,
         List<GenreFormValidationError> errors)
     {
-        if (string.IsNullOrWhiteSpace(authorityId))
+        if (string.IsNullOrWhiteSpace(termCode))
         {
             errors.Add(new GenreFormValidationError(
-                GenreFormValidationFailure.MissingAuthorityId,
-                "A returned entry carries no authority identifier."));
+                GenreFormValidationFailure.MissingTermCode,
+                "A returned entry carries no term code."));
             return null;
         }
 
-        var term = GenreFormSelectionRules.Resolve(authorityId, policy);
+        var term = GenreFormSelectionRules.Resolve(termCode, policy);
 
         if (term is null)
         {
             errors.Add(new GenreFormValidationError(
-                GenreFormValidationFailure.UnknownAuthorityTerm,
-                $"'{authorityId.Trim()}' is not a term of the active profile."));
+                GenreFormValidationFailure.UnknownTerm,
+                $"'{termCode.Trim()}' is not a term of the active taxonomy."));
         }
 
         return term;
@@ -194,35 +189,17 @@ public sealed class GenreFormClassificationValidator(
         List<GenreFormRejection> rejected,
         List<GenreFormValidationError> errors)
     {
-        var suggestedUris = suggested
-            .Select(x => x.AuthorityUri)
+        var suggestedCodes = suggested
+            .Select(x => x.Code)
             .ToHashSet(StringComparer.Ordinal);
 
         foreach (var rejection in rejected.Where(
-                     x => suggestedUris.Contains(x.AuthorityUri)))
+                     x => suggestedCodes.Contains(x.Code)))
         {
             errors.Add(new GenreFormValidationError(
                 GenreFormValidationFailure.SuggestedAndRejected,
                 $"'{rejection.PreferredLabel}' is both suggested and rejected."));
         }
-    }
-
-    private static void ValidateHierarchy(
-        List<GenreFormSuggestion> suggested,
-        GenreFormPolicySnapshot policy,
-        List<GenreFormValidationError> errors)
-    {
-        var terms = suggested
-            .Select(x => policy.Find(x.AuthorityUri))
-            .OfType<GenreFormPolicyTerm>()
-            .ToList();
-
-        errors.AddRange(
-            GenreFormSelectionRules
-                .FindRedundantHierarchy(terms)
-                .Select(x => new GenreFormValidationError(
-                    GenreFormValidationFailure.RedundantHierarchy,
-                    x.Detail)));
     }
 
     private static void ValidateInsufficientEvidence(

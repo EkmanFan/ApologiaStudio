@@ -403,7 +403,7 @@ public sealed class GenreFormFramingTests
         var harness = GenreFormEvaluationHarness.Create(model);
         var probe = new GenreFormApplicabilityProbe(harness.Runtime);
 
-        var selectable = harness.Policy.SelectableTerms.ToList();
+        var selectable = harness.Policy.Terms.ToList();
         var responses = new List<GenreFormConditionResponse>();
 
         var matrix = new StringBuilder();
@@ -439,9 +439,9 @@ public sealed class GenreFormFramingTests
 
                     if (answer.Applies)
                     {
-                        entry.Selected.Add(term.AuthorityUri);
-                        trueCounts[term.AuthorityUri] =
-                            trueCounts.GetValueOrDefault(term.AuthorityUri) + 1;
+                        entry.Selected.Add(term.Code);
+                        trueCounts[term.Code] =
+                            trueCounts.GetValueOrDefault(term.Code) + 1;
                     }
 
                     perRepetition[index] = (
@@ -468,7 +468,7 @@ public sealed class GenreFormFramingTests
 
             foreach (var term in selectable)
             {
-                var count = trueCounts.GetValueOrDefault(term.AuthorityUri);
+                var count = trueCounts.GetValueOrDefault(term.Code);
 
                 if (count == 0)
                 {
@@ -478,7 +478,7 @@ public sealed class GenreFormFramingTests
                 matrix.AppendLine(
                     $"| {caseId} | {evaluationCase.Source} | {term.PreferredLabel} " +
                     $"| {count}/{repetitions} " +
-                    $"| {(expected.Contains(term.AuthorityUri) ? "expected" : "not expected")} |");
+                    $"| {(expected.Contains(term.Code) ? "expected" : "not expected")} |");
             }
         }
 
@@ -602,7 +602,7 @@ public sealed class GenreFormFramingTests
         GenreFormEvaluationCase evaluationCase,
         GenreFormEvaluationHarness harness) =>
         evaluationCase.Expected
-            .Select(x => GenreFormSelectionRules.Resolve(x, harness.Policy)?.AuthorityUri)
+            .Select(x => GenreFormSelectionRules.Resolve(x, harness.Policy)?.Code)
             .Where(x => x is not null)
             .Select(x => x!)
             .ToHashSet(StringComparer.Ordinal);

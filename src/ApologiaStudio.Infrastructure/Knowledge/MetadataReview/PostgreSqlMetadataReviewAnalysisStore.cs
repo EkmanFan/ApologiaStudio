@@ -156,29 +156,29 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
         Application.Knowledge.MetadataReview.GenreFormClassificationResult result,
         CancellationToken cancellationToken)
     {
-        var uris = result.Suggested
-            .Select(x => x.AuthorityUri)
-            .Concat(result.ConsideredButRejected.Select(x => x.AuthorityUri))
+        var codes = result.Suggested
+            .Select(x => x.Code)
+            .Concat(result.ConsideredButRejected.Select(x => x.Code))
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (uris.Count == 0)
+        if (codes.Count == 0)
         {
             return;
         }
 
-        var termIds = await context.GenreFormTerms
+        var termIds = await context.ApologiaGenreFormTerms
             .AsNoTracking()
-            .Where(x => uris.Contains(x.AuthorityUri))
-            .Select(x => new { x.Id, x.AuthorityUri })
-            .ToDictionaryAsync(x => x.AuthorityUri, x => x.Id, cancellationToken);
+            .Where(x => codes.Contains(x.Code))
+            .Select(x => new { x.Id, x.Code })
+            .ToDictionaryAsync(x => x.Code, x => x.Id, cancellationToken);
 
         foreach (var suggestion in result.Suggested)
         {
             var entity = new MetadataReviewSuggestionEntity
             {
                 AnalysisId = analysisId,
-                TermId = termIds[suggestion.AuthorityUri],
+                ProductTermId = termIds[suggestion.Code],
                 Disposition = "suggested",
                 Justification = suggestion.Justification
             };
@@ -204,7 +204,7 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
                 new MetadataReviewSuggestionEntity
                 {
                     AnalysisId = analysisId,
-                    TermId = termIds[rejection.AuthorityUri],
+                    ProductTermId = termIds[rejection.Code],
                     Disposition = "considered_but_rejected",
                     Justification = rejection.Reason
                 });
@@ -250,15 +250,14 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
     {
         var rows = await (
             from suggestion in context.MetadataReviewSuggestions.AsNoTracking()
-            join term in context.GenreFormTerms.AsNoTracking()
-                on suggestion.TermId equals term.Id
+            join term in context.ApologiaGenreFormTerms.AsNoTracking()
+                on suggestion.ProductTermId equals term.Id
             where suggestion.AnalysisId == entity.Id
             orderby suggestion.Id
             select new
             {
                 suggestion.Id,
-                term.AuthorityUri,
-                term.AuthorityIdentifier,
+                term.Code,
                 term.PreferredLabel,
                 suggestion.Disposition,
                 suggestion.Justification
@@ -280,8 +279,7 @@ public sealed class PostgreSqlMetadataReviewAnalysisStore(
 
         var suggestions = rows
             .Select(row => new MetadataReviewSuggestionRecord(
-                row.AuthorityUri,
-                row.AuthorityIdentifier,
+                row.Code,
                 row.PreferredLabel,
                 row.Disposition == "suggested"
                     ? MetadataReviewSuggestionDisposition.Suggested

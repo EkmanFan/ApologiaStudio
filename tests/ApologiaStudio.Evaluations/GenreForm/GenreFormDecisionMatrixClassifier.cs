@@ -45,7 +45,7 @@ internal sealed class GenreFormDecisionMatrixClassifier(
     {
         ArgumentNullException.ThrowIfNull(evidence);
 
-        var selectable = policy.SelectableTerms.ToList();
+        var selectable = policy.Terms.ToList();
         if (selectable.Count == 0)
         {
             throw new StructuredGenerationException(
@@ -81,7 +81,7 @@ internal sealed class GenreFormDecisionMatrixClassifier(
             insufficientEvidence);
 
         var identity = new MetadataReviewAnalysisIdentity(
-            policy.PolicyVersion,
+            policy.TaxonomyVersion,
             PromptVersion,
             "ollama",
             result.Model,
@@ -100,7 +100,7 @@ internal sealed class GenreFormDecisionMatrixClassifier(
         IReadOnlyList<GenreFormPolicyTerm> selectable)
     {
         var expected = selectable
-            .Select(x => x.AuthorityIdentifier)
+            .Select(x => x.Code)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -215,7 +215,7 @@ internal sealed class GenreFormDecisionMatrixClassifier(
 
         foreach (var term in selectable)
         {
-            builder.AppendLine($"{term.AuthorityIdentifier} = {term.PreferredLabel}");
+            builder.AppendLine($"{term.Code} = {term.PreferredLabel}");
         }
 
         builder.AppendLine();

@@ -411,10 +411,11 @@ public sealed class GenreFormAuthorityMappingSeederTests
 
         await SeedAsync(options);
 
-        // Since GF-TAX-4 a Work carries a product term. The two remaining
-        // references still target the authority catalogue until GF-TAX-5.
+        // Since GF-TAX-5 the alignment table is the only local structure that
+        // refers to an LCGFT concept, and it does so by external identifier,
+        // never by foreign key.
         Assert.Equal(
-            2,
+            0,
             await ScalarAsync(
                 connectionString,
                 """
@@ -425,6 +426,7 @@ public sealed class GenreFormAuthorityMappingSeederTests
                   ON kcu.constraint_name = rc.constraint_name
                 WHERE tc.table_name = 'genre_form_authority_terms'
                   AND kcu.table_name IN (
+                    'knowledge_work_genre_forms',
                     'document_manager_editorial_draft_genre_forms',
                     'metadata_review_suggestions');
                 """));

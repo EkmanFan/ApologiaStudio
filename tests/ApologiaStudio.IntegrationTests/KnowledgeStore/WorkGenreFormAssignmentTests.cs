@@ -306,27 +306,27 @@ public sealed class WorkGenreFormAssignmentTests
     }
 
     [Fact]
-    public async Task The_draft_and_review_relations_are_not_cut_over_yet()
+    public async Task The_draft_and_review_relations_are_cut_over_too()
     {
         var connectionString = KnowledgeStoreTestConnection.Resolve();
         await PrepareAsync(connectionString);
 
-        // GF-TAX-5 owns these two. Cutting them here would move a reviewer's
-        // in-flight selections before anything could read the new vocabulary.
+        // GF-TAX-5 finished the cutover: the reviewer's draft selection and the
+        // assistant's suggestions carry product terms as well.
         Assert.Equal(
             1,
             await ScalarAsync(
                 connectionString,
                 ReferencesQuery(
                     "document_manager_editorial_draft_genre_forms",
-                    "genre_form_authority_terms")));
+                    "apologia_genre_form_terms")));
         Assert.Equal(
             1,
             await ScalarAsync(
                 connectionString,
                 ReferencesQuery(
                     "metadata_review_suggestions",
-                    "genre_form_authority_terms")));
+                    "apologia_genre_form_terms")));
 
         Assert.Equal(
             0,
@@ -334,14 +334,14 @@ public sealed class WorkGenreFormAssignmentTests
                 connectionString,
                 ReferencesQuery(
                     "document_manager_editorial_draft_genre_forms",
-                    "apologia_genre_form_terms")));
+                    "genre_form_authority_terms")));
         Assert.Equal(
             0,
             await ScalarAsync(
                 connectionString,
                 ReferencesQuery(
                     "metadata_review_suggestions",
-                    "apologia_genre_form_terms")));
+                    "genre_form_authority_terms")));
     }
 
     [Fact]

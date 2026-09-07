@@ -203,13 +203,11 @@ public sealed class GenreFormDiagnosticTests
 
         foreach (var (name, order) in orders)
         {
-            var selectable = order(harness.Policy.Terms)
-                .Where(x => x.Usage == GenreFormPolicyUsage.Selectable)
-                .ToList();
+            var selectable = order(harness.Policy.Terms).ToList();
 
             var apologetic = selectable.FindIndex(
-                x => x.PreferredLabel == "Apologetic writings");
-            var essays = selectable.FindIndex(x => x.PreferredLabel == "Essays");
+                x => x.Code == "apologetic_writing");
+            var essays = selectable.FindIndex(x => x.Code == "essays");
 
             Console.WriteLine(
                 $"{name}: Apologetic writings at {apologetic}, " +

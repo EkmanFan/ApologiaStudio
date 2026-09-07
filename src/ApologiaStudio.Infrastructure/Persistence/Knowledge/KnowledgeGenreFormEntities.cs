@@ -123,7 +123,7 @@ internal sealed class DocumentManagerEditorialDraftGenreFormEntity
 
     public Guid DraftId { get; set; }
 
-    public Guid TermId { get; set; }
+    public Guid ProductTermId { get; set; }
 }
 
 /// <summary>

@@ -44,23 +44,22 @@ public sealed class StructuredGenreFormClassifier(
 
         var policy = await policyProvider.GetActivePolicyAsync(cancellationToken);
 
-        var selectable = policy.SelectableTerms.ToList();
-        if (selectable.Count == 0)
+        if (policy.Terms.Count == 0)
         {
             throw new StructuredGenerationException(
-                "The active Genre/Form profile exposes no selectable term.");
+                "The active Genre/Form taxonomy exposes no term.");
         }
 
         var result = await runtime.GenerateAsync(
             new StructuredGenerationRequest(
                 Purpose,
-                BuildSystemPrompt(selectable),
+                BuildSystemPrompt(policy.Terms),
                 BuildUserPrompt(evidence),
                 BuildResponseSchema()),
             cancellationToken);
 
         var identity = new MetadataReviewAnalysisIdentity(
-            policy.PolicyVersion,
+            policy.TaxonomyVersion,
             PromptVersion,
             Provider,
             result.Model,
@@ -115,7 +114,7 @@ public sealed class StructuredGenreFormClassifier(
             }
 
             suggestions.Add(new RawGenreFormSuggestion(
-                ReadString(element, "authorityId"),
+                ReadString(element, "termCode"),
                 ReadString(element, "justification"),
                 ReadStrings(element, "evidence")));
         }
@@ -141,7 +140,7 @@ public sealed class StructuredGenreFormClassifier(
             }
 
             rejections.Add(new RawGenreFormRejection(
-                ReadString(element, "authorityId"),
+                ReadString(element, "termCode"),
                 ReadString(element, "reason")));
         }
 
@@ -174,7 +173,7 @@ public sealed class StructuredGenreFormClassifier(
     }
 
     private static string BuildSystemPrompt(
-        IReadOnlyList<GenreFormPolicyTerm> selectable)
+        IReadOnlyList<GenreFormPolicyTerm> terms)
     {
         var builder = new StringBuilder();
 
@@ -185,13 +184,13 @@ public sealed class StructuredGenreFormClassifier(
         builder.AppendLine();
         builder.AppendLine(
             "Choose only from the closed list below, and answer with the " +
-            "authorityId exactly as written. Never invent a term or return a " +
-            "label instead of an identifier.");
+            "termCode exactly as written. Never invent a term or return a " +
+            "label instead of a code.");
         builder.AppendLine();
 
-        foreach (var term in selectable)
+        foreach (var term in terms)
         {
-            builder.AppendLine($"{term.AuthorityIdentifier} = {term.PreferredLabel}");
+            builder.AppendLine($"{term.Code} = {term.PreferredLabel}");
         }
 
         builder.AppendLine();
@@ -206,8 +205,8 @@ public sealed class StructuredGenreFormClassifier(
             "- Zero terms is a valid and expected answer. Prefer proposing " +
             "nothing over an approximate classification.");
         builder.AppendLine(
-            "- Never propose both a term and a broader term of it; keep only " +
-            "the most specific applicable one.");
+            "- Propose every term that applies. The list is flat: no term is " +
+            "a broader or narrower form of another.");
         builder.AppendLine(
             "- Translation, language, edition and file format are not " +
             "genre/form.");
@@ -279,14 +278,14 @@ public sealed class StructuredGenreFormClassifier(
                      "items": {
                        "type": "object",
                        "properties": {
-                         "authorityId": { "type": "string" },
+                         "termCode": { "type": "string" },
                          "justification": { "type": "string" },
                          "evidence": {
                            "type": "array",
                            "items": { "type": "string" }
                          }
                        },
-                       "required": ["authorityId", "justification"]
+                       "required": ["termCode", "justification"]
                      }
                    },
                    "consideredButRejected": {
@@ -294,10 +293,10 @@ public sealed class StructuredGenreFormClassifier(
                      "items": {
                        "type": "object",
                        "properties": {
-                         "authorityId": { "type": "string" },
+                         "termCode": { "type": "string" },
                          "reason": { "type": "string" }
                        },
-                       "required": ["authorityId", "reason"]
+                       "required": ["termCode", "reason"]
                      }
                    },
                    "insufficientEvidence": { "type": "boolean" }

@@ -7,11 +7,19 @@ namespace ApologiaStudio.UnitTests.Application.Knowledge;
 /// Validation is deterministic and persistence-free: every case here runs
 /// against a policy value, with no Work, no editorial draft and no database.
 /// </summary>
+/// <remarks>
+/// The policy is the real canonical taxonomy rather than a hand-built fixture,
+/// so a rule can never pass against a vocabulary the product does not ship.
+/// </remarks>
 public sealed class GenreFormClassificationValidatorTests
 {
-    private const string Base = "http://id.loc.gov/authorities/genreForms/";
+    #region Variables and Constants
 
     private static readonly GenreFormClassificationValidator Validator = new();
+
+    #endregion
+
+    #region Methods Vocabulary
 
     [Fact]
     public void Zero_suggestions_is_valid()
@@ -31,8 +39,8 @@ public sealed class GenreFormClassificationValidatorTests
             Raw(
                 suggested:
                 [
-                    Suggestion("gf2015026027", "Sustained defence of a position."),
-                    Suggestion("gf2014026094", "Essay form throughout.")
+                    Suggestion("apologetic_writing", "Sustained defence of a position."),
+                    Suggestion("essays", "Essay form throughout.")
                 ]));
 
         Assert.True(validation.IsValid);
@@ -42,7 +50,7 @@ public sealed class GenreFormClassificationValidatorTests
     [Fact]
     public void An_invented_term_is_rejected_and_never_coerced()
     {
-        // The model returns a plausible label rather than an authority id.
+        // The model returns a plausible label rather than a product code.
         var validation = Validate(
             Raw(suggested: [Suggestion("Commentaries on the Psalms", "Looks apt.")]));
 
@@ -50,53 +58,57 @@ public sealed class GenreFormClassificationValidatorTests
         Assert.Null(validation.Result);
         Assert.Contains(
             validation.Errors,
-            x => x.Failure == GenreFormValidationFailure.UnknownAuthorityTerm);
+            x => x.Failure == GenreFormValidationFailure.UnknownTerm);
     }
 
     [Fact]
-    public void A_structural_term_cannot_be_suggested()
+    public void An_lcgft_identifier_is_not_a_product_term()
     {
-        // AC-MRA-02 and AC-MRA-05.
+        // Alignment is recorded elsewhere; it is never an identity the
+        // assistant may answer with.
         var validation = Validate(
-            Raw(suggested: [Suggestion("gf2015026044", "Religious in nature.")]));
+            Raw(suggested: [Suggestion("gf2014026094", "Essay form.")]));
 
         Assert.False(validation.IsValid);
         Assert.Contains(
             validation.Errors,
-            x => x.Failure == GenreFormValidationFailure.TermNotSelectable);
+            x => x.Failure == GenreFormValidationFailure.UnknownTerm);
     }
 
     [Fact]
-    public void A_broader_term_alongside_its_descendant_is_rejected()
+    public void A_manual_only_term_is_not_refused_by_validation()
     {
-        // Section 16: Hagiographies + Biographies is redundant hierarchy.
+        // The prediction mode bounds the future encoder scope, not what may be
+        // validated: a manual-only term is a legitimate product concept.
+        var validation = Validate(
+            Raw(suggested: [Suggestion("study_guide", "Structured study aid.")]));
+
+        Assert.True(validation.IsValid);
+        Assert.Equal(
+            "study_guide",
+            Assert.Single(validation.Result!.Suggested).Code);
+    }
+
+    [Fact]
+    public void Two_terms_are_never_redundant_in_a_flat_taxonomy()
+    {
+        // Before GF-TAX-5 this pair was a hierarchy violation under LCGFT.
+        // The product taxonomy declares no hierarchy, so both simply stand.
         var validation = Validate(
             Raw(
                 suggested:
                 [
-                    Suggestion("gf2015026032", "A saint's life."),
-                    Suggestion("gf2014026049", "Also a life story.")
-                ]));
-
-        Assert.False(validation.IsValid);
-        Assert.Contains(
-            validation.Errors,
-            x => x.Failure == GenreFormValidationFailure.RedundantHierarchy);
-    }
-
-    [Fact]
-    public void Two_unrelated_terms_on_different_paths_are_not_redundant()
-    {
-        var validation = Validate(
-            Raw(
-                suggested:
-                [
-                    Suggestion("gf2015026032", "A saint's life."),
-                    Suggestion("gf2014026094", "Written as an essay.")
+                    Suggestion("biography", "A life story."),
+                    Suggestion("essays", "Written as essays.")
                 ]));
 
         Assert.True(validation.IsValid);
+        Assert.Equal(2, validation.Result!.Suggested.Count);
     }
+
+    #endregion
+
+    #region Methods Shape
 
     [Fact]
     public void A_duplicated_term_is_rejected()
@@ -105,8 +117,8 @@ public sealed class GenreFormClassificationValidatorTests
             Raw(
                 suggested:
                 [
-                    Suggestion("gf2014026094", "Essay form."),
-                    Suggestion("gf2014026094", "Essay form again.")
+                    Suggestion("essays", "Essay form."),
+                    Suggestion("essays", "Essay form again.")
                 ]));
 
         Assert.False(validation.IsValid);
@@ -120,8 +132,8 @@ public sealed class GenreFormClassificationValidatorTests
     {
         var validation = Validate(
             Raw(
-                suggested: [Suggestion("gf2014026094", "Essay form.")],
-                rejected: [Rejection("gf2014026094", "Not really an essay.")]));
+                suggested: [Suggestion("essays", "Essay form.")],
+                rejected: [Rejection("essays", "Not really an essay.")]));
 
         Assert.False(validation.IsValid);
         Assert.Contains(
@@ -134,7 +146,7 @@ public sealed class GenreFormClassificationValidatorTests
     {
         // AC-MRA-06.
         var validation = Validate(
-            Raw(suggested: [Suggestion("gf2014026094", "   ")]));
+            Raw(suggested: [Suggestion("essays", "   ")]));
 
         Assert.False(validation.IsValid);
         Assert.Contains(
@@ -146,7 +158,7 @@ public sealed class GenreFormClassificationValidatorTests
     public void A_rejection_without_reason_is_rejected()
     {
         var validation = Validate(
-            Raw(rejected: [Rejection("gf2014026094", null)]));
+            Raw(rejected: [Rejection("essays", null)]));
 
         Assert.False(validation.IsValid);
         Assert.Contains(
@@ -162,11 +174,11 @@ public sealed class GenreFormClassificationValidatorTests
             Raw(
                 suggested:
                 [
-                    Suggestion("gf2015026027", "One."),
-                    Suggestion("gf2014026094", "Two."),
-                    Suggestion("gf2015026032", "Three."),
-                    Suggestion("gf2014026191", "Four."),
-                    Suggestion("gf2015026051", "Five.")
+                    Suggestion("apologetic_writing", "One."),
+                    Suggestion("essays", "Two."),
+                    Suggestion("biography", "Three."),
+                    Suggestion("textbook", "Four."),
+                    Suggestion("sermon", "Five.")
                 ]));
 
         Assert.False(validation.IsValid);
@@ -180,7 +192,7 @@ public sealed class GenreFormClassificationValidatorTests
     {
         var validation = Validate(
             Raw(
-                suggested: [Suggestion("gf2014026094", "Essay form.")],
+                suggested: [Suggestion("essays", "Essay form.")],
                 insufficientEvidence: true));
 
         Assert.False(validation.IsValid);
@@ -199,15 +211,15 @@ public sealed class GenreFormClassificationValidatorTests
     }
 
     [Fact]
-    public void A_missing_identifier_is_rejected()
+    public void A_missing_term_code_is_rejected()
     {
         var validation = Validate(
-            Raw(suggested: [Suggestion(null, "No identifier at all.")]));
+            Raw(suggested: [Suggestion(null, "No code at all.")]));
 
         Assert.False(validation.IsValid);
         Assert.Contains(
             validation.Errors,
-            x => x.Failure == GenreFormValidationFailure.MissingAuthorityId);
+            x => x.Failure == GenreFormValidationFailure.MissingTermCode);
     }
 
     [Fact]
@@ -218,8 +230,8 @@ public sealed class GenreFormClassificationValidatorTests
             Raw(
                 suggested:
                 [
-                    Suggestion("gf2014026094", "Essay form."),
-                    Suggestion("gf9999999999", "Invented.")
+                    Suggestion("essays", "Essay form."),
+                    Suggestion("invented_genre", "Invented.")
                 ]));
 
         Assert.False(validation.IsValid);
@@ -233,22 +245,14 @@ public sealed class GenreFormClassificationValidatorTests
         var validation = Validate(Raw());
 
         var identity = validation.Result!.Identity;
-        Assert.Equal("apologia-genre-form-profile-v1", identity.PolicyVersion);
+        Assert.Equal("apologia-genre-form-v1", identity.PolicyVersion);
         Assert.Equal("genre-form-classification/1", identity.PromptVersion);
         Assert.Equal("ollama", identity.ModelProvider);
     }
 
-    [Fact]
-    public void An_authority_uri_resolves_as_well_as_an_identifier()
-    {
-        var validation = Validate(
-            Raw(suggested: [Suggestion(Base + "gf2014026094", "Essay form.")]));
+    #endregion
 
-        Assert.True(validation.IsValid);
-        Assert.Equal(
-            "Essays",
-            Assert.Single(validation.Result!.Suggested).PreferredLabel);
-    }
+    #region Methods Helpers
 
     private static GenreFormClassificationValidation Validate(
         RawGenreFormClassification raw)
@@ -268,23 +272,23 @@ public sealed class GenreFormClassificationValidatorTests
     }
 
     private static RawGenreFormSuggestion Suggestion(
-        string? authorityId,
+        string? termCode,
         string? justification)
     {
-        return new RawGenreFormSuggestion(authorityId, justification, []);
+        return new RawGenreFormSuggestion(termCode, justification, []);
     }
 
     private static RawGenreFormRejection Rejection(
-        string? authorityId,
+        string? termCode,
         string? reason)
     {
-        return new RawGenreFormRejection(authorityId, reason);
+        return new RawGenreFormRejection(termCode, reason);
     }
 
     private static MetadataReviewAnalysisIdentity Identity()
     {
         return new MetadataReviewAnalysisIdentity(
-            "apologia-genre-form-profile-v1",
+            ApologiaGenreFormTaxonomy.Version,
             "genre-form-classification/1",
             "ollama",
             "qwen3.6:27b",
@@ -292,63 +296,20 @@ public sealed class GenreFormClassificationValidatorTests
     }
 
     /// <summary>
-    /// A policy value mirroring the real profile: selectable terms plus the
-    /// structural ancestors needed to detect redundant hierarchy.
+    /// The canonical product taxonomy, projected exactly as the production
+    /// provider projects it.
     /// </summary>
     private static GenreFormPolicySnapshot Policy()
     {
-        var religiousMaterials = Base + "gf2015026044";
-        var informational = Base + "gf2014026114";
-        var creativeNonfiction = Base + "gf2014026077";
-        var biographies = Base + "gf2014026049";
-
         return new GenreFormPolicySnapshot(
-            "apologia-genre-form-profile-v1",
-            [
-                Structural("gf2015026044", "Religious materials"),
-                Structural("gf2014026114", "Informational works"),
-                Structural("gf2014026077", "Creative nonfiction"),
-                Selectable(
-                    "gf2015026027",
-                    "Apologetic writings",
-                    [informational, religiousMaterials]),
-                Selectable("gf2014026191", "Textbooks", []),
-                Selectable("gf2015026051", "Sermons", [religiousMaterials]),
-                Selectable(
-                    "gf2014026049",
-                    "Biographies",
-                    [creativeNonfiction, informational]),
-                Selectable(
-                    "gf2015026032",
-                    "Hagiographies",
-                    [biographies, religiousMaterials, creativeNonfiction, informational]),
-                Selectable(
-                    "gf2014026094",
-                    "Essays",
-                    [creativeNonfiction, informational])
-            ]);
+            ApologiaGenreFormTaxonomy.Version,
+            ApologiaGenreFormTaxonomy.Terms
+                .Select(x => new GenreFormPolicyTerm(
+                    x.Code,
+                    x.PreferredLabel,
+                    x.PredictionMode))
+                .ToList());
     }
 
-    private static GenreFormPolicyTerm Selectable(
-        string identifier,
-        string label,
-        IReadOnlyList<string> ancestors)
-    {
-        return new GenreFormPolicyTerm(
-            Base + identifier,
-            identifier,
-            label,
-            GenreFormPolicyUsage.Selectable,
-            ancestors);
-    }
-
-    private static GenreFormPolicyTerm Structural(string identifier, string label)
-    {
-        return new GenreFormPolicyTerm(
-            Base + identifier,
-            identifier,
-            label,
-            GenreFormPolicyUsage.StructuralOnly,
-            []);
-    }
+    #endregion
 }

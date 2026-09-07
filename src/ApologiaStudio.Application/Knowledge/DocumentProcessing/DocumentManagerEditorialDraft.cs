@@ -36,9 +36,11 @@ public sealed record DocumentManagerEditorialDraft(
     // machine suggestion, and not yet authoritative Work metadata.
     IReadOnlyList<DocumentManagerEditorialDraftGenreForm> GenreForms);
 
+/// <summary>
+/// One Apologia product Genre/Form term selected by the reviewer.
+/// </summary>
 public sealed record DocumentManagerEditorialDraftGenreForm(
-    string AuthorityUri,
-    string AuthorityIdentifier,
+    string Code,
     string PreferredLabel);
 
 public sealed record DocumentManagerEditorialDraftPart(

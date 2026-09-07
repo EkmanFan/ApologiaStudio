@@ -50,7 +50,7 @@ internal sealed class MetadataReviewSuggestionEntity
 
     public Guid AnalysisId { get; set; }
 
-    public Guid TermId { get; set; }
+    public Guid ProductTermId { get; set; }
 
     public string Disposition { get; set; } = string.Empty;
 

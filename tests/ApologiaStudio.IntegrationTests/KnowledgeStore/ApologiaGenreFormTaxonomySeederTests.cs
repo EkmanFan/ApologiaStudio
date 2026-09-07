@@ -138,11 +138,10 @@ public sealed class ApologiaGenreFormTaxonomySeederTests
 
         await SeedAsync(options);
 
-        // Since GF-TAX-4 a Work carries a product term. The two remaining
-        // references — editorial draft and review suggestion — still target the
-        // authority catalogue, and re-pointing them is GF-TAX-5.
+        // Since GF-TAX-5 no business reference targets the authority catalogue:
+        // Work, editorial draft and review suggestion all carry product terms.
         Assert.Equal(
-            2,
+            0,
             await ScalarAsync(
                 connectionString,
                 """
@@ -153,6 +152,7 @@ public sealed class ApologiaGenreFormTaxonomySeederTests
                   ON kcu.constraint_name = rc.constraint_name
                 WHERE tc.table_name = 'genre_form_authority_terms'
                   AND kcu.table_name IN (
+                    'knowledge_work_genre_forms',
                     'document_manager_editorial_draft_genre_forms',
                     'metadata_review_suggestions');
                 """));

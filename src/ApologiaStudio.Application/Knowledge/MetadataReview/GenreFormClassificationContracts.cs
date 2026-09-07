@@ -55,29 +55,33 @@ public sealed record RawGenreFormClassification(
     bool InsufficientEvidence);
 
 public sealed record RawGenreFormSuggestion(
-    string? AuthorityId,
+    string? TermCode,
     string? Justification,
     IReadOnlyList<string> Evidence);
 
 public sealed record RawGenreFormRejection(
-    string? AuthorityId,
+    string? TermCode,
     string? Reason);
 
+/// <summary>
+/// One validated proposal, carrying the Apologia product identity. No LCGFT
+/// URI or authority identifier travels with a suggestion: alignment is a
+/// separate fact and never the identity of what is proposed.
+/// </summary>
 public sealed record GenreFormSuggestion(
-    string AuthorityUri,
-    string AuthorityIdentifier,
+    string Code,
     string PreferredLabel,
     string Justification,
     IReadOnlyList<string> Evidence);
 
 public sealed record GenreFormRejection(
-    string AuthorityUri,
+    string Code,
     string PreferredLabel,
     string Reason);
 
 /// <summary>
 /// A validated classification. Reaching this type means every identifier was
-/// resolved against the active profile; nothing here was coerced.
+/// resolved against the active product taxonomy; nothing here was coerced.
 /// </summary>
 public sealed record GenreFormClassificationResult(
     MetadataReviewAnalysisIdentity Identity,
@@ -87,16 +91,14 @@ public sealed record GenreFormClassificationResult(
 
 public enum GenreFormValidationFailure
 {
-    MissingAuthorityId = 0,
-    UnknownAuthorityTerm = 1,
-    TermNotSelectable = 2,
-    DuplicateSuggestion = 3,
-    SuggestedAndRejected = 4,
-    TooManySuggestions = 5,
-    MissingJustification = 6,
-    MissingRejectionReason = 7,
-    RedundantHierarchy = 8,
-    ContradictoryInsufficientEvidence = 9
+    MissingTermCode = 0,
+    UnknownTerm = 1,
+    DuplicateSuggestion = 2,
+    SuggestedAndRejected = 3,
+    TooManySuggestions = 4,
+    MissingJustification = 5,
+    MissingRejectionReason = 6,
+    ContradictoryInsufficientEvidence = 7
 }
 
 public sealed record GenreFormValidationError(

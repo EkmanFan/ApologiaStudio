@@ -27,8 +27,7 @@ public enum MetadataReviewSuggestionDisposition
 }
 
 public sealed record MetadataReviewSuggestionRecord(
-    string AuthorityUri,
-    string AuthorityIdentifier,
+    string Code,
     string PreferredLabel,
     MetadataReviewSuggestionDisposition Disposition,
     string Justification,
@@ -130,14 +129,14 @@ public interface IMetadataReviewAnalysisStore
 public static class MetadataReviewOutcomeCalculator
 {
     public static MetadataReviewOutcome Determine(
-        IReadOnlyList<string> suggestedAuthorityUris,
-        IReadOnlyList<string> confirmedAuthorityUris)
+        IReadOnlyList<string> suggestedTermCodes,
+        IReadOnlyList<string> confirmedTermCodes)
     {
-        ArgumentNullException.ThrowIfNull(suggestedAuthorityUris);
-        ArgumentNullException.ThrowIfNull(confirmedAuthorityUris);
+        ArgumentNullException.ThrowIfNull(suggestedTermCodes);
+        ArgumentNullException.ThrowIfNull(confirmedTermCodes);
 
-        var suggested = suggestedAuthorityUris.ToHashSet(StringComparer.Ordinal);
-        var confirmed = confirmedAuthorityUris.ToHashSet(StringComparer.Ordinal);
+        var suggested = suggestedTermCodes.ToHashSet(StringComparer.Ordinal);
+        var confirmed = confirmedTermCodes.ToHashSet(StringComparer.Ordinal);
 
         if (suggested.SetEquals(confirmed))
         {

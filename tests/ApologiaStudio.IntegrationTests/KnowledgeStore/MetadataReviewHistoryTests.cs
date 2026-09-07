@@ -15,8 +15,6 @@ namespace ApologiaStudio.IntegrationTests.KnowledgeStore;
 [Collection(PostgreSqlDatabaseCollection.Name)]
 public sealed class MetadataReviewHistoryTests
 {
-    private const string Base = "http://id.loc.gov/authorities/genreForms/";
-
     private static readonly Guid Actor =
         Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
@@ -27,7 +25,7 @@ public sealed class MetadataReviewHistoryTests
 
         try
         {
-            var apologetic = await UriForAsync(connectionString, "Apologetic writings");
+            const string apologetic = "apologetic_writing";
 
             await using var context = new KnowledgeDbContext(options);
             var store = new PostgreSqlMetadataReviewAnalysisStore(context);
@@ -37,11 +35,12 @@ public sealed class MetadataReviewHistoryTests
                 CancellationToken.None);
 
             Assert.Equal(MetadataReviewAnalysisStatus.Valid, analysis.Status);
-            Assert.Equal("apologia-genre-form-profile-v1", analysis.PolicyVersion);
+            Assert.Equal("apologia-genre-form-v1", analysis.PolicyVersion);
             Assert.Equal("ollama", analysis.ModelProvider);
 
             var suggestion = Assert.Single(analysis.SuggestedTerms);
-            Assert.Equal("Apologetic writings", suggestion.PreferredLabel);
+            Assert.Equal("apologetic_writing", suggestion.Code);
+            Assert.Equal("Apologetic writing", suggestion.PreferredLabel);
             Assert.Equal("introduction, p. 3", Assert.Single(suggestion.Evidence));
 
             // The reviewer confirmed exactly what was proposed.
@@ -75,9 +74,9 @@ public sealed class MetadataReviewHistoryTests
 
         try
         {
-            var apologetic = await UriForAsync(connectionString, "Apologetic writings");
-            var essays = await UriForAsync(connectionString, "Essays");
-            var textbooks = await UriForAsync(connectionString, "Textbooks");
+            const string apologetic = "apologetic_writing";
+            const string essays = "essays";
+            const string textbooks = "textbook";
 
             // The reviewer kept one term and added another.
             Assert.Equal(
@@ -166,8 +165,8 @@ public sealed class MetadataReviewHistoryTests
 
         try
         {
-            var apologetic = await UriForAsync(connectionString, "Apologetic writings");
-            var essays = await UriForAsync(connectionString, "Essays");
+            const string apologetic = "apologetic_writing";
+            const string essays = "essays";
 
             await using var context = new KnowledgeDbContext(options);
             var store = new PostgreSqlMetadataReviewAnalysisStore(context);
@@ -198,7 +197,7 @@ public sealed class MetadataReviewHistoryTests
             var superseded = Assert.Single(history, x => x.Id == first.Id);
             Assert.Equal(second.Id, superseded.SupersededByAnalysisId);
             Assert.Equal(
-                "Apologetic writings",
+                "Apologetic writing",
                 Assert.Single(superseded.SuggestedTerms).PreferredLabel);
         }
         finally
@@ -245,18 +244,19 @@ public sealed class MetadataReviewHistoryTests
 
         try
         {
-            var apologetic = await UriForAsync(connectionString, "Apologetic writings");
+            const string apologetic = "apologetic_writing";
 
             // A reviewer selection exists with no analysis at all: manual
             // review never depends on the assistant.
             await ExecuteAsync(
                 connectionString,
                 """
-                INSERT INTO document_manager_editorial_draft_genre_forms (draft_id, term_id)
-                SELECT @draft, id FROM genre_form_authority_terms WHERE authority_uri = @uri
+                INSERT INTO document_manager_editorial_draft_genre_forms
+                    (draft_id, product_term_id)
+                SELECT @draft, id FROM apologia_genre_form_terms WHERE code = @code
                 """,
                 ("draft", draftId),
-                ("uri", apologetic));
+                ("code", apologetic));
 
             await using var context = new KnowledgeDbContext(options);
             var store = new PostgreSqlMetadataReviewAnalysisStore(context);
@@ -312,12 +312,11 @@ public sealed class MetadataReviewHistoryTests
     }
 
     private static GenreFormSuggestion Suggestion(
-        string authorityUri,
+        string termCode,
         string justification)
     {
         return new GenreFormSuggestion(
-            authorityUri,
-            authorityUri[(authorityUri.LastIndexOf('/') + 1)..],
+            termCode,
             "ignored",
             justification,
             ["introduction, p. 3"]);
@@ -326,7 +325,7 @@ public sealed class MetadataReviewHistoryTests
     private static MetadataReviewAnalysisIdentity Identity()
     {
         return new MetadataReviewAnalysisIdentity(
-            "apologia-genre-form-profile-v1",
+            "apologia-genre-form-v1",
             "genre-form-classification/1",
             "ollama",
             "qwen3:8b",
@@ -348,7 +347,7 @@ public sealed class MetadataReviewHistoryTests
             await context.Database.MigrateAsync();
         }
 
-        await EnsureAuthorityAsync(options);
+        await EnsureTaxonomyAsync(options);
 
         var draftId = Guid.NewGuid();
         var submissionId = Guid.NewGuid();
@@ -381,50 +380,21 @@ public sealed class MetadataReviewHistoryTests
         return (options, connectionString, draftId);
     }
 
-    private static async Task EnsureAuthorityAsync(
+    /// <summary>
+    /// Seeds the canonical product taxonomy, which is what a suggestion now
+    /// references. No authority import is needed: history no longer depends on
+    /// LCGFT being present.
+    /// </summary>
+    private static async Task EnsureTaxonomyAsync(
         DbContextOptions<KnowledgeDbContext> options)
     {
         await using var context = new KnowledgeDbContext(options);
 
-        var path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Fixtures",
-            "lcgft-profile-v1-fixture.jsonl");
-
-        var payload = await File.ReadAllBytesAsync(path);
-        var sha256 = Convert.ToHexString(
-            System.Security.Cryptography.SHA256.HashData(payload)).ToLowerInvariant();
-
-        using var content = new MemoryStream(payload, writable: false);
-        var dataset = new Infrastructure.Knowledge.GenreForms
-            .SkosJsonLdGenreFormDatasetReader().Read(content);
-
         await new Infrastructure.Knowledge.GenreForms
-            .PostgreSqlGenreFormAuthorityStore(context).ImportAsync(
-                new Application.Knowledge.GenreForms.GenreFormAuthoritySnapshot(
-                    "lcgft",
-                    "https://id.loc.gov/download/authorities/genreForms.skosrdf.jsonld.gz",
-                    sha256,
-                    new DateTimeOffset(2026, 9, 4, 0, 0, 0, TimeSpan.Zero),
-                    "integration-fixture"),
-                dataset,
-                CancellationToken.None);
-    }
-
-    private static async Task<string> UriForAsync(
-        string connectionString,
-        string preferredLabel)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            "SELECT authority_uri FROM genre_form_authority_terms " +
-            "WHERE preferred_label = @label",
-            connection);
-        command.Parameters.AddWithValue("label", preferredLabel);
-
-        return (string)(await command.ExecuteScalarAsync())!;
+            .PostgreSqlApologiaGenreFormTaxonomySeeder(
+                context,
+                TimeProvider.System)
+            .ApplyAsync(CancellationToken.None);
     }
 
     private static async Task CleanupAsync(string connectionString, Guid draftId)

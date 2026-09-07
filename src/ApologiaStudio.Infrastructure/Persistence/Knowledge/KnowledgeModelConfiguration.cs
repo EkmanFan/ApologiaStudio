@@ -2355,8 +2355,8 @@ internal static class KnowledgeModelConfiguration
             .HasColumnName("draft_id")
             .HasColumnType("uuid")
             .IsRequired();
-        builder.Property(x => x.TermId)
-            .HasColumnName("term_id")
+        builder.Property(x => x.ProductTermId)
+            .HasColumnName("product_term_id")
             .HasColumnType("uuid")
             .IsRequired();
 
@@ -2364,12 +2364,12 @@ internal static class KnowledgeModelConfiguration
             .WithMany()
             .HasForeignKey(x => x.DraftId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne<GenreFormAuthorityTermEntity>()
+        builder.HasOne<ApologiaGenreFormTermEntity>()
             .WithMany()
-            .HasForeignKey(x => x.TermId)
+            .HasForeignKey(x => x.ProductTermId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(x => new { x.DraftId, x.TermId })
+        builder.HasIndex(x => new { x.DraftId, x.ProductTermId })
             .IsUnique()
             .HasDatabaseName("ux_document_manager_editorial_draft_genre_forms");
     }
@@ -2484,8 +2484,8 @@ internal static class KnowledgeModelConfiguration
             .HasColumnName("analysis_id")
             .HasColumnType("uuid")
             .IsRequired();
-        builder.Property(x => x.TermId)
-            .HasColumnName("term_id")
+        builder.Property(x => x.ProductTermId)
+            .HasColumnName("product_term_id")
             .HasColumnType("uuid")
             .IsRequired();
         builder.Property(x => x.Disposition)
@@ -2500,12 +2500,12 @@ internal static class KnowledgeModelConfiguration
             .WithMany()
             .HasForeignKey(x => x.AnalysisId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne<GenreFormAuthorityTermEntity>()
+        builder.HasOne<ApologiaGenreFormTermEntity>()
             .WithMany()
-            .HasForeignKey(x => x.TermId)
+            .HasForeignKey(x => x.ProductTermId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(x => new { x.AnalysisId, x.TermId })
+        builder.HasIndex(x => new { x.AnalysisId, x.ProductTermId })
             .IsUnique()
             .HasDatabaseName("ux_metadata_review_suggestions");
     }
