@@ -93,13 +93,21 @@ internal sealed class GenreFormProfileEntryEntity
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+/// <summary>
+/// The authoritative Genre/Form assignment of a Work.
+/// </summary>
+/// <remarks>
+/// Points at the Apologia product taxonomy, never at an external authority
+/// catalogue: what a Work carries is a product concept, and the alignment of
+/// that concept to LCGFT or BnF is a separate, replaceable fact.
+/// </remarks>
 internal sealed class KnowledgeWorkGenreFormEntity
 {
     public long Id { get; set; }
 
     public Guid WorkId { get; set; }
 
-    public Guid TermId { get; set; }
+    public Guid ProductTermId { get; set; }
 }
 
 /// <summary>

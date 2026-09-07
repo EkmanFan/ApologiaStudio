@@ -51,29 +51,3 @@ public interface IGenreFormProfileSeeder
     Task<GenreFormProfileSeedResult> ApplyAsync(
         CancellationToken cancellationToken);
 }
-
-public sealed record GenreFormAssignmentResult(
-    bool Assigned,
-    string Reason);
-
-public interface IGenreFormAssignmentStore
-{
-    Task<IReadOnlyList<GenreFormTermView>> GetWorkGenreFormsAsync(
-        Guid workId,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Assigns one selectable term to a Work. Refuses a non-selectable term, a
-    /// duplicate pair, and a term that is an ancestor of one already assigned.
-    /// Never persists broader terms implicitly.
-    /// </summary>
-    Task<GenreFormAssignmentResult> AssignAsync(
-        Guid workId,
-        string authorityUri,
-        CancellationToken cancellationToken);
-
-    Task<bool> RemoveAsync(
-        Guid workId,
-        string authorityUri,
-        CancellationToken cancellationToken);
-}

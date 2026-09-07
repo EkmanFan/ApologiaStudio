@@ -2325,8 +2325,8 @@ internal static class KnowledgeModelConfiguration
             .HasColumnName("work_id")
             .HasColumnType("uuid")
             .IsRequired();
-        builder.Property(x => x.TermId)
-            .HasColumnName("term_id")
+        builder.Property(x => x.ProductTermId)
+            .HasColumnName("product_term_id")
             .HasColumnType("uuid")
             .IsRequired();
 
@@ -2334,12 +2334,12 @@ internal static class KnowledgeModelConfiguration
             .WithMany()
             .HasForeignKey(x => x.WorkId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne<GenreFormAuthorityTermEntity>()
+        builder.HasOne<ApologiaGenreFormTermEntity>()
             .WithMany()
-            .HasForeignKey(x => x.TermId)
+            .HasForeignKey(x => x.ProductTermId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(x => new { x.WorkId, x.TermId })
+        builder.HasIndex(x => new { x.WorkId, x.ProductTermId })
             .IsUnique()
             .HasDatabaseName("ux_knowledge_work_genre_forms");
     }

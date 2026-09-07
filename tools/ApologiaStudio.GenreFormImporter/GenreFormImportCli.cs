@@ -163,7 +163,7 @@ public static class GenreFormImportCli
         {
             Console.WriteLine(
                 $"  {item.AuthorityUri}  usage={item.UsageStatus}  " +
-                $"assignments={item.WorkAssignmentCount}  \"{item.PreferredLabel}\"");
+                $"\"{item.PreferredLabel}\"");
         }
     }
 

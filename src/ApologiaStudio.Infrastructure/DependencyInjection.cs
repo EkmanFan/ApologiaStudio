@@ -84,8 +84,8 @@ public static class DependencyInjection
             IGenreFormProfileSeeder,
             PostgreSqlGenreFormProfileSeeder>();
         services.AddScoped<
-            IGenreFormAssignmentStore,
-            PostgreSqlGenreFormAssignmentStore>();
+            IWorkGenreFormAssignmentStore,
+            PostgreSqlWorkGenreFormAssignmentStore>();
         services.AddScoped<
             IGenreFormPolicyProvider,
             KnowledgeStoreGenreFormPolicyProvider>();

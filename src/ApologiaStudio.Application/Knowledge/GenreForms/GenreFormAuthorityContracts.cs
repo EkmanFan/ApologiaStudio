@@ -91,8 +91,7 @@ public sealed record GenreFormProfileReviewItem(
     string PreferredLabel,
     GenreFormAuthorityStatus Status,
     bool PresentInSnapshot,
-    GenreFormUsageStatus UsageStatus,
-    int WorkAssignmentCount);
+    GenreFormUsageStatus UsageStatus);
 
 public sealed record GenreFormAuthorityImportResult(
     Guid SnapshotId,

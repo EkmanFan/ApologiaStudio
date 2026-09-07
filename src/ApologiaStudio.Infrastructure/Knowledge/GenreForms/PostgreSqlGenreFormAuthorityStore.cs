@@ -454,17 +454,16 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
             join entry in context.GenreFormProfileEntries.AsNoTracking()
                 on term.Id equals entry.TermId into entries
             from entry in entries.DefaultIfEmpty()
-            let assignments = context.WorkGenreForms
-                .Count(x => x.TermId == term.Id)
-            where term.Authority == authority &&
-                  (entry != null || assignments > 0)
+            // A Work no longer references an authority term: it carries an
+            // Apologia product term instead. A profile entry is therefore the
+            // only remaining local dependency on this catalogue.
+            where term.Authority == authority && entry != null
             select new
             {
                 term.AuthorityUri,
                 term.PreferredLabel,
                 term.AuthorityStatus,
-                UsageStatus = entry == null ? "excluded" : entry.UsageStatus,
-                Assignments = assignments
+                UsageStatus = entry.UsageStatus
             })
             .ToListAsync(cancellationToken);
 
@@ -482,8 +481,7 @@ public sealed class PostgreSqlGenreFormAuthorityStore(
                     "selectable" => GenreFormUsageStatus.Selectable,
                     "structural_only" => GenreFormUsageStatus.StructuralOnly,
                     _ => GenreFormUsageStatus.Excluded
-                },
-                x.Assignments))
+                }))
             .OrderBy(x => x.PreferredLabel, StringComparer.Ordinal)
             .ToList();
 

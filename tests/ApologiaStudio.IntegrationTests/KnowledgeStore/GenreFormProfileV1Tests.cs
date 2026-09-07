@@ -135,96 +135,6 @@ public sealed class GenreFormProfileV1Tests
     }
 
     [Fact]
-    public async Task Assignments_are_explicit_bounded_and_never_inferred()
-    {
-        var connectionString = KnowledgeStoreTestConnection.Resolve();
-        var options = await PrepareAsync(connectionString);
-
-        await EnsureAuthorityImportedAsync(options);
-
-        await using (var context = new KnowledgeDbContext(options))
-        {
-            await new PostgreSqlGenreFormProfileSeeder(context)
-                .ApplyAsync(CancellationToken.None);
-        }
-
-        var workId = Guid.NewGuid();
-        await SeedWorkAsync(connectionString, workId, "Genre/Form acceptance work");
-
-        try
-        {
-            var apologetic = await UriForAsync(connectionString, "Apologetic writings");
-            var essays = await UriForAsync(connectionString, "Essays");
-            var hagiographies = await UriForAsync(connectionString, "Hagiographies");
-            var biographies = await UriForAsync(connectionString, "Biographies");
-            var religiousMaterials = await UriForAsync(connectionString, "Religious materials");
-
-            await using var context = new KnowledgeDbContext(options);
-            var authority = new PostgreSqlGenreFormAuthorityStore(context);
-            var assignments = new PostgreSqlGenreFormAssignmentStore(context, authority);
-
-            // AC-GF-06: zero assignments is valid.
-            Assert.Empty(
-                await assignments.GetWorkGenreFormsAsync(workId, CancellationToken.None));
-
-            // AC-GF-11 / GF-RULE-13: two independent genres may coexist.
-            Assert.True(
-                (await assignments.AssignAsync(workId, apologetic, CancellationToken.None))
-                .Assigned);
-            Assert.True(
-                (await assignments.AssignAsync(workId, essays, CancellationToken.None))
-                .Assigned);
-
-            var assigned = await assignments.GetWorkGenreFormsAsync(
-                workId,
-                CancellationToken.None);
-            Assert.Equal(2, assigned.Count);
-
-            // AC-GF-08: the same pair cannot be persisted twice.
-            var duplicate = await assignments.AssignAsync(
-                workId,
-                apologetic,
-                CancellationToken.None);
-            Assert.False(duplicate.Assigned);
-
-            // AC-GF-04 / GF-RULE-12: a structural term is not assignable.
-            var structural = await assignments.AssignAsync(
-                workId,
-                religiousMaterials,
-                CancellationToken.None);
-            Assert.False(structural.Assigned);
-
-            // AC-GF-05 and AC-GF-10: assigning a narrower term persists only
-            // that term, and its ancestor may not be added afterwards.
-            Assert.True(
-                (await assignments.AssignAsync(workId, hagiographies, CancellationToken.None))
-                .Assigned);
-
-            var ancestor = await assignments.AssignAsync(
-                workId,
-                biographies,
-                CancellationToken.None);
-            Assert.False(ancestor.Assigned);
-
-            var finalState = await assignments.GetWorkGenreFormsAsync(
-                workId,
-                CancellationToken.None);
-
-            Assert.Equal(3, finalState.Count);
-            Assert.DoesNotContain(finalState, x => x.PreferredLabel == "Biographies");
-        }
-        finally
-        {
-            await ExecuteAsync(
-                connectionString,
-                "DELETE FROM knowledge_work_genre_forms WHERE work_id = @id;" +
-                "DELETE FROM knowledge_works WHERE id = @id;" +
-                "DELETE FROM knowledge_resources WHERE id = @id;",
-                ("id", workId));
-        }
-    }
-
-    [Fact]
     public async Task Recognized_variants_resolve_to_the_authorized_term()
     {
         var connectionString = KnowledgeStoreTestConnection.Resolve();
@@ -309,22 +219,6 @@ public sealed class GenreFormProfileV1Tests
             CancellationToken.None);
     }
 
-    private static async Task<string> UriForAsync(
-        string connectionString,
-        string preferredLabel)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        await using var command = new NpgsqlCommand(
-            "SELECT authority_uri FROM genre_form_authority_terms " +
-            "WHERE preferred_label = @label",
-            connection);
-        command.Parameters.AddWithValue("label", preferredLabel);
-
-        return (string)(await command.ExecuteScalarAsync())!;
-    }
-
     private static async Task<string> LabelForVariantAsync(
         string connectionString,
         string variant)
@@ -343,25 +237,6 @@ public sealed class GenreFormProfileV1Tests
         command.Parameters.AddWithValue("variant", variant);
 
         return (string)(await command.ExecuteScalarAsync())!;
-    }
-
-    private static async Task SeedWorkAsync(
-        string connectionString,
-        Guid workId,
-        string title)
-    {
-        await ExecuteAsync(
-            connectionString,
-            """
-            INSERT INTO knowledge_resources (id, editorial_review_status, created_at)
-            VALUES (@id, 'approved', now())
-            ON CONFLICT (id) DO NOTHING;
-            INSERT INTO knowledge_works (id, title)
-            VALUES (@id, @title)
-            ON CONFLICT (id) DO NOTHING;
-            """,
-            ("id", workId),
-            ("title", title));
     }
 
     private static async Task<DbContextOptions<KnowledgeDbContext>> PrepareAsync(

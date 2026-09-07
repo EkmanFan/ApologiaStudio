@@ -138,11 +138,11 @@ public sealed class ApologiaGenreFormTaxonomySeederTests
 
         await SeedAsync(options);
 
-        // The three canonical references still target the authority catalogue.
-        // Re-pointing them is a later slice, and doing it here would move
-        // assignments before anything could read the new taxonomy.
+        // Since GF-TAX-4 a Work carries a product term. The two remaining
+        // references — editorial draft and review suggestion — still target the
+        // authority catalogue, and re-pointing them is GF-TAX-5.
         Assert.Equal(
-            3,
+            2,
             await ScalarAsync(
                 connectionString,
                 """
@@ -153,7 +153,6 @@ public sealed class ApologiaGenreFormTaxonomySeederTests
                   ON kcu.constraint_name = rc.constraint_name
                 WHERE tc.table_name = 'genre_form_authority_terms'
                   AND kcu.table_name IN (
-                    'knowledge_work_genre_forms',
                     'document_manager_editorial_draft_genre_forms',
                     'metadata_review_suggestions');
                 """));

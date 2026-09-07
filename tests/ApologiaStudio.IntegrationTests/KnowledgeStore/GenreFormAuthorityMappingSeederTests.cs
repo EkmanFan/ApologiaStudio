@@ -411,10 +411,10 @@ public sealed class GenreFormAuthorityMappingSeederTests
 
         await SeedAsync(options);
 
-        // The three business references still target the authority catalogue.
-        // Re-pointing them is GF-TAX-4.
+        // Since GF-TAX-4 a Work carries a product term. The two remaining
+        // references still target the authority catalogue until GF-TAX-5.
         Assert.Equal(
-            3,
+            2,
             await ScalarAsync(
                 connectionString,
                 """
@@ -425,7 +425,6 @@ public sealed class GenreFormAuthorityMappingSeederTests
                   ON kcu.constraint_name = rc.constraint_name
                 WHERE tc.table_name = 'genre_form_authority_terms'
                   AND kcu.table_name IN (
-                    'knowledge_work_genre_forms',
                     'document_manager_editorial_draft_genre_forms',
                     'metadata_review_suggestions');
                 """));
